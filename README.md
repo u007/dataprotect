@@ -97,4 +97,9 @@ See [SPEC.md](SPEC.md) for full architecture and [AGENTS.md](AGENTS.md) for deve
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
+
+The benchmark corpora this project is measured against are **not** covered by
+this licence and are not redistributed here. Each carries its own terms; see
+[DATASET_LICENSES.md](DATASET_LICENSES.md). Notably, ai4privacy is free only for
+individuals, non-profits, for-profits with 3 or fewer staff, or evaluation.

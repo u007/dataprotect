@@ -34,13 +34,17 @@ strip_frontmatter() {
 }
 
 # Apply the known, intentional bundle-only link rewrites. Only README.md has
-# any; every other source is compared verbatim.
+# any; every other source is compared verbatim. Each rewrite moves a link that
+# would dangle inside docs/concepts/ — there is no LICENSE or DATASET_LICENSES.md
+# at the bundle level, so `../../` is required to reach the repo root.
 normalize() {
   local src="$1"
   if [ "$src" = "README.md" ]; then
     sed \
       -e 's|\[SPEC\.md\](SPEC\.md)|[spec-v1](../decisions/spec-v1.md)|' \
       -e 's|\[AGENTS\.md\](AGENTS\.md)|[development-conventions](development-conventions.md)|' \
+      -e 's|\[LICENSE\](LICENSE)|[licence](../../LICENSE)|' \
+      -e 's|\[DATASET_LICENSES\.md\](DATASET_LICENSES\.md)|[dataset licences](../../DATASET_LICENSES.md)|' \
       "$src"
   else
     cat "$src"

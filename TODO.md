@@ -119,10 +119,12 @@ them as gaps.
 - [ ] Module path is `dataprotect`, which is not a valid import path for
       third-party consumers (`go get dataprotect` cannot resolve it). Rename to a
       domain-qualified path before publishing.
-- [ ] **Choose and add a LICENSE.** The repository has no licence file, which
-      means "all rights reserved" by default: nobody may legally reuse this code.
-      Researched options are in the summary below. This blocks publishing
-      independently of the module-path rename.
+- [x] **LICENSE: MIT.** `LICENSE` exists with `Copyright (c) 2026 Mercstudio`.
+      Chosen over Apache-2.0 because the module has zero dependencies, so
+      Apache's patent grant buys less here, and MIT is the most common licence in
+      the Go ecosystem, which lowers the friction for outside contributions.
+      The datasets measured against are explicitly NOT covered by it — see
+      DATASET_LICENSES.md, which is the record of their separate terms.
 - [x] **Fetch scripts for the benchmark corpora.** `scripts/fetch-dataset.sh`
       exists: `list`, `info <name>`, `fetch <name> [--dry-run]`, `fetch-all`.
       It pins an explicit commit SHA per dataset (a floating `main` would let the
