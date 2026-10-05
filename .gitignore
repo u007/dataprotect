@@ -1,0 +1,74 @@
+# Binaries. Root-anchored so a source directory named piiscrub cannot be
+# mistaken for a build output; the module currently produces no binary, but
+# `go build` in the root would write one.
+/piiscrub
+/piiscrub.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Coverage
+*.out
+*.prof
+*.cover
+coverage*
+cover.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Environment variables. .env holds real secrets and must never be committed;
+# .env.example is the committed template and is re-admitted explicitly below,
+# because a broader pattern such as `.env*` would otherwise swallow it.
+/.env
+.env.local
+/.env.*.local
+!.env.example
+
+# Benchmark output
+*.bench
+benchstat.txt
+
+# OS / editor
+*~
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Knowledge-bundle lock file. Empty and machine-local: it marks the bundle as
+# being written by a live doc_write, carries no content, and committing it would
+# produce a spurious diff on every doc update.
+/docs/.okf.lock
+
+# dlib / ML model weights, downloaded not authored. Root-anchored so a source
+# package that happens to be named models/ is not silently ignored.
+/models/
+*.mmod
+
+# Downloaded benchmark corpora. NOTHING from an external dataset is committed to
+# this repository: each is fetched by a script under scripts/ and scored locally.
+# That is a licensing decision as much as a size one — keeping the data out of
+# the tree is what stops a dataset's share-alike terms (ai4privacy is CC-BY-SA)
+# from attaching to this source code.
+/testdata/benchmarks/
+/testdata/external/
+/datasets/
+
+# The hand-labelled seed set under testdata/golden/ is deliberately NOT ignored
+# and must be committed. It is authored here from synthetic example text, not
+# derived from any corpus, so it carries no third-party terms.
+
+# NOTE: there is intentionally no LICENSE file yet — see TODO.md. Add one before
+# publishing; `go get dataprotect` cannot resolve the bare module path either.

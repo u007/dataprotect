@@ -1,0 +1,135 @@
+[
+  {
+    "id": "pos-email-simple",
+    "note": "Plain business email in a support reply.",
+    "text": "Hi, please confirm the receipt to billing@acme-supply.example so we can release the invoice.",
+    "entities": [
+      { "type": "EMAIL", "value": "billing@acme-supply.example" }
+    ]
+  },
+  {
+    "id": "pos-email-plus-tag",
+    "note": "Subaddress and plus-tag; the label covers only the address, not the trailing punctuation.",
+    "text": "Escalations go to ops+oncall@northwind-logistics.example, not to the shared inbox.",
+    "entities": [
+      { "type": "EMAIL", "value": "ops+oncall@northwind-logistics.example" }
+    ]
+  },
+  {
+    "id": "pos-phone-us-dashed",
+    "note": "US number in prose. Expects the recognizer to report the whole run including separators.",
+    "text": "Our depot line is 555-123-4567 if the shipment is late again.",
+    "entities": [
+      { "type": "PHONE", "value": "555-123-4567" }
+    ]
+  },
+  {
+    "id": "pos-phone-parenthesised",
+    "note": "Parenthesised area code. The label is the whole number including the open paren. The detector currently drops the leading '(' — the pattern's \\b anchor cannot match between a space and a non-word character — so this case is an exact-match miss that overlap matching still credits. Recorded rather than relabelled; see TODO.md.",
+    "text": "Call (555) 867-5309 before noon so the transfer can be arranged.",
+    "entities": [
+      { "type": "PHONE", "value": "(555) 867-5309" }
+    ]
+  },
+  {
+    "id": "pos-ssn",
+    "note": "US social security number in an HR note.",
+    "text": "HR recorded 123-45-6789 against the onboarding form, pending verification.",
+    "entities": [
+      { "type": "SSN", "value": "123-45-6789" }
+    ]
+  },
+  {
+    "id": "pos-ip-v4",
+    "note": "Dotted-quad IPv4 in a server address.",
+    "text": "The nightly export job connects to 192.168.10.42 over the private subnet.",
+    "entities": [
+      { "type": "IP_ADDRESS", "value": "192.168.10.42" }
+    ]
+  },
+  {
+    "id": "pos-url-http",
+    "note": "Plain http URL. Expects the recognizer to stop before the sentence period.",
+    "text": "See https://acme.example.com/status for the current incident summary.",
+    "entities": [
+      { "type": "URL", "value": "https://acme.example.com/status" }
+    ]
+  },
+  {
+    "id": "pos-card-luhn-valid",
+    "note": "Card number that passes the Luhn checksum, spaced in fours.",
+    "text": "The customer charged 4111 1111 1111 1111 twice; both need refunding.",
+    "entities": [
+      { "type": "CREDIT_CARD", "value": "4111 1111 1111 1111" }
+    ]
+  },
+  {
+    "id": "pos-multi-type-order",
+    "note": "Three types in one text, labelled in reading order.",
+    "text": "Send the invoice to finance@contoso.example, copy ap@contoso.example, and file it under PO-2026-0041.",
+    "entities": [
+      { "type": "EMAIL", "value": "finance@contoso.example" },
+      { "type": "EMAIL", "value": "ap@contoso.example" }
+    ]
+  },
+  {
+    "id": "neg-prose-no-pii",
+    "note": "Ordinary operational prose. Numbers present but no PII.",
+    "text": "The depot closed early because two of the three forklifts were out of service and the night shift had already left.",
+    "entities": []
+  },
+  {
+    "id": "neg-order-number",
+    "note": "Order and invoice numbers that look digit-heavy but are not PII.",
+    "text": "Order 4821-9930 was invoiced under reference INV-2026-0041 and closed on the third attempt.",
+    "entities": []
+  },
+  {
+    "id": "neg-version-string",
+    "note": "Versions, ports and build numbers that must not be read as IPs or phone numbers.",
+    "text": "Build 1.4.2 shipped against schema 3.1 and listens on port 8080 in staging.",
+    "entities": []
+  },
+  {
+    "id": "pos-card-bare-16-digit",
+    "note": "Regression case for the historical phone-vs-card defect. A bare 16-digit run has no non-digit boundary, so the phone recognizer's \\b anchors cannot match it at all and the CARD must win. Unanchored, the phone pattern would match the first ten digits, score 0.98 against the card's 0.95, and take the span — a precision loss and a mis-typed entity. Mutation-verified: removing the \\b anchors fails this case.",
+    "text": "Card 4111111111111111 was charged to the account yesterday.",
+    "entities": [
+      { "type": "CREDIT_CARD", "value": "4111111111111111" }
+    ]
+  },
+  {
+    "id": "pos-card-token-16-digit",
+    "note": "Second regression case for the same defect, in a sentence where the digits are described as an opaque token rather than a card. Keeps the phone recognizer from being weakened without a second witness.",
+    "text": "The rotating token 1234567890123456 expired before the batch finished.",
+    "entities": [
+      { "type": "CREDIT_CARD", "value": "1234567890123456" }
+    ]
+  },
+  {
+    "id": "neg-luhn-failing-card",
+    "note": "16 digits that FAIL the Luhn checksum (verified: 4111111111111112 sums to a non-multiple of 10), so this is correctly a negative case. The detector currently REPORTS it, because NewScrubber never registers checksum.LuhnValidator and the regex card recognizer only checks length 13-19. Recorded as a known false positive rather than relabelled, because the label is right and the detector is wrong. See TODO.md.",
+    "text": "Test fixture 4111 1111 1111 1112 is used by the payment sandbox and is not a real card.",
+    "entities": []
+  },
+  {
+    "id": "neg-url-without-scheme",
+    "note": "A bare hostname with no scheme is not a URL per the recognizer's contract.",
+    "text": "The internal mirror lives at mirror.internal.example and is not reachable from outside the VPC.",
+    "entities": []
+  },
+  {
+    "id": "neg-rfc-example-address",
+    "note": "Documentation-style addresses. These are real matches for the email pattern, so this case is deliberately NOT labelled as a negative for EMAIL; it records that example addresses are detected.",
+    "text": "The RFC reserves example.com and example.net for documentation, along with user@example.com.",
+    "entities": [
+      { "type": "EMAIL", "value": "user@example.com" }
+    ]
+  },
+  {
+    "id": "neg-short-digits",
+    "note": "Small numbers that are neither phone numbers nor cards.",
+    "text": "Warehouse bay 42 received 118 units on Tuesday and 76 on Wednesday, for a week total of 194.",
+    "entities": []
+  }
+]

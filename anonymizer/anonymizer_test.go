@@ -1,0 +1,281 @@
+package anonymizer
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	"dataprotect/operators"
+	"dataprotect/recognizers"
+)
+
+// span builds an entity for the first occurrence of value in text. Hand-counting
+// byte offsets in test literals is error-prone and silently produces spans that
+// slice the surrounding prose.
+func span(text, value string, entityType recognizers.EntityType) recognizers.Entity {
+	start := strings.Index(text, value)
+	if start < 0 {
+		panic("test value not present in text: " + value)
+	}
+	return recognizers.Entity{
+		Type:       entityType,
+		Start:      start,
+		End:        start + len(value),
+		Text:       value,
+		Confidence: 0.99,
+	}
+}
+
+func TestAnonymizeEmpty(t *testing.T) {
+	a := New()
+	got, err := a.Anonymize(context.Background(), "text", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "text" {
+		t.Errorf("got %q, want %q", got, "text")
+	}
+}
+
+func TestAnonymizePerType(t *testing.T) {
+	a := New()
+	a.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
+	a.SetOperator(recognizers.EntityPhone, operators.NewMaskOperator("***-***-####"))
+
+	text := "mail a@b.com or call 5551234567"
+	entities := []recognizers.Entity{
+		span(text, "a@b.com", recognizers.EntityEmail),
+		span(text, "5551234567", recognizers.EntityPhone),
+	}
+
+	got, err := a.Anonymize(context.Background(), text, entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "mail <EMAIL> or call ***-***-4567"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// An entity type with no configured operator and no default must pass through
+// untouched rather than being dropped or silently blanked.
+func TestAnonymizeUnconfiguredTypePassesThrough(t *testing.T) {
+	a := New()
+	a.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
+
+	text := "mail a@b.com ip 8.8.8.8"
+	entities := []recognizers.Entity{
+		span(text, "a@b.com", recognizers.EntityEmail),
+		span(text, "8.8.8.8", recognizers.EntityIP),
+	}
+
+	got, err := a.Anonymize(context.Background(), text, entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "mail <EMAIL> ip 8.8.8.8"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestAnonymizeDefaultOperator(t *testing.T) {
+	a := New(WithDefaultOperator(operators.NewRedactOperator()))
+	a.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
+
+	text := "mail a@b.com ip 8.8.8.8"
+	entities := []recognizers.Entity{
+		span(text, "a@b.com", recognizers.EntityEmail),
+		span(text, "8.8.8.8", recognizers.EntityIP),
+	}
+
+	got, err := a.Anonymize(context.Background(), text, entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "mail <EMAIL> ip [REDACTED]"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// Two operators rewriting the same string must both land. Each replacement
+// changes the text's length, so the engine must splice right-to-left rather than
+// replaying offsets from the original string.
+func TestAnonymizeMultipleTypesAdjustsSpans(t *testing.T) {
+	a := New()
+	a.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
+	a.SetOperator(recognizers.EntitySSN, operators.NewMaskOperator("***-**-####"))
+
+	text := "a@b.com 123456789"
+	entities := []recognizers.Entity{
+		span(text, "a@b.com", recognizers.EntityEmail),
+		span(text, "123456789", recognizers.EntitySSN),
+	}
+
+	got, err := a.Anonymize(context.Background(), text, entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "<EMAIL> ***-**-6789"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// Input order must not matter: the engine sorts by offset before splicing.
+func TestAnonymizeIsOrderIndependent(t *testing.T) {
+	a := New()
+	a.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
+	a.SetOperator(recognizers.EntityPhone, operators.NewMaskOperator("***-***-####"))
+
+	text := "a@b.com then 5551234567"
+	forward := []recognizers.Entity{
+		span(text, "a@b.com", recognizers.EntityEmail),
+		span(text, "5551234567", recognizers.EntityPhone),
+	}
+	reversed := []recognizers.Entity{forward[1], forward[0]}
+
+	want := "<EMAIL> then ***-***-4567"
+	g1, err := a.Anonymize(context.Background(), text, forward)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	g2, err := a.Anonymize(context.Background(), text, reversed)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if g1 != want {
+		t.Errorf("forward order: got %q, want %q", g1, want)
+	}
+	if g2 != want {
+		t.Errorf("reversed order: got %q, want %q", g2, want)
+	}
+}
+
+// A replacement that grows the text must not corrupt a later entity's span.
+func TestAnonymizeGrowthReplacement(t *testing.T) {
+	a := New()
+	a.SetOperator(recognizers.EntityIP, operators.NewReplaceOperator("<A-VERY-LONG-IP-PLACEHOLDER>"))
+
+	text := "ip 8.8.8.8 and email a@b.com"
+	entities := []recognizers.Entity{
+		span(text, "8.8.8.8", recognizers.EntityIP),
+		span(text, "a@b.com", recognizers.EntityEmail),
+	}
+	// Email is unconfigured, so it must survive intact after the IP grows.
+	got, err := a.Anonymize(context.Background(), text, entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(got, "a@b.com") {
+		t.Errorf("later entity was corrupted by the earlier replacement: %q", got)
+	}
+	if !strings.HasPrefix(got, "ip <A-VERY-LONG-IP-PLACEHOLDER> and email ") {
+		t.Errorf("got %q, wrong prefix", got)
+	}
+}
+
+func TestAnonymizeRejectsOutOfBoundsSpan(t *testing.T) {
+	a := New()
+	a.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
+
+	_, err := a.Anonymize(context.Background(), "short", []recognizers.Entity{
+		{Type: recognizers.EntityEmail, Start: 0, End: 999, Text: "short", Confidence: 0.99},
+	})
+	if err == nil {
+		t.Fatal("expected an error for an out-of-bounds span, got nil")
+	}
+	if !strings.Contains(err.Error(), "out of bounds") {
+		t.Errorf("error %q does not explain the out-of-bounds span", err)
+	}
+}
+
+// TestAnonymizeManyEntitiesIsDeterministic is the regression guard for the
+// original defect: entities were grouped into a map by type and the groups were
+// processed in random order, each replaying byte offsets computed against the
+// ORIGINAL string. Whichever type the runtime happened to iterate first shifted
+// the text and corrupted every later span, so the output differed run to run.
+//
+// Every entity below has a different replacement LENGTH (a 7-char email
+// placeholder, a 12-char phone mask, a 10-char SSN mask, a 10-char redaction), so
+// a single pass in the wrong order is enough to corrupt the result. Run with
+// -count=50: map iteration order is randomised per run, so one pass cannot
+// distinguish a correct implementation from a lucky one.
+func TestAnonymizeManyEntitiesIsDeterministic(t *testing.T) {
+	a := New()
+	a.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
+	a.SetOperator(recognizers.EntityPhone, operators.NewMaskOperator("***-***-####"))
+	a.SetOperator(recognizers.EntitySSN, operators.NewMaskOperator("***-**-####"))
+	a.SetOperator(recognizers.EntityIP, operators.NewRedactOperator())
+
+	text := "aaa a@b.com bbb 5551234567 ccc 123-45-6789 ddd 8.8.8.8 eee"
+	entities := []recognizers.Entity{
+		span(text, "a@b.com", recognizers.EntityEmail),
+		span(text, "5551234567", recognizers.EntityPhone),
+		span(text, "123-45-6789", recognizers.EntitySSN),
+		span(text, "8.8.8.8", recognizers.EntityIP),
+	}
+	want := "aaa <EMAIL> bbb ***-***-4567 ccc ***-**-6789 ddd [REDACTED] eee"
+
+	ctx := context.Background()
+	for i := 0; i < 50; i++ {
+		got, err := a.Anonymize(ctx, text, entities)
+		if err != nil {
+			t.Fatalf("iteration %d: unexpected error: %v", i, err)
+		}
+		if got != want {
+			t.Fatalf("iteration %d:\n got %q\nwant %q", i, got, want)
+		}
+	}
+}
+
+// Adjacent entities with no separator between them: the right-hand span starts
+// exactly where the left-hand one ends, which is where an off-by-one in the
+// splice would truncate or duplicate a character.
+func TestAnonymizeAdjacentEntities(t *testing.T) {
+	a := New()
+	a.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<E>"))
+	a.SetOperator(recognizers.EntityIP, operators.NewReplaceOperator("<IP>"))
+
+	text := "a@b.com8.8.8.8"
+	entities := []recognizers.Entity{
+		span(text, "a@b.com", recognizers.EntityEmail),
+		span(text, "8.8.8.8", recognizers.EntityIP),
+	}
+	if entities[0].End != entities[1].Start {
+		t.Fatalf("test setup wrong: spans are not adjacent (%d, %d)", entities[0].End, entities[1].Start)
+	}
+
+	got, err := a.Anonymize(context.Background(), text, entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "<E><IP>" {
+		t.Errorf("got %q, want %q", got, "<E><IP>")
+	}
+}
+
+// Two entities of the same type must both be rewritten, including when one
+// replacement is a different length from the other.
+func TestAnonymizeRepeatedTypeDifferentLengths(t *testing.T) {
+	a := New()
+	a.SetOperator(recognizers.EntityEmail, operators.NewHashOperator(8))
+
+	text := "a@x.com and b@yyyyyyyy.com"
+	entities := []recognizers.Entity{
+		span(text, "a@x.com", recognizers.EntityEmail),
+		span(text, "b@yyyyyyyy.com", recognizers.EntityEmail),
+	}
+
+	got, err := a.Anonymize(context.Background(), text, entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// SHA-256 prefixes of "a@x.com" and "b@yyyyyyyy.com".
+	want := "478abec7 and bb9819d3"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
