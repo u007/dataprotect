@@ -123,12 +123,16 @@ them as gaps.
       means "all rights reserved" by default: nobody may legally reuse this code.
       Researched options are in the summary below. This blocks publishing
       independently of the module-path rename.
-- [ ] **Write fetch scripts for the benchmark corpora.** Now that
-      DATASET_LICENSES.md records the terms, the remaining work is a
-      `scripts/fetch-*.sh` per dataset that downloads into an ignored directory
-      and prints the dataset version for citation. Order: Nemotron-PII and
-      gretelai synthetic PII first (clean synthetic corpora), then the
-      restricted ones for local evaluation only.
+- [x] **Fetch scripts for the benchmark corpora.** `scripts/fetch-dataset.sh`
+      exists: `list`, `info <name>`, `fetch <name> [--dry-run]`, `fetch-all`.
+      It pins an explicit commit SHA per dataset (a floating `main` would let the
+      corpus change under a published number), records `PROVENANCE.txt` on
+      success, aborts on a partial download, and **refuses to download into any
+      path git would track** — that guard is what keeps dataset terms out of this
+      repository. `fetch-all` skips the restricted corpora. Land in
+      `testdata/external/` (override with `DATAPROTECT_DATA_DIR`).
+      **Remaining:** a converter from each corpus's schema to `golden.Case`, and
+      a scoring mode that reads the corpus instead of `testdata/golden/`.
 
 ## Docs bundle follow-ups
 

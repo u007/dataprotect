@@ -63,6 +63,79 @@ This matters: it is the reason the CI gate can run on every commit without a
 licence obligation, and the reason a future contributor can add cases without
 wondering whether a dataset's share-alike clause now applies to the repo.
 
+## How these licences affect THIS repository's licence
+
+Short answer: **for local evaluation only, they do not affect it at all.** The
+code keeps whatever licence you choose. This section explains why, and names the
+specific acts that would change the answer.
+
+**Not legal advice.** This is the structural analysis that follows from the terms
+recorded above. For a commercial launch, have counsel confirm it.
+
+### 1. Using a corpus locally does not touch your code licence
+
+Tuning regexes or operators against a corpus does not make your code a derivative
+of it. Copyright attaches to copies and adaptations, not to running something or
+measuring your detector against it. Neither a permissive licence (CC-BY, Apache)
+nor a restrictive one (ai4privacy's) obtains any control over code that was never
+derived from their data.
+
+The one thing that DOES bind you is the licence's *own* conditions on use. For
+most rows that is only attribution, which you discharge by citing the dataset and
+version. For ai4privacy it is different — see §3.
+
+### 2. Copying data into the repo is what triggers terms
+
+This is the line. Two things count as redistribution:
+
+- committing corpus files, or any extract of them, into the repository;
+- pasting corpus text or annotations into `testdata/golden/seed.json`, a test, a
+  doc, an issue, or a commit message.
+
+Committing a case from a CC-BY-SA corpus can attach share-alike obligations to
+what you distribute, so it can propagate to this repository's code. That is the
+mechanism by which a dataset's terms could reach your licence — and the reason
+`scripts/fetch-dataset.sh` refuses to download anywhere git would track.
+
+**Safe alternatives:** report counts, metrics and dataset IDs; re-author an
+equivalent case from scratch in your own words; or reference the corpus by
+citation only. Metric numbers are facts and are not protected expression, so
+"exact P=0.8571 R=0.9231 on Nemotron-PII @b70ffaf" is publishable as is.
+
+### 3. ai4privacy is the one row where "just using it" is restricted
+
+Its terms are a *use* licence, not merely a redistribution licence. Free use
+requires qualifying as an individual, a non-profit, a for-profit with 3 or fewer
+staff, or an evaluation. A larger company needs a paid corporate licence **to use
+it at all**, locally included, and derivatives may not be sold or sublicensed. So
+for this dataset, local use is not automatically outside the terms. Keep it out of
+the repo entirely and confirm eligibility before fetching.
+
+### 4. Training a model is a separate analysis
+
+Fine-tuning on a corpus is a different question from evaluating against one, and
+several rows here (CC-BY-SA constituents, Reuters-derived CoNLL) are not obviously
+clear for training. That case needs its own review; nothing in this repository
+depends on it today.
+
+### 5. dlib model weights are separate from dlib's code licence
+
+The library is Boost (permissive, commercial-friendly). The pretrained weights
+carry their own terms, some non-commercial. Verify per weight file before
+bundling, which is also why `/models/` is git-ignored and the TODO entry asks for
+a bundling decision.
+
+### Rules to keep
+
+1. Download to an ignored directory; never commit a corpus. Enforced by
+   `scripts/fetch-dataset.sh`, which aborts if the target is not git-ignored.
+2. Never copy corpus content into `testdata/golden/`. That set is authored here
+   and must stay corpus-free, or the repo inherits terms.
+3. Cite dataset name, version and licence in any published benchmark result.
+4. Treat a dataset's *use* conditions as binding even for local evaluation.
+5. If a licence question is ever unclear, leave the data out. It costs one
+   benchmark run; the alternative costs control of your own licence.
+
 ## Adding a dataset
 
 1. Record it in this table with the licence, verified from the dataset card or
