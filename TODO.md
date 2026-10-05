@@ -52,9 +52,18 @@
       reflected in those numbers (see the Luhn and parenthesised-phone entries);
       fixing them raises the baseline instead of breaking the gate.
       **Remaining:** grow toward ~500 cases and re-tighten the thresholds each
-      time; the real corpora (ai4privacy, Kaggle PII, PII-Bench) are the
-      intended source and still need a licence review (ai4privacy is CC-BY-SA)
-      plus download scripts.
+      time; the real corpora are the intended source. **Licence review is DONE —
+      see DATASET_LICENSES.md.** It corrected a wrong claim here: ai4privacy is
+      NOT CC-BY-SA, it is a custom dual-tier licence (free for individuals,
+      for-profits of ≤3 staff, non-profits, or evaluation; larger profit-oriented
+      organisations must buy a corporate licence, and derivatives may not be
+      sublicensed). ai4privacy should therefore be AVOIDED for anything
+      commercial. Start instead with `nvidia/Nemotron-PII` (CC-BY 4.0) and
+      `gretelai/synthetic_pii_finance_multilingual` (Apache-2.0), both clean
+      synthetic corpora. Treat PIIBench's `apache-2.0` tag as unreliable — its own
+      card says constituent licences govern, and it includes CoNLL-2003 and
+      ai4privacy. Still to do: fetch scripts that download to an ignored
+      directory, and never commit a corpus.
 - [ ] **Context boosting accuracy still unmeasured.** The golden gate runs
       `NewScrubber`, which does NOT enable `WithContextBoost()`. Boosting is
       wired and tested for wiring only, and the gate above would not notice if
@@ -110,6 +119,16 @@ them as gaps.
 - [ ] Module path is `dataprotect`, which is not a valid import path for
       third-party consumers (`go get dataprotect` cannot resolve it). Rename to a
       domain-qualified path before publishing.
+- [ ] **Choose and add a LICENSE.** The repository has no licence file, which
+      means "all rights reserved" by default: nobody may legally reuse this code.
+      Researched options are in the summary below. This blocks publishing
+      independently of the module-path rename.
+- [ ] **Write fetch scripts for the benchmark corpora.** Now that
+      DATASET_LICENSES.md records the terms, the remaining work is a
+      `scripts/fetch-*.sh` per dataset that downloads into an ignored directory
+      and prints the dataset version for citation. Order: Nemotron-PII and
+      gretelai synthetic PII first (clean synthetic corpora), then the
+      restricted ones for local evaluation only.
 
 ## Docs bundle follow-ups
 
