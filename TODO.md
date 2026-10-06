@@ -162,6 +162,14 @@ them as gaps.
       `testdata/external/` (override with `DATAPROTECT_DATA_DIR`).
       **Remaining:** a converter from each corpus's schema to `golden.Case`, and
       a scoring mode that reads the corpus instead of `testdata/golden/`.
+      **Trap (2026-10-06): a naive converter inflates FP.** `scorePair`
+      (`golden/golden.go:196-212`) counts a prediction as FP unless it matches a
+      gold label of the SAME type (`p.Type != g.Type`), so a corpus labelling only
+      PERSON/ORG/LOC scores a correct EMAIL or CREDIT_CARD detection as a false
+      positive. The converter must carry that corpus's label schema and report
+      out-of-schema detections separately, not as FP. To measure FP directly, use
+      plain negatives instead — `Case` supports them (`golden/golden.go:46`), and
+      with no gold labels every detection really is a false positive.
 
 ## Docs bundle follow-ups
 
