@@ -100,10 +100,10 @@
   },
   {
     "id": "pos-card-token-16-digit",
-    "note": "Second regression case for the same defect, in a sentence where the digits are described as an opaque token rather than a card. Keeps the phone recognizer from being weakened without a second witness.",
-    "text": "The rotating token 1234567890123456 expired before the batch finished.",
+    "note": "Second regression case for the phone-vs-card \b defect, in a sentence where the digits are described as an opaque token. 5555555555554444 is a Luhn-VALID Mastercard, so the Luhn validator detects it and the card must win over the phone recognizer. (An earlier version of this case used 1234567890123456 and was WRONG: that number fails Luhn, so a checksum-validating detector must reject it, and the case was measuring a card that does not exist. Replaced, not relabelled, because the intent was always a valid card.)",
+    "text": "The rotating token 5555555555554444 expired before the batch finished.",
     "entities": [
-      { "type": "CREDIT_CARD", "value": "1234567890123456" }
+      { "type": "CREDIT_CARD", "value": "5555555555554444" }
     ]
   },
   {

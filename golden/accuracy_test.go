@@ -22,26 +22,31 @@ const minCases = 12
 
 // Gate thresholds.
 //
-// These are the MEASURED baseline, not a target. The seed set is 16 cases, far
+// These are the MEASURED baseline, not a target. The seed set is 18 cases, far
 // too small to claim SPEC.md's ">99% precision/recall"; claiming it here would
 // make the gate a rubber stamp. Each constant is the EXACT measured value, so
 // any regression fails immediately and any improvement is a deliberate
 // threshold bump in this file rather than a silent drift.
 //
-// The measured baseline is exact P=0.8571 R=0.9231 (tp=12 fp=2 fn=1) and
-// overlap P=0.9286 R=1.0000 (tp=13 fp=1 fn=0). The two known defects recorded
-// in the dataset notes — the unregistered Luhn validator and the
-// parenthesised-phone off-by-one — account for all three non-perfect numbers:
-// the card false positive (the one overlap fp), the phone false negative, and
-// the phone false positive. Fixing them therefore RAISES the baseline rather
-// than breaking the gate, which is what makes this gate worth keeping.
+// The measured baseline is exact P=0.9231 R=0.9231 (tp=12 fp=1 fn=1) and
+// overlap P=1.0000 R=1.0000 (tp=13 fp=0 fn=0). Every remaining non-perfect
+// number is the parenthesised-phone case: the phone recognizer drops the
+// leading "(", which is both the one exact false negative and the one exact
+// false positive. Fixing that defect therefore RAISES this baseline rather than
+// breaking the gate, which is what makes the gate worth keeping.
+//
+// This replaced an earlier baseline (exact P=0.8571 R=0.9231, tp=12 fp=2 fn=1)
+// once the checksum validators were wired into the default pipeline. CREDIT_CARD
+// went from P=0.7500 to P=1.0000 and all negative cases became clean, because
+// cards are now validated rather than matched on shape alone.
+//
 // Thresholds are written as the measured tp/(tp+fp) and tp/(tp+fn) ratios
 // rather than as rounded literals. 10/11 is 0.9090909..., so a literal 0.9091
 // is a hair ABOVE the true value and the gate fails on a run that exactly met
 // its baseline — a rounding trap, not a regression. Deriving the constant from
 // the counts it represents makes the comparison exact and self-documenting.
 const (
-	minExactPrecision = 12.0 / 14.0 // tp=12 fp=2  -> 0.8571
+	minExactPrecision = 12.0 / 13.0 // tp=12 fp=1  -> 0.9231
 	minExactRecall    = 12.0 / 13.0 // tp=12 fn=1  -> 0.9231
 	minOverlapRecall  = 13.0 / 13.0 // tp=13 fn=0  -> 1.0000
 )

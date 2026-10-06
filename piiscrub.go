@@ -8,6 +8,7 @@ import (
 	"dataprotect/anonymizer"
 	"dataprotect/operators"
 	"dataprotect/recognizers"
+	"dataprotect/recognizers/checksum"
 	"dataprotect/recognizers/regex"
 )
 
@@ -18,16 +19,35 @@ type Scrubber struct {
 }
 
 // NewScrubber creates a new scrubber with default recognizers and operators.
+//
+// The checksum validators are part of the default pipeline, not an opt-in, and
+// the regex card recognizer is deliberately NOT wired alongside the Luhn one.
+// Wiring both cannot work: for a Luhn-FAILING number the validator emits
+// nothing while the regex recognizer still matches the shape at 0.95, so the
+// false positive survives with nothing to overlap it away. Cards are therefore
+// detected by Luhn alone, which produces identical spans for a valid card
+// (verified for the spaced, hyphenated and plain forms) and none for an
+// invalid one.
+//
+// regex.NewCreditCardRecognizer remains available for callers who want
+// shape-only detection with no checksum, but that is the wrong default for a
+// scrubber: it reports any 13-19 digit run, so a random long number is
+// anonymized as if it were payment data.
+//
+// Because the Luhn validator scores 0.99 against the phone recognizer's 0.98, a
+// greedy phone pattern can no longer be caught by observing which entity wins —
+// the card masks it. That is why TestPhoneRecognizerDoesNotClaimCardDigits
+// asserts at the recognizer level rather than through Analyze.
 func NewScrubber() *Scrubber {
 	a := analyzer.New(analyzer.WithMinConfidence(0.7))
 	a.AddRecognizer(regex.NewEmailRecognizer())
 	a.AddRecognizer(regex.NewPhoneRecognizer())
-	a.AddRecognizer(regex.NewCreditCardRecognizer())
 	a.AddRecognizer(regex.NewSSNRecognizer())
 	a.AddRecognizer(regex.NewIPRecognizer())
 	a.AddRecognizer(regex.NewURLRecognizer())
-	a.AddRecognizer(regex.NewIBANRecognizer())
 	a.AddRecognizer(regex.NewBitcoinRecognizer())
+	a.AddRecognizer(checksum.NewLuhnValidator())
+	a.AddRecognizer(checksum.NewIBANValidator())
 
 	an := anonymizer.New()
 	an.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))

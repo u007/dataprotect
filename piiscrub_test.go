@@ -86,3 +86,103 @@ func TestScrubberEmpty(t *testing.T) {
 		t.Errorf("got %q, want empty", got)
 	}
 }
+
+// The checksum validators must be part of the default pipeline. Without the
+// Luhn validator, regex.CreditCardRecognizer reports ANY 13-19 digit run as a
+// card, so a number that fails Luhn is anonymized as a card number it is not —
+// and worse, a random long digit string is redacted as if it were payment data.
+//
+// This asserts the wiring, not the arithmetic: LuhnValidate and
+// IBANValidate are unit-tested in the checksum package.
+func TestNewScrubberIncludesChecksumValidators(t *testing.T) {
+	s := NewScrubber()
+	var names []string
+	for _, r := range s.analyzer.Recognizers() {
+		names = append(names, r.Name())
+	}
+	want := map[string]bool{
+		"checksum_luhn": false,
+		"checksum_iban": false,
+	}
+	for _, n := range names {
+		if _, ok := want[n]; ok {
+			want[n] = true
+		}
+	}
+	for n, found := range want {
+		if !found {
+			t.Errorf("NewScrubber does not register %s; got recognizers %v", n, names)
+		}
+	}
+}
+
+// A Luhn-FAILING card number must not be reported as a card. This is the
+// end-to-end consequence of registering the validator: the checksum rejects it
+// and the regex recognizer must not paper over that by matching the shape.
+//
+// 4111 1111 1111 1112 differs from the valid 4111 1111 1111 1111 in its final
+// digit, and fails the Luhn check.
+func TestScrubberRejectsLuhnFailingCard(t *testing.T) {
+	s := NewScrubber()
+	text := "Test fixture 4111 1111 1111 1112 is not a real card."
+
+	entities, err := s.Analyze(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, e := range entities {
+		if e.Type == recognizers.EntityCreditCard {
+			t.Errorf("reported a Luhn-failing number as a CREDIT_CARD: %q (span %d-%d)",
+				e.Text, e.Start, e.End)
+		}
+	}
+}
+
+// The positive case must still be detected, or the rejection above would be
+// satisfied by breaking cards entirely rather than by validating them.
+func TestScrubberAcceptsLuhnValidCard(t *testing.T) {
+	s := NewScrubber()
+	text := "The customer charged 4111 1111 1111 1111 twice."
+
+	entities, err := s.Analyze(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	found := false
+	for _, e := range entities {
+		if e.Type == recognizers.EntityCreditCard {
+			found = true
+			if got := text[e.Start:e.End]; got != "4111 1111 1111 1111" {
+				t.Errorf("card span = %q, want %q", got, "4111 1111 1111 1111")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("a Luhn-VALID card was not detected: %+v", entities)
+	}
+}
+
+// A spaced, mod-97-valid IBAN must be found end to end. The checksum validator's
+// candidate finder previously truncated this exact shape and dropped it
+// silently; this pins the user-visible outcome, not just the validator.
+func TestScrubberFindsSpacedIBAN(t *testing.T) {
+	s := NewScrubber()
+	text := "pay to GB82 WEST 1234 5698 7654 32 today"
+
+	entities, err := s.Analyze(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	found := false
+	for _, e := range entities {
+		if e.Type == recognizers.EntityIBAN {
+			found = true
+			if got := text[e.Start:e.End]; got != "GB82 WEST 1234 5698 7654 32" {
+				t.Errorf("IBAN span = %q, want %q", got, "GB82 WEST 1234 5698 7654 32")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("a valid spaced IBAN was not detected: %+v", entities)
+	}
+}

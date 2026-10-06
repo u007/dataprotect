@@ -59,6 +59,18 @@ func (a *Analyzer) AddRecognizer(r recognizers.Recognizer) {
 	a.recognizers = append(a.recognizers, r)
 }
 
+// Recognizers returns the registered recognizers in the order they were added.
+//
+// This exists so a caller can verify which pipeline it wired — notably whether
+// the checksum validators are present, which is not visible from Analyze's
+// results alone: a Luhn-failing card is correctly absent whether the validator
+// rejected it or was never registered.
+func (a *Analyzer) Recognizers() []recognizers.Recognizer {
+	out := make([]recognizers.Recognizer, len(a.recognizers))
+	copy(out, a.recognizers)
+	return out
+}
+
 // Analyze runs all recognizers and returns detected entities.
 //
 // Order matters here. Context boosting is applied FIRST, before the confidence

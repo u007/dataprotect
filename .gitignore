@@ -12,6 +12,14 @@
 # Test binary
 *.test
 
+# Agent/session scratch: permissions, uploads, and other per-machine state that
+# has nothing to do with the library.
+/.ocode/
+/.opencode/
+/.claude/
+/.codex/
+/.aider*
+
 # Coverage
 *.out
 *.prof
