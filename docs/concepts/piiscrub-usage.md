@@ -17,18 +17,19 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 
 ## Features (MVP)
 
-- **8 regex recognizers** — email, phone, credit card, SSN, IP, URL, IBAN, bitcoin
-- **2 checksum validators** — Luhn (credit cards), mod-97 (IBAN). **Not yet wired
-  into the default pipeline**: `NewScrubber` registers only the regex
-  recognizers, so card numbers are matched by shape alone with no checksum. See
-  TODO.md.
+- **8 regex recognizers** — email, phone, SSN, IP, URL, IBAN, bitcoin, plus a
+  shape-only credit-card recognizer
+- **2 checksum validators, wired into the default pipeline** — Luhn (credit
+  cards), mod-97 (IBAN). Cards are detected by Luhn rather than by digit shape,
+  so a long number that fails the checksum is not redacted as payment data.
 - **4 operators** — replace, mask, hash, redact
 - **Structured data** — CSV batch processing
 - **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`)
 - **Measured, not claimed** — a hand-labelled seed dataset and a scoring runner
   gate accuracy in CI. Current baseline over 18 cases: exact-span
-  P=0.8571 R=0.9231. Run `scripts/benchmark.sh`. The seed set is far from the
-  ~500 cases the accuracy targets assume, so treat the numbers as a floor.
+  P=0.9231 R=0.9231, overlap P=1.0000 R=1.0000. Run `scripts/benchmark.sh`.
+  The seed set is far from the ~500 cases the accuracy targets assume, so treat
+  the numbers as a floor.
 - **Zero external dependencies** — stdlib only
 - **~100-200 MB RAM** — vs Presidio's 4 GB
 

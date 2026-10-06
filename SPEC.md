@@ -185,21 +185,22 @@ func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []reco
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
 | Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=0.5000 R=0.5000 |
-| Credit Card | `CREDIT_CARD` | Regex + Luhn (Luhn NOT registered, see TODO) | >99% P&R | P=0.7500 R=1.0000 |
+| Credit Card | `CREDIT_CARD` | Luhn checksum | >99% P&R | P=1.0000 R=1.0000 |
 | SSN | `SSN` | Regex (XXX-XX-XXXX) | >99% P&R | P=1.0000 R=1.0000 |
 | IP Address | `IP_ADDRESS` | Regex (IPv4) | >99% P&R | P=1.0000 R=1.0000 |
 | URL | `URL` | Regex (HTTP/HTTPS) | >99% P&R | P=1.0000 R=1.0000 |
-| IBAN | `IBAN` | Regex + mod-97 (validator NOT registered, see TODO) | >99% P&R | no seed cases |
+| IBAN | `IBAN` | Regex + mod-97 | >99% P&R | no seed cases |
 | Bitcoin | `BITCOIN` | Regex (P2PKH, P2SH, Bech32) | >99% P&R | no seed cases |
 
 **"Target" is a goal for a ~500-case dataset; "Measured" is what
 `scripts/benchmark.sh` reports today over the 18-case seed set.** No target is
-met at the stated level, and two are unmet by the pipeline itself rather than by
-the dataset: the Luhn and IBAN validators are never registered in `NewScrubber`,
-and the phone recognizer mis-sizes parenthesised numbers. Both are recorded in
-TODO.md. The measured column covers EMAIL, PHONE, CREDIT_CARD, SSN, IP_ADDRESS
-and URL only — IBAN and BITCOIN have no seed cases, so their cells read "no seed
-cases" rather than a number, because an absent measurement is not a pass.
+met at the stated level, and the shortfall is now the dataset rather than the
+pipeline: the one remaining defect is the phone recognizer mis-sizing
+parenthesised numbers, recorded in TODO.md. The Luhn and mod-97 validators are
+wired into the default pipeline. The measured column covers EMAIL, PHONE,
+CREDIT_CARD, SSN, IP_ADDRESS and URL only — IBAN and BITCOIN have no seed
+cases, so their cells read "no seed cases" rather than a number, because an
+absent measurement is not a pass.
 
 An earlier version of this table presented ">99% P&R" as though it described the
 recognizers. It described an aspiration for a dataset that did not exist. Only
@@ -208,8 +209,8 @@ the measured column is evidence.
 Note the aggregate is not an average of this table: `PHONE` scores 0.5 on two
 cases, so its figure carries very little weight, while `EMAIL` scores 1.0 across
 five. Aggregate exact precision/recall over the whole seed set is
-P=0.8571 R=0.9231 (tp=12 fp=2 fn=1); overlap matching, which tolerates
-mis-sized spans, gives P=0.9286 R=1.0000. The gap between exact and overlap
+P=0.9231 R=0.9231 (tp=12 fp=1 fn=1); overlap matching, which tolerates
+mis-sized spans, gives P=1.0000 R=1.0000. The gap between exact and overlap
 recall is the parenthesised-phone case, and reporting both is what makes that
 visible.
 
@@ -289,7 +290,7 @@ proves nothing.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: golden dataset is an 18-case seed set (not ~500); Luhn and IBAN validators exist but are not registered in `NewScrubber` |
+| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: golden dataset is an 18-case seed set (not ~500) |
 | 2 | NLP recognizer (prose) | Later |
 | 3 | Secret recognizers (patterns + entropy) | Later |
 | 4 | FPE operator | Later |
@@ -301,14 +302,16 @@ proves nothing.
 ## Success Criteria (MVP)
 
 - [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT MET.**
-      Measured over 18 seed cases: exact P=0.8571 R=0.9231, and per-type
-      PHONE=0.5000/0.5000 and CREDIT_CARD=0.7500/1.0000. The dataset is far too
-      small to support a >99% claim and two pipeline defects are in the way.
-- [ ] Luhn + IBAN checksum validation working — **NOT MET.** Both validators are
-      implemented and tested in `recognizers/checksum`, but `NewScrubber` never
-      registers them, so the default pipeline performs no checksum validation.
-      This is why CREDIT_CARD measures P=0.7500: a Luhn-failing number is
-      reported as a card.
+      Measured over 18 seed cases: exact P=0.9231 R=0.9231, per-type
+      PHONE=0.5000/0.5000 and CREDIT_CARD=1.0000/1.0000. The dataset is far too
+      small to support a >99% claim, and the phone recognizer still mis-sizes
+      parenthesised numbers. Everything else measures 1.0.
+- [x] Luhn + IBAN checksum validation working — **MET.** Both validators are
+      wired into the default pipeline. Cards are detected by Luhn alone: the
+      regex card recognizer is excluded because wiring both cannot work, since
+      for a Luhn-failing number the validator emits nothing while the regex
+      recognizer still matches the shape. CREDIT_CARD went from P=0.7500 to
+      P=1.0000 and all negative cases became clean.
 - [x] 4 operators (replace, mask, hash, redact) working
 - [x] Structured data CSV processing working
 - [x] Full test suite passes

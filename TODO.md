@@ -12,18 +12,6 @@
 
 ## Known gaps in the current MVP
 
-- [ ] **`checksum.LuhnValidator` and `checksum.IBANValidator` are never registered.**
-      `NewScrubber` (piiscrub.go) adds only the eight `recognizers/regex`
-      recognizers. The Luhn validator is therefore dead code in the default
-      pipeline: `regex.CreditCardRecognizer` accepts any 13-19 digit run and
-      scores it 0.95, with no checksum. Found by the seed dataset — case
-      `neg-luhn-failing-card` labels `4111 1111 1111 1112` (verified Luhn-failing)
-      as a negative, and the detector reports it as a CREDIT_CARD false positive.
-      The `len(card) >= 13 && len(card) <= 19` check in that recognizer is
-      unreachable-as-a-filter: the pattern can only ever match 15- or 16-digit
-      runs, verified exhaustively, so widening the window to 6 is an
-      EQUIVALENT MUTANT that no test can catch. Registering the validators is
-      the real fix; the length check is not.
 - [ ] **Phone recognizer drops a leading `(` on parenthesised area codes.**
       The pattern is `\b(?:\+?1[\s.\-]?)?\(?\d{3}\)?...`. A `\b` cannot match
       between a space and a non-word character, so with no preceding word
@@ -45,12 +33,14 @@
       `testdata/golden/seed.json` and the `golden` runner now exist and are
       tested, so the ">99% precision/recall" claim is at last measurable, but
       the seed set is far too small to support that number. Measured baseline is
-      exact P=0.8571 R=0.9231 (tp=12 fp=2 fn=1) and overlap P=0.9286 R=1.0000
-      (tp=13 fp=1 fn=0) over 18 cases — recorded in `golden/accuracy_test.go`
+      exact P=0.9231 R=0.9231 (tp=12 fp=1 fn=1) and overlap P=1.0000 R=1.0000
+      (tp=13 fp=0 fn=0) over 18 cases — recorded in `golden/accuracy_test.go`
       as the gate thresholds, expressed as tp/total ratios so a rounded literal
-      cannot drift above the true value. Two real detector defects are already
-      reflected in those numbers (see the Luhn and parenthesised-phone entries);
-      fixing them raises the baseline instead of breaking the gate.
+      cannot drift above the true value. Every remaining non-perfect number is
+      the parenthesised-phone defect (the one exact FN and the one exact FP), so
+      fixing that raises the baseline instead of breaking the gate. Wiring the
+      checksum validators already lifted this from P=0.8571 and made all six
+      negative cases clean.
       **Remaining:** grow toward ~500 cases and re-tighten the thresholds each
       time; the real corpora are the intended source. **Licence review is DONE —
       see DATASET_LICENSES.md.** It corrected a wrong claim here: ai4privacy is
@@ -98,6 +88,37 @@ them as gaps.
 
 ## Fixed (kept as regression notes)
 
+- **`checksum.LuhnValidator` and `checksum.IBANValidator` were never registered.**
+  `NewScrubber` wired only the eight `recognizers/regex` recognizers, leaving
+  both validators dead code, so cards were matched on shape alone at 0.95 with
+  no checksum. Found by the seed dataset: `neg-luhn-failing-card` labels
+  `4111 1111 1111 1112` (verified Luhn-failing) as a negative and the detector
+  reported it as a CREDIT_CARD false positive. **Fixed** by wiring the
+  validators into the default pipeline and dropping `regex.CreditCardRecognizer`
+  from it — wiring both cannot work, because for a Luhn-FAILING number the
+  validator emits nothing while the regex recognizer still matches the shape,
+  so the false positive survives with nothing to overlap it away. The regex
+  recognizer remains exported for callers who want shape-only detection.
+  CREDIT_CARD went from P=0.7500 to P=1.0000; all six negative cases are now
+  clean. Mutation-verified: unwiring Luhn, or restoring the regex card
+  recognizer, each fails `TestNewScrubberIncludesChecksumValidators` or
+  `TestScrubberRejectsLuhnFailingCard`.
+  Note: `len(card) >= 13 && len(card) <= 19` in that recognizer was
+  unreachable-as-a-filter — the pattern can only ever match 15- or 16-digit runs,
+  verified exhaustively — so widening that window is an EQUIVALENT MUTANT no
+  test can catch. It was never the real fix.
+- **`checksum.IBANValidator` silently dropped every spaced IBAN.** Found while
+  wiring the entry above, not by the golden dataset. `findIBANCandidates`
+  required exactly four alphanumerics after each space, but an IBAN is at most
+  34 significant characters and 34 is not a multiple of 4, so the closing block
+  of `GB82 WEST 1234 5698 7654 32` is 2 characters and the final space was
+  always rejected. The candidate stopped one character short, the truncated
+  string failed mod-97, and a valid IBAN vanished with no error — passed through
+  unredacted. Every existing test used the unspaced form, which is why it
+  shipped. **Fixed** by accepting a 1-to-4 character block and by rejecting
+  blocks containing lowercase letters, which is what separates an internal space
+  from a space before prose. Mutation-verified both halves.
+
 - The `Operator` interface changed from `Operate(ctx, text, entities) (string,
   error)` to `Replace(ctx, value) (string, error)`. Operators no longer splice
   text; `Anonymizer` owns splicing and rewrites right-to-left. Grouping entities
@@ -138,24 +159,29 @@ them as gaps.
 
 ## Docs bundle follow-ups
 
-Both items below are resolved; recorded here so a later reader does not re-raise
-them as gaps.
+Recorded here so a later reader does not re-raise these as gaps.
 
 - **Fixed: two relative links dangled inside `docs/`.**
   `docs/concepts/piiscrub-usage.md` linked `[SPEC.md](SPEC.md)` and
   `[AGENTS.md](AGENTS.md)`, which resolve inside `docs/concepts/` where neither
   file exists. They now point at `[spec-v1](../decisions/spec-v1.md)` and
-  `[development-conventions](development-conventions.md)`. Those two rewrites are
-  the ONLY intentional body differences between the bundle copies and their root
-  sources.
-- **Fixed: root/bundle drift is now detected.** `scripts/check-docs-sync.sh`
-  compares each bundle body (frontmatter stripped) against its root source and
-  exits non-zero on drift. It applies the two known link rewrites to the root
-  text before comparing, so those are not reported as false positives.
-  Read-only: re-syncing stays a deliberate act — re-copy the body, then re-run
-  `doc_write`. Mutation-verified: appending a line to a bundle body makes it exit
-  1 and print the diff.
-- [ ] **Not yet wired into automation.** This repo has no Makefile or CI, so
-      `scripts/check-docs-sync.sh` only runs when invoked by hand. Add it to CI
-      or a pre-commit hook if either is introduced; until then drift is
-      detectable but not automatically caught.
+  `[development-conventions](development-conventions.md)`. Two later passes added
+  the same fix for two more: `[LICENSE](LICENSE)` becomes `[licence](../../LICENSE)`
+  and `[DATASET_LICENSES.md](DATASET_LICENSES.md)` becomes `[dataset
+  licences](../../DATASET_LICENSES.md)`. These four rewrites are the ONLY
+  intentional body differences between the bundle copy and its root source; every
+  other body byte matches `README.md` exactly.
+- **Deliberately unmonitored: root/bundle drift.** `docs/decisions/spec-v1.md` and
+  `docs/concepts/piiscrub-usage.md` are copies of `SPEC.md` and `README.md`, and
+  `docs/concepts/development-conventions.md` is a copy of `AGENTS.md`, so all three
+  can go stale. Drift already happened once: a concurrent session rewrote both
+  roots minutes after they were copied, leaving the bundle describing a package
+  layout the spec says never existed. A `scripts/check-docs-sync.sh` detector was
+  written and mutation-verified, then removed on 2026-10-05 because this repo has
+  no Makefile, CI or hook — it would never have run, and an unrun check reads as
+  protection that does not actually exist.
+- [ ] **Re-syncing is now a manual obligation.** When `SPEC.md`, `README.md` or
+      `AGENTS.md` changes, re-copy the body into the matching `docs/` file and
+      re-run `doc_write`. Re-apply all four link rewrites above when syncing
+      `docs/concepts/piiscrub-usage.md`, or its links dangle again. Nothing
+      enforces this, which is the accepted cost of keeping the copies.
