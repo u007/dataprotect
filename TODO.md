@@ -98,7 +98,13 @@ them as gaps.
   from it — wiring both cannot work, because for a Luhn-FAILING number the
   validator emits nothing while the regex recognizer still matches the shape,
   so the false positive survives with nothing to overlap it away. The regex
-  recognizer remains exported for callers who want shape-only detection.
+  recognizer stays exported for callers who want shape-only detection.
+  **No coverage was lost:** `checksum.LuhnValidator` produces byte-identical
+  spans to the regex recognizer for every valid format tested — spaced,
+  hyphenated, dotted, bare, mixed separators, Amex 15-digit, and the 16-digit
+  Visa/Mastercard/Discover/JCB test values. The only behavioural differences are
+  the intended ones: a Luhn-failing number and a 17-digit run are now rejected
+  where the regex matched them.
   CREDIT_CARD went from P=0.7500 to P=1.0000; all six negative cases are now
   clean. Mutation-verified: unwiring Luhn, or restoring the regex card
   recognizer, each fails `TestNewScrubberIncludesChecksumValidators` or

@@ -40,17 +40,22 @@ import (
     "dataprotect/anonymizer"
     "dataprotect/operators"
     "dataprotect/recognizers"
+    "dataprotect/recognizers/checksum"
     "dataprotect/recognizers/regex"
 )
 
 func main() {
     ctx := context.Background()
 
-    // Build analyzer
+    // Build analyzer. Cards are detected by the Luhn validator, NOT by the
+    // regex card recognizer: the regex matches any 13-19 digit run on shape
+    // alone, so a number failing the checksum would still be reported and
+    // masked as payment data. Wiring both cannot fix it, because on an invalid
+    // number only the regex entity exists and nothing overlaps it away.
     a := analyzer.New(analyzer.WithMinConfidence(0.7))
     a.AddRecognizer(regex.NewEmailRecognizer())
     a.AddRecognizer(regex.NewPhoneRecognizer())
-    a.AddRecognizer(regex.NewCreditCardRecognizer())
+    a.AddRecognizer(checksum.NewLuhnValidator())
 
     // Build anonymizer
     an := anonymizer.New()
