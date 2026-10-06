@@ -201,6 +201,12 @@ func findIBANCandidates(text string) []ibanCandidate {
 		}
 		// Consume the country code, check digits, then alphanumeric blocks.
 		end := i + 4
+		// significant counts IBAN CHARACTERS, which ISO 13616 caps at 34.
+		// Separating spaces are presentation, not content, so they must not be
+		// counted: doing so inflated the running total, tripped the cap early,
+		// and truncated the candidate before its final block. A valid spaced
+		// IBAN was then dropped silently, because the truncated string failed
+		// mod-97 even though Validate passed on the whole value.
 		significant := 4
 		for end < len(text) {
 			if isLetter(text[end]) || isDigit(text[end]) {
@@ -208,11 +214,23 @@ func findIBANCandidates(text string) []ibanCandidate {
 				significant++
 				continue
 			}
-			// A space continues the IBAN only if four alphanumerics follow it.
-			if text[end] == ' ' && significant+4 <= ibanMaxSignificant &&
-				hasAlphanumBlock(text, end+1, 4) {
+			// A space continues the IBAN only if alphanumerics follow it.
+			//
+			// The block after a space must be 1 to 4 characters, not exactly 4.
+			// Requiring exactly 4 rejected the FINAL space of every IBAN printed
+			// in the conventional format, because the last block is short — an
+			// IBAN is at most 34 significant characters, and 34 is not a multiple
+			// of 4, so the closing group is routinely 2 or 3 characters. The run
+			// therefore stopped one character early, the truncated string failed
+			// mod-97, and a valid IBAN was dropped silently.
+			//
+			// Requiring at least 1 is what keeps prose out: "DE89 3704 ... and
+			// bad" stops at the space before "and", which is followed by letters
+			// A space can extend the span only while at least one further
+			// character could still fit inside the 34-character limit.
+			if text[end] == ' ' && significant+1 <= ibanMaxSignificant &&
+				hasShortAlphanumBlock(text, end+1) {
 				end++
-				significant += 4
 				continue
 			}
 			break
@@ -227,17 +245,44 @@ func findIBANCandidates(text string) []ibanCandidate {
 	return candidates
 }
 
-// hasAlphanumBlock reports whether text[pos:pos+n] is n letters or digits.
-func hasAlphanumBlock(text string, pos, n int) bool {
-	if pos+n > len(text) {
+// hasShortAlphanumBlock reports whether text[pos:] begins with 1 to 4
+// characters drawn from the IBAN alphabet, stopping at the first that is not.
+//
+// Two properties matter, and both were wrong before:
+//
+//   - The block is 1 to 4 characters, not exactly 4. An IBAN is at most 34
+//     significant characters and 34 is not a multiple of 4, so the closing
+//     block of a conventionally-formatted IBAN is routinely 2 or 3 characters.
+//     Requiring exactly 4 rejected the final space of every such IBAN, the
+//     candidate stopped one character early, and the truncated string failed
+//     mod-97 — dropping a valid IBAN silently, while Validate passed on the
+//     same value given whole.
+//
+//   - Lowercase letters disqualify the block. This is what separates an
+//     internal space from a space before prose. "GB82 WEST 1234 5698 7654 32"
+//     has an uppercase letter block and must continue; the trailing " today"
+//     and the " and bad" in the unspaced case are lowercase and must stop the
+//     run. ISO 13616 writes an IBAN in uppercase letters and digits only, so
+//     this is the format's own rule rather than a heuristic.
+//
+// A lowercase IBAN written into prose is therefore not matched. That is the
+// safer direction of error: a miss leaves text unredacted, whereas absorbing
+// prose would hand the anonymizer a wrong span and corrupt the output.
+func hasShortAlphanumBlock(text string, pos int) bool {
+	if pos >= len(text) {
 		return false
 	}
-	for j := pos; j < pos+n; j++ {
-		if !isLetter(text[j]) && !isDigit(text[j]) {
-			return false
+	n := 0
+	for pos+n < len(text) && n < 4 {
+		c := text[pos+n]
+		isDigit := c >= '0' && c <= '9'
+		isUpper := c >= 'A' && c <= 'Z'
+		if !isDigit && !isUpper {
+			break
 		}
+		n++
 	}
-	return true
+	return n >= 1
 }
 
 // isIBANStart reports whether the four bytes at the cursor form the IBAN
