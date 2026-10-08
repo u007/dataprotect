@@ -267,18 +267,76 @@ them as gaps.
       repository. `fetch-all` skips the restricted corpora. Land in
       `testdata/external/` (override with `DATAPROTECT_DATA_DIR`). Both clean
       corpora are fetched and on disk; the restricted three are skipped.
-- [ ] **Corpus converter and scoring mode — NOT STARTED.** A converter from each
-      corpus's schema to `golden.Case`, and a scoring mode that reads the corpus
-      instead of `testdata/golden/`. This is the open half of the fetch work
-      above: nothing can score the downloaded corpora yet.
-      **Trap (2026-10-06): a naive converter inflates FP.** `scorePair`
-      (`golden/golden.go:196-212`) counts a prediction as FP unless it matches a
-      gold label of the SAME type (`p.Type != g.Type`), so a corpus labelling only
-      PERSON/ORG/LOC scores a correct EMAIL or CREDIT_CARD detection as a false
-      positive. The converter must carry that corpus's label schema and report
-      out-of-schema detections separately, not as FP. To measure FP directly, use
-      plain negatives instead — `Case` supports them (`golden/golden.go:46`), and
-      with no gold labels every detection really is a false positive.
+- [x] **Corpus converter and scoring mode — DONE (2026-10-08).** `tools/corpusbench`
+      (its own Go module) converts both corpora into `golden.Case` files plus a
+      `schema.json` sidecar; `scripts/benchmark.sh` applies that sidecar
+      automatically, so detections of a type a corpus never labels are reported
+      as out-of-schema instead of counted as false positives — the FP-inflation
+      trap recorded below, resolved rather than worked around. `make corpus`
+      converts and scores both; `make corpus-clean` removes the output (derived
+      data stays in gitignored `testdata/external/`, see DATASET_LICENSES.md).
+      Design: `docs/superpowers/specs/2026-10-08-corpus-converter-design.md`.
+
+      **Trap (2026-10-06), for the record:** `scorePair` (`golden/golden.go`)
+      counts a prediction as FP unless it matches a gold label of the SAME type,
+      so a corpus labelling only PERSON/ORG/LOC scores a correct EMAIL detection
+      as a false positive. The fix is the global-schema filter, not per-case
+      filtering: a per-case schema would let the same detected type be credited
+      in one record and excluded in another, making precision non-comparable
+      across a dataset.
+
+## Open findings from the first corpus measurement
+
+All four were invisible to the 18-case seed set. Numbers and evidence are in
+SPEC.md § "Corpus measurement (2026-10-08)"; reproduce with `make corpus`.
+
+- [ ] **SSN matches any bare nine-digit run.** `regex.go` uses
+      `\b\d{3}[\s.\-]?\d{2}[\s.\-]?\d{4}\b` where every separator is
+      optional, so `CAS No.: 123456789`, `Account Number: 123456789` and
+      `Passport Number: 322996077` are all read as SSNs. Costs 449 false
+      positives on gretel (P=0.0929) while recall stays 0.8846. The seed set's
+      single SSN is dashed, so no seed case could ever expose this. Likely fix
+      is requiring a separator or a stronger left context; decide the policy
+      deliberately — a bare nine-digit SSN is legitimate, so a blanket
+      requirement would cost recall.
+- [ ] **CREDIT_CARD recall is bounded by Luhn against synthetic data.** On
+      nemotron, R=0.0945 with 230 FNs — and all 230 fail the Luhn check while
+      exactly the 24 Luhn-valid ones are the true positives. The validator is
+      working as designed (it is the same check that rejects a Luhn-failing seed
+      negative). Open question, not a defect: is a corpus of non-Luhn-valid
+      "card numbers" a fair recall target for a Luhn-gated detector? If not, the
+      conversion should either exclude those gold labels or the metric should
+      report them separately.
+- [ ] **Corpus-side label quality depresses measured precision.** gretel EMAIL
+      reads P=0.3281, but spot-checking shows the corpus labels the local part
+      (`user_name 90..96 = 'lowe73'`) rather than the full address, markdown
+      `[addr](mailto:addr)` renders each address twice while only one
+      occurrence is labelled, and 106 of 647 email-shaped occurrences in
+      email-bearing records carry no email label at all. A corpus miss looks
+      exactly like our false positive. Before any threshold is recorded from
+      these numbers, spot-check a sample of FPs by hand (spec §8 risk 4).
+- [ ] **nemotron URL precision is a boundary problem, not a detection problem.**
+      All 701 URL detections overlap a gold URL; only 214 match it exactly. The
+      exact/overlap gap localises the loss to span boundaries. Worth checking
+      which side disagrees — corpus labels include or exclude a trailing path,
+      query or scheme — before treating 487 as false positives.
+- [ ] **gretel PHONE precision (0.2775) is unexplained.** Unlike SSN and
+      CREDIT_CARD, no hand-check has been done. Do not record a PHONE threshold
+      until a sample has been reviewed.
+
+## Deferred (decided against doing here)
+
+- [ ] **BITCOIN coverage.** Neither corpus labels it, so it stays unmeasured.
+      Needs a third corpus or a hand-authored seed extension.
+- [ ] **Per-language scoring of gretel.** One conversion uses `combined_test`;
+      scoring `English_test`, `German_test` etc. separately would show whether
+      the recognizers are English-shaped.
+- [ ] **Corpus results as a CI gate.** Blocked by design: the corpora and their
+      converted output are gitignored, so CI cannot see them. The committed gate
+      remains the seed set.
+- [ ] **An end-to-end anonymize check over corpus cases.** Would require
+      resolving gold overlaps first, and `Anonymize` rejects overlapping
+      entities by contract (SPEC.md §Operators).
 
 ## Docs bundle follow-ups
 

@@ -34,7 +34,8 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
 - **Context-aware confidence boosting** — opt-in via `analyzer.WithContextBoost()`, applied
   before the confidence filter and before overlap resolution
 - **Structured data** — CSV batch processing
-- **Golden dataset** — ~500 hand-labeled samples for CI
+- **Golden dataset** — 18-case hand-labelled seed set for CI, plus an
+  on-demand corpus measurement over the fetched corpora (`make corpus`)
 
 ### Later (v2+):
 - NLP recognizer (prose-based NER for person/org/location)
@@ -224,6 +225,72 @@ which is why both are reported.
 
 ---
 
+## Corpus measurement (2026-10-08)
+
+The seed set above is hand-written and small. `make corpus` scores the same
+detector against the two fetched corpora, which is the measurement the ">99%"
+target was always meant to describe. Both numbers below come from the **same
+scorer** as the seed gate — only the dataset and the schema filter differ.
+
+Reproduce with `make corpus` (default `LIMIT=2000` records per corpus, in file
+order, recorded in each `schema.json`).
+
+| | nemotron (2000 of 100000) | gretel (2000 of 5596) |
+|---|---|---|
+| **Exact** | P=0.5994 R=0.6935 F1=0.6430 (tp=1887 fp=1261 fn=834) | P=0.2821 R=0.7673 F1=0.4126 (tp=610 fp=1552 fn=185) |
+| **Overlap** | P=0.7541 R=0.8725 F1=0.8090 (tp=2374 fp=774 fn=347) | P=0.2969 R=0.8075 F1=0.4342 (tp=642 fp=1520 fn=153) |
+| negatives clean | 412 of 600 | 1171 of 1497 |
+| out-of-schema (not scored) | IBAN=1 | BITCOIN=44, URL=817 |
+
+Per type (exact):
+
+| Type | nemotron P / R | gretel P / R |
+|------|----------------|--------------|
+| `EMAIL` | 0.9975 / 0.9975 | 0.3281 / 0.8060 |
+| `PHONE` | 0.5703 / 0.9982 | 0.2775 / 0.8179 |
+| `CREDIT_CARD` | 0.5714 / 0.0945 | 0.5094 / 0.4737 |
+| `SSN` | 0.3495 / 1.0000 | 0.0929 / 0.8846 |
+| `IP_ADDRESS` | 1.0000 / 0.6400 | 0.9545 / 0.4884 |
+| `URL` | 0.3053 / 0.2846 | *no label in corpus* |
+| `IBAN` | *no label in corpus* | 0.9556 / 0.9773 |
+| `BITCOIN` | *no label in corpus* | *no label in corpus* |
+
+**These numbers are far below the ">99%" target, and every large gap has been
+explained rather than assumed away:**
+
+- **SSN on gretel (P=0.0929, 449 FP)** — `regex.go` uses
+  `\b\d{3}[\s.\-]?\d{2}[\s.\-]?\d{4}\b`, where every separator is
+  *optional*, so any bare nine-digit run matches: `CAS No.: 123456789`,
+  `Account Number: 123456789`, `Passport Number: 322996077`. This is a real
+  detector defect that the 18-case seed set cannot expose (its single SSN is
+  dashed). Recorded as a TODO, not fixed here.
+- **CREDIT_CARD on nemotron (R=0.0945)** — all 230 false negatives fail the
+  Luhn check, and exactly the 24 Luhn-valid ones are the true positives. The
+  validator is working as designed; the corpus's synthetic card numbers simply
+  are not card numbers. Whether that is the right benchmark target is an open
+  question, not a defect.
+- **gretel EMAIL (P=0.3281)** — corpus-side, not detector-side. gretel labels
+  the local part as `user_name` in some records (`lowe73@email.com` carries
+  only `user_name 90..96 = 'lowe73'`), markdown `[addr](mailto:addr)` renders
+  each address twice while the corpus labels one, and in records that carry any
+  email label 106 of 647 email-shaped occurrences were labelled `email` at all.
+  This is exactly the corpus-quality risk the spec anticipated: a corpus miss
+  appears as our false positive.
+- **nemotron URL (P=0.3053, R=0.2846)** — all 701 detections overlap a gold
+  URL (verified), but only 214 match it exactly, so the loss is **boundaries**,
+  not missed detections. The exact/overlap gap is what localises it, which is
+  why both granularities are reported.
+
+**Coverage the corpora cannot give:** BITCOIN is labelled by neither corpus, so
+it remains unmeasured; URL is measurable only on nemotron and IBAN only on
+gretel, because each corpus labels only one of them.
+
+A converted dataset declares its own scope in `schema.json`. `scripts/benchmark.sh`
+applies it, so detections of a type a corpus never labels are reported as
+out-of-schema instead of inflating false positives.
+
+---
+
 ## Operators (MVP)
 
 | Operator | Behavior | Example |
@@ -304,7 +371,7 @@ proves nothing.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: golden dataset is an 18-case seed set (not ~500) |
+| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is an 18-case seed (not ~500); the corpora are measured on demand instead |
 | 2 | NLP recognizer (prose) | Later |
 | 3 | Secret recognizers (patterns + entropy) | Later |
 | 4 | FPE operator | Later |
@@ -315,13 +382,14 @@ proves nothing.
 
 ## Success Criteria (MVP)
 
-- [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT MET.**
-      Measured over 18 seed cases: exact P=1.0000 R=1.0000, per-type all 1.0
-      (PHONE=1.0000/1.0000, CREDIT_CARD=1.0000/1.0000). The criterion is still
-      unmet for a reason a perfect seed score cannot fix: 18 cases cannot support
-      a >99% claim, and IBAN and BITCOIN have no seed cases at all, so two
-      recognizers are simply unmeasured. The ~500-case corpora are what would
-      actually test this.
+- [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT
+      MET, now measured.** The seed set still reads P=1.0000 R=1.0000 over 18
+      cases, which cannot support a >99% claim. The corpora are now measurable
+      and do not come close: exact aggregate P=0.5994 R=0.6935 (nemotron) and
+      P=0.2821 R=0.7673 (gretel) over 2000 records each — see "Corpus
+      measurement (2026-10-08)" above for the per-type numbers and the
+      explanation of every large gap. BITCOIN remains unmeasured because
+      neither corpus labels it. Reproduce with `make corpus`.
 - [x] Luhn + IBAN checksum validation working — **MET.** Both validators are
       wired into the default pipeline. Cards are detected by Luhn alone: the
       regex card recognizer is excluded because wiring both cannot work, since

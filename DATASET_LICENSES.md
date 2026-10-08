@@ -50,6 +50,19 @@ source before relying on any row.
    documenting the dataset and version in the benchmark report, not by
    redistributing the data.
 
+## Converted datasets
+
+`make corpus` converts a corpus into `golden.Case` files under
+`testdata/external/<dataset>/converted/`. Those files are **derived data** and
+are treated exactly like the corpora themselves: `.gitignore` already covers
+`/testdata/external/`, and nothing produced this way is ever committed. The
+conversion records which revision it read (`revision` from each `PROVENANCE.txt`)
+and a SHA-256 of the input file in `schema.json`, so a published number always
+names the corpus version it came from without the data entering the repository.
+
+Attribution for a report is therefore satisfied the same way as for a fetch —
+by naming the dataset and its version in the report, not by redistributing it.
+
 ## Provenance of `testdata/golden/seed.json`
 
 The committed seed set is authored in this repository from synthetic example

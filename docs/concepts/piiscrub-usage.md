@@ -1,7 +1,7 @@
 ---
 type: Concept
 title: piiscrub — Usage & Quick Start
-description: 'Entry point for using the piiscrub Go library: feature list (8 regex and 2 checksum recognizers, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 18-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, and pointers to the architecture spec and development conventions.'
+description: 'Entry point for using the piiscrub Go library: feature list (8 regex and 2 checksum recognizers, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 18-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
 tags:
   - pii
   - go
@@ -25,7 +25,8 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 - **4 operators** — replace, mask, hash, redact
 - **Structured data** — CSV batch processing
 - **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`)
-- **Measured, not claimed** — a hand-labelled seed dataset and a scoring runner
+- **Measured, not claimed** — a hand-labelled seed dataset, an on-demand corpus
+  measurement over the fetched corpora, and a scoring runner
   gate accuracy in CI. Current baseline over 18 cases: exact-span
   P=1.0000 R=1.0000, overlap P=1.0000 R=1.0000. Run `scripts/benchmark.sh`.
   The seed set is far from the ~500 cases the accuracy targets assume, and every
@@ -164,11 +165,28 @@ restrict commercial use.
 | `pii-masking-43k` | custom dual-tier | restricted (≤3 staff) |
 | `piibench` | apache *declared* | audit first |
 
-These are fetchable but **not yet scored** — the per-corpus schema converter and
-corpus scoring mode are still outstanding. A naive conversion would overstate
-false positives, because the scorer counts any detection that does not match a
-label of the same entity type as a false positive, and most corpora label fewer
-types than piiscrub detects.
+Both clean corpora are fetchable **and now scored**: `make corpus` converts them
+and prints a report (see SPEC.md § "Corpus measurement (2026-10-08)" for the
+numbers and what explains each gap). The conversion is schema-aware — each
+converted dataset carries a `schema.json` naming the entity types it labels, and
+the scorer excludes detections of any other type from the false-positive count
+instead of counting them. Without that, a corpus labelling only PERSON/ORG/LOC
+would score a correct EMAIL detection as a false positive.
+
+| | nemotron (2000 of 100000) | gretel (2000 of 5596) |
+|---|---|---|
+| exact | P=0.5994 R=0.6935 | P=0.2821 R=0.7673 |
+| byte overlap | P=0.7541 R=0.8725 | P=0.2969 R=0.8075 |
+
+Those are real numbers from a 2000-record sample, not a target: the seed set
+above is perfect because 18 cases cannot contradict it, while 2000 real records
+find defects the seed set cannot reach — the SSN pattern matches any bare
+nine-digit run (`Account Number: 123456789`), and gretel labels the local part
+of an address as `user_name` rather than the full email. Every large gap is
+explained in SPEC.md rather than waved away.
+
+Derived output lives in the same gitignored directory as the corpora and is
+never committed, so no corpus-derived bytes reach this repository.
 
 ## Documentation
 
