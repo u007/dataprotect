@@ -51,6 +51,15 @@ func (a *Anonymizer) SetOperator(entityType recognizers.EntityType, op operators
 // replacements cannot disturb. Doing this per entity — rather than grouping by
 // type and handing each operator a batch — also makes the result independent of
 // map iteration order.
+//
+// Entities must be non-overlapping and in bounds; the caller (the Analyzer)
+// guarantees this, and both are validated. Overlapping spans are rejected with
+// an error because they cannot be spliced independently — replacing one leaves
+// the other's offsets stale — and a silently corrupt document in a PII scrubber
+// is worse than a failure. A span out of bounds for the working string also
+// returns an error. On any error the returned string is empty: a partially
+// spliced document would be worse than none, so a caller can never mistake a
+// failure for a usable result.
 func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []recognizers.Entity) (string, error) {
 	if len(entities) == 0 {
 		return text, nil
@@ -65,6 +74,17 @@ func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []reco
 		}
 		return ordered[i].End > ordered[j].End
 	})
+
+	// Reject overlaps before splicing anything. In this descending order the
+	// next entity starts at or before the previous one, so it overlaps iff it
+	// ends after the previous start. Checking first (rather than mid-loop) means
+	// a rejected input never yields a partially spliced result.
+	for i := 1; i < len(ordered); i++ {
+		if ordered[i].End > ordered[i-1].Start {
+			return "", fmt.Errorf("overlapping entities: [%d:%d) and [%d:%d)",
+				ordered[i].Start, ordered[i].End, ordered[i-1].Start, ordered[i-1].End)
+		}
+	}
 
 	result := text
 	for _, e := range ordered {

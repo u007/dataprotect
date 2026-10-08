@@ -192,6 +192,41 @@ func TestAnonymizeRejectsOutOfBoundsSpan(t *testing.T) {
 	}
 }
 
+// TestAnonymizeRejectsOverlappingSpans pins the overlap guard. Overlapping spans
+// cannot be spliced independently — replacing the rightward one leaves the
+// leftward one's offsets stale — and before this guard the result was silently
+// corrupt (e.g. "01<X>>9" for [2,7)+[5,9) over "0123456789") with no error. In a
+// PII scrubber that can emit partly-unredacted text, so it must fail loudly.
+func TestAnonymizeRejectsOverlappingSpans(t *testing.T) {
+	a := New(WithDefaultOperator(operators.NewReplaceOperator("<X>")))
+
+	_, err := a.Anonymize(context.Background(), "0123456789", []recognizers.Entity{
+		{Type: recognizers.EntityType("T"), Start: 2, End: 7, Text: "23456", Confidence: 0.99},
+		{Type: recognizers.EntityType("T"), Start: 5, End: 9, Text: "5678", Confidence: 0.99},
+	})
+	if err == nil {
+		t.Fatal("expected an error for overlapping spans, got nil")
+	}
+	if !strings.Contains(err.Error(), "overlapping") {
+		t.Errorf("error %q does not explain the overlap", err)
+	}
+
+	// Adjacent spans (end == next start) and an empty span at a boundary are
+	// NOT overlaps and must still be accepted.
+	if _, err := a.Anonymize(context.Background(), "0123456789", []recognizers.Entity{
+		{Type: recognizers.EntityType("T"), Start: 2, End: 5, Text: "234", Confidence: 0.99},
+		{Type: recognizers.EntityType("T"), Start: 5, End: 9, Text: "5678", Confidence: 0.99},
+	}); err != nil {
+		t.Errorf("adjacent spans wrongly rejected: %v", err)
+	}
+	if _, err := a.Anonymize(context.Background(), "0123456789", []recognizers.Entity{
+		{Type: recognizers.EntityType("T"), Start: 4, End: 4, Text: "", Confidence: 0.99},
+		{Type: recognizers.EntityType("T"), Start: 4, End: 7, Text: "456", Confidence: 0.99},
+	}); err != nil {
+		t.Errorf("empty span at a boundary wrongly rejected: %v", err)
+	}
+}
+
 // TestAnonymizeManyEntitiesIsDeterministic is the regression guard for the
 // original defect: entities were grouped into a map by type and the groups were
 // processed in random order, each replaying byte offsets computed against the

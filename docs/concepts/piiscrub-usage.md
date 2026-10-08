@@ -9,7 +9,7 @@ tags:
   - usage
   - anonymization
   - csv
-timestamp: 2026-10-06T11:54:19Z
+timestamp: 2026-10-07T04:56:44Z
 ---
 # piiscrub — Go PII Detection & Anonymization Library
 
@@ -27,9 +27,10 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 - **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`)
 - **Measured, not claimed** — a hand-labelled seed dataset and a scoring runner
   gate accuracy in CI. Current baseline over 18 cases: exact-span
-  P=0.9231 R=0.9231, overlap P=1.0000 R=1.0000. Run `scripts/benchmark.sh`.
-  The seed set is far from the ~500 cases the accuracy targets assume, so treat
-  the numbers as a floor.
+  P=1.0000 R=1.0000, overlap P=1.0000 R=1.0000. Run `scripts/benchmark.sh`.
+  The seed set is far from the ~500 cases the accuracy targets assume, and every
+  entity type is not yet covered, so treat the numbers as a floor rather than a
+  result.
 - **Zero external dependencies** — stdlib only
 - **~100-200 MB RAM** — vs Presidio's 4 GB
 
@@ -121,7 +122,7 @@ proves nothing. Run `scripts/benchmark.sh` for the full report.
 
 | Match policy | Precision | Recall | F1 | tp/fp/fn |
 |---|---|---|---|---|
-| exact span | 0.9231 | 0.9231 | 0.9231 | 12/1/1 |
+| exact span | 1.0000 | 1.0000 | 1.0000 | 13/0/0 |
 | byte overlap | 1.0000 | 1.0000 | 1.0000 | 13/0/0 |
 
 Coverage by entity type — 6 of the 8 recognizers have any coverage at all, and
@@ -138,11 +139,13 @@ five of those rest on a single case:
 | IBAN | **0 — untested** |
 | BITCOIN | **0 — untested** |
 
-The one non-perfect number is a known defect: the phone recognizer drops a
-leading `(` on parenthesised area codes, which is both the only false positive
-and the only false negative. IBAN and bitcoin are entirely unmeasured, and 18
-cases is far from the ~500 the accuracy targets assume, so read every number
-above as a floor rather than a result.
+Every measured number is now perfect, but that is a property of this 18-case
+seed set and not a claim about the detector. IBAN and bitcoin are entirely
+unmeasured, and 18 cases is far from the ~500 the accuracy targets assume, so
+read every number above as a floor rather than a result. This baseline was
+reached by fixing the phone recognizer's dropped leading `(` on parenthesised
+area codes — until that fix it was the single false positive and the single
+false negative.
 
 ### External corpora
 

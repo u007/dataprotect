@@ -28,27 +28,40 @@ const minCases = 12
 // any regression fails immediately and any improvement is a deliberate
 // threshold bump in this file rather than a silent drift.
 //
-// The measured baseline is exact P=0.9231 R=0.9231 (tp=12 fp=1 fn=1) and
-// overlap P=1.0000 R=1.0000 (tp=13 fp=0 fn=0). Every remaining non-perfect
-// number is the parenthesised-phone case: the phone recognizer drops the
-// leading "(", which is both the one exact false negative and the one exact
-// false positive. Fixing that defect therefore RAISES this baseline rather than
-// breaking the gate, which is what makes the gate worth keeping.
+// The measured baseline is exact P=1.0000 R=1.0000 (tp=13 fp=0 fn=0) and
+// overlap P=1.0000 R=1.0000 (tp=13 fp=0 fn=0); all six negative cases are
+// clean. It is perfect, which is a property of this 18-case seed set, NOT a
+// claim about the detector in general — SPEC.md's ">99%" needs the ~500-case
+// corpora in testdata/external, which nothing can score yet (see TODO.md). With
+// 13 positives one flipped case still moves recall by ~8%, so the number is
+// coarse; it is kept exact so a regression fails immediately.
 //
-// This replaced an earlier baseline (exact P=0.8571 R=0.9231, tp=12 fp=2 fn=1)
-// once the checksum validators were wired into the default pipeline. CREDIT_CARD
-// went from P=0.7500 to P=1.0000 and all negative cases became clean, because
-// cards are now validated rather than matched on shape alone.
+// This baseline was reached by fixing the parenthesised-phone defect (the phone
+// recognizer dropped the leading "("), which had been the single exact false
+// negative AND the single exact false positive — exact P/R were 12/13 before.
+// That is the gate working as intended: the defect was measurable, and fixing
+// it raised the recorded baseline instead of breaking it.
 //
-// Thresholds are written as the measured tp/(tp+fp) and tp/(tp+fn) ratios
-// rather than as rounded literals. 10/11 is 0.9090909..., so a literal 0.9091
-// is a hair ABOVE the true value and the gate fails on a run that exactly met
-// its baseline — a rounding trap, not a regression. Deriving the constant from
-// the counts it represents makes the comparison exact and self-documenting.
+// An earlier baseline (exact P=0.8571 R=0.9231, tp=12 fp=2 fn=1) preceded the
+// checksum-validator wiring. CREDIT_CARD went from P=0.7500 to P=1.0000 and all
+// negative cases became clean, because cards are now validated rather than
+// matched on shape alone.
+//
+// While a threshold sits below 1.0, write it as the measured tp/(tp+fp) and
+// tp/(tp+fn) RATIO rather than a rounded literal: 10/11 is 0.9090909..., so a
+// literal 0.9091 is a hair ABOVE the true value and the gate would fail on a run
+// that exactly met its baseline — a rounding trap, not a regression. Deriving
+// the constant from the counts makes the comparison exact and self-documenting.
+//
+// The current baseline is perfect, so all three are exactly 1.0 and are written
+// as literals: a ratio with an equal numerator and denominator (13.0/13.0) adds
+// nothing here and only draws a "identical expressions" lint warning. The counts
+// each literal represents are in the trailing comments. If a case is added that
+// is not yet passed, re-introduce the ratio form for the affected constant.
 const (
-	minExactPrecision = 12.0 / 13.0 // tp=12 fp=1  -> 0.9231
-	minExactRecall    = 12.0 / 13.0 // tp=12 fn=1  -> 0.9231
-	minOverlapRecall  = 13.0 / 13.0 // tp=13 fn=0  -> 1.0000
+	minExactPrecision = 1.0 // tp=13 fp=0 -> 13/13
+	minExactRecall    = 1.0 // tp=13 fn=0 -> 13/13
+	minOverlapRecall  = 1.0 // tp=13 fn=0 -> 13/13
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled

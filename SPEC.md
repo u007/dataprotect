@@ -75,10 +75,12 @@ dataprotect/
 │       └── checksum_test.go
 ├── anonymizer/
 │   ├── anonymizer.go
-│   └── anonymizer_test.go
+│   ├── anonymizer_test.go
+│   └── property_test.go     # FuzzAnonymizeInvariants + splice oracle
 ├── operators/
 │   ├── operators.go         # replace, mask, hash, redact
-│   └── operators_test.go
+│   ├── operators_test.go
+│   └── property_test.go     # FuzzOperatorReplace + invariants
 ├── structured/
 │   ├── batch.go             # CSV/JSON batch processing
 │   └── batch_test.go
@@ -177,6 +179,12 @@ func (a *Anonymizer) SetOperator(entityType recognizers.EntityType, op operators
 func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []recognizers.Entity) (string, error)
 ```
 
+`Anonymize` requires non-overlapping, in-bounds entities. An overlapping or
+out-of-bounds span is rejected with an error, and on any error the returned
+string is empty — never a partially spliced document. The `Analyzer` already
+resolves overlaps before returning, so the normal pipeline never triggers this;
+the check guards direct callers.
+
 ---
 
 ## Recognizers (MVP)
@@ -184,7 +192,7 @@ func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []reco
 | Recognizer | Entity Type | Method | Target | Measured (18-case seed) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
-| Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=0.5000 R=0.5000 |
+| Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=1.0000 R=1.0000 |
 | Credit Card | `CREDIT_CARD` | Luhn checksum | >99% P&R | P=1.0000 R=1.0000 |
 | SSN | `SSN` | Regex (XXX-XX-XXXX) | >99% P&R | P=1.0000 R=1.0000 |
 | IP Address | `IP_ADDRESS` | Regex (IPv4) | >99% P&R | P=1.0000 R=1.0000 |
@@ -193,26 +201,26 @@ func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []reco
 | Bitcoin | `BITCOIN` | Regex (P2PKH, P2SH, Bech32) | >99% P&R | no seed cases |
 
 **"Target" is a goal for a ~500-case dataset; "Measured" is what
-`scripts/benchmark.sh` reports today over the 18-case seed set.** No target is
-met at the stated level, and the shortfall is now the dataset rather than the
-pipeline: the one remaining defect is the phone recognizer mis-sizing
-parenthesised numbers, recorded in TODO.md. The Luhn and mod-97 validators are
-wired into the default pipeline. The measured column covers EMAIL, PHONE,
-CREDIT_CARD, SSN, IP_ADDRESS and URL only — IBAN and BITCOIN have no seed
-cases, so their cells read "no seed cases" rather than a number, because an
-absent measurement is not a pass.
+`scripts/benchmark.sh` reports today over the 18-case seed set.** Every measured
+cell is now 1.0, but that is a property of this small seed set and is NOT
+evidence that the targets are met: the shortfall is the dataset, not the
+pipeline. The Luhn and mod-97 validators are wired into the default pipeline.
+The measured column covers EMAIL, PHONE, CREDIT_CARD, SSN, IP_ADDRESS and URL
+only — IBAN and BITCOIN have no seed cases, so their cells read "no seed cases"
+rather than a number, because an absent measurement is not a pass.
 
 An earlier version of this table presented ">99% P&R" as though it described the
 recognizers. It described an aspiration for a dataset that did not exist. Only
 the measured column is evidence.
 
-Note the aggregate is not an average of this table: `PHONE` scores 0.5 on two
-cases, so its figure carries very little weight, while `EMAIL` scores 1.0 across
-five. Aggregate exact precision/recall over the whole seed set is
-P=0.9231 R=0.9231 (tp=12 fp=1 fn=1); overlap matching, which tolerates
-mis-sized spans, gives P=1.0000 R=1.0000. The gap between exact and overlap
-recall is the parenthesised-phone case, and reporting both is what makes that
-visible.
+Note the aggregate is not an average of this table, and the per-type cells are
+coarse: `PHONE` rests on two cases and `EMAIL` on five, so a single flipped case
+moves either a long way. Aggregate exact precision/recall over the whole seed set
+is P=1.0000 R=1.0000 (tp=13 fp=0 fn=0), and overlap matching — which tolerates
+mis-sized spans — gives the same P=1.0000 R=1.0000. Before the parenthesised-phone
+fix the exact aggregate was P=0.9231 R=0.9231 while overlap stayed at 1.0000; the
+gap between the two granularities is exactly what localised the mis-sized span,
+which is why both are reported.
 
 ---
 
@@ -224,6 +232,12 @@ visible.
 | `mask` | Partial masking | `4111111111111111` → `****-****-****-1111` |
 | `hash` | Deterministic SHA-256 | `john@example.com` → `a3f5c8...` |
 | `redact` | Remove entirely | `john@example.com` → `[REDACTED]` |
+
+`mask` is rune-based: one Unicode character is one slot, so a multi-byte rune is
+never split — `é` with `#*` yields `é*`, not the invalid UTF-8 a byte-wise mask
+produced. `#` keeps a slot, `*` masks it, any other pattern character is a
+separator emitted verbatim, and an empty pattern masks every character. Input
+that is not valid UTF-8 is kept byte-faithfully on a `#` slot.
 
 ---
 
@@ -302,10 +316,12 @@ proves nothing.
 ## Success Criteria (MVP)
 
 - [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT MET.**
-      Measured over 18 seed cases: exact P=0.9231 R=0.9231, per-type
-      PHONE=0.5000/0.5000 and CREDIT_CARD=1.0000/1.0000. The dataset is far too
-      small to support a >99% claim, and the phone recognizer still mis-sizes
-      parenthesised numbers. Everything else measures 1.0.
+      Measured over 18 seed cases: exact P=1.0000 R=1.0000, per-type all 1.0
+      (PHONE=1.0000/1.0000, CREDIT_CARD=1.0000/1.0000). The criterion is still
+      unmet for a reason a perfect seed score cannot fix: 18 cases cannot support
+      a >99% claim, and IBAN and BITCOIN have no seed cases at all, so two
+      recognizers are simply unmeasured. The ~500-case corpora are what would
+      actually test this.
 - [x] Luhn + IBAN checksum validation working — **MET.** Both validators are
       wired into the default pipeline. Cards are detected by Luhn alone: the
       regex card recognizer is excluded because wiring both cannot work, since

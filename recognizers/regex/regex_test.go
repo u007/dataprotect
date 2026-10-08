@@ -54,16 +54,36 @@ func TestEmailRecognizer(t *testing.T) {
 }
 
 func TestPhoneRecognizer(t *testing.T) {
+	// The parenthesised and leading-"+" cases assert the WHOLE span, not just
+	// the hit count. The count-only version of this table is what let the
+	// leading "(" and "+" be silently dropped for so long: the recognizer still
+	// reported one PHONE, just one byte too far to the right, so a count
+	// assertion could not see it. See the phone anchor note in regex.go.
 	tests := []struct {
 		name     string
 		text     string
 		wantHits int
+		want     string // first entity's exact text; "" means "do not check"
 	}{
-		{"us format", "call 555-123-4567", 1},
-		{"with parens", "call (555) 123-4567", 1},
-		{"with spaces", "call 555 123 4567", 1},
-		{"international", "call +1-555-123-4567", 1},
-		{"no phone", "no phone here", 0},
+		{"us format", "call 555-123-4567", 1, "555-123-4567"},
+		{"with parens", "call (555) 123-4567", 1, "(555) 123-4567"},
+		{"parens at start", "(555) 867-5309", 1, "(555) 867-5309"},
+		{"parens in prose", "Call (555) 867-5309 before noon.", 1, "(555) 867-5309"},
+		{"parens no space", "(555)867-5309", 1, "(555)867-5309"},
+		{"parens with country code", "call 1 (555) 867-5309 now", 1, "1 (555) 867-5309"},
+		{"parens with +country code", "+1 (555) 867-5309", 1, "+1 (555) 867-5309"},
+		{"country code needs a boundary", "x1 (555) 867-5309", 1, "(555) 867-5309"},
+		{"with spaces", "call 555 123 4567", 1, "555 123 4567"},
+		{"international", "call +1-555-123-4567", 1, "+1-555-123-4567"},
+		{"international at start", "+44 20 7946 0958", 1, "+44 20 7946 0958"},
+		{"international space separator", "+1 555 123 4567", 1, "+1 555 123 4567"},
+		{"not inside a digit run", "x555-123-4567", 0, ""},
+		{"+ prefix alone is not a phone", "+12345", 0, ""},
+		{"arithmetic is not a phone", "1+23456789", 0, ""},
+		{"card with a + prefix is not a phone", "+4111111111111111", 0, ""},
+		{"not a bare 16-digit card", "4111111111111111", 0, ""},
+		{"not a spaced card", "4111 1111 1111 1111", 0, ""},
+		{"no phone", "no phone here", 0, ""},
 	}
 
 	r := NewPhoneRecognizer()
@@ -81,6 +101,14 @@ func TestPhoneRecognizer(t *testing.T) {
 			for _, e := range entities {
 				if e.Type != recognizers.EntityPhone {
 					t.Errorf("got type %q, want PHONE", e.Type)
+				}
+			}
+			if tt.want != "" && len(entities) > 0 {
+				if got := entities[0].Text; got != tt.want {
+					t.Errorf("got text %q, want %q", got, tt.want)
+				}
+				if got := tt.text[entities[0].Start:entities[0].End]; got != tt.want {
+					t.Errorf("span %q does not match Text field %q", got, tt.want)
 				}
 			}
 		})

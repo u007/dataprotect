@@ -48,17 +48,48 @@ type PhoneRecognizer struct {
 
 // NewPhoneRecognizer creates a new phone recognizer.
 //
-// The patterns are wrapped in \b anchors on purpose. Without them the
-// unanchored alternation matches the first ten digits of any longer digit run,
-// so a 16-digit credit card was detected as a phone number — and since the card
-// recognizer scores lower, overlap resolution kept the wrong entity type and the
-// phone mask pattern mangled the card. A phone number is bounded by a
-// non-digit on both sides; a 16-digit run has no such boundary and so matches
-// neither this recognizer nor the card recognizer's span.
+// The alternation has three branches because the leading anchor cannot be the
+// same for all of them:
+//
+//  1. A parenthesised area code, e.g. "(555) 867-5309", optionally preceded by
+//     a "1" country code.
+//  2. An international number introduced by "+", e.g. "+44 20 7946 0958" or
+//     "+1-555-123-4567". This branch REQUIRES a separator after the country
+//     code: without one, "\+\d{1,3}...\d{1,9}" matches any "+" followed by four
+//     or more digits, so arithmetic like "1+23456789" and short strings like
+//     "+12345" would be read as phone numbers. The old pattern's leading \b hid
+//     that at a word boundary; now that the branch is anchorless it must earn
+//     its own precision. An unseparated "+442079460958" is therefore not
+//     matched, which matches the previous behaviour at a boundary.
+//  3. A bare US number, e.g. "555-123-4567".
+//
+// Branches 1 and 2 must NOT carry a leading \b. A \b matches only at a word
+// boundary, and it cannot match between a space (or the start of the text) and
+// "(" or "+", because both sides are non-word characters. With the anchor
+// present the engine skips the optional "(" / "+" and starts the match one byte
+// later, so "(555) 867-5309" was reported as "555) 867-5309" and
+// "+1-555-123-4567" as "1-555-123-4567" — a span that is one byte too far to the
+// right. The recognizer still reported one PHONE, so a hit-count test could not
+// see it; only an exact-span assertion can, which is what the phone table in
+// regex_test.go now makes.
+//
+// Branch 3 starts with a digit and DOES keep the \b. Without it the unanchored
+// alternation matches the first ten digits of any longer digit run, so a
+// 16-digit credit card was detected as a phone number — and since the phone
+// recognizer scores higher, overlap resolution kept the wrong entity type and
+// the phone mask pattern mangled the card.
+//
+// Every branch is therefore left-bounded, just not all by the same construct:
+// branch 1 by "(" (or, when a "1" country code is present, by the \b that the
+// "1" carries — a bare "1" attached to a word is not a country code), branch 2
+// by "+", and branch 3 by its \b. A digit run can contain neither "(" nor "+",
+// which is why those two branches need no \b of their own.
 func NewPhoneRecognizer() *PhoneRecognizer {
-	// US/international phone patterns
+	// Parenthesised (optional "1") | international "+" | bare US, in that order
+	// so the more specific paren branch wins a leftmost match such as
+	// "+1 (555) 867-5309".
 	return &PhoneRecognizer{
-		pattern: regexp.MustCompile(`\b(?:\+?1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}\b|\b\+\d{1,3}[\s.\-]?\d{1,4}[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}\b`),
+		pattern: regexp.MustCompile(`(?:\+1[\s.\-]?|\b1[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}\b|\+\d{1,3}[\s.\-]\d{1,4}[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}\b|\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}\b`),
 	}
 }
 

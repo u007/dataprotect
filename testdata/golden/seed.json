@@ -25,7 +25,7 @@
   },
   {
     "id": "pos-phone-parenthesised",
-    "note": "Parenthesised area code. The label is the whole number including the open paren. The detector currently drops the leading '(' — the pattern's \\b anchor cannot match between a space and a non-word character — so this case is an exact-match miss that overlap matching still credits. Recorded rather than relabelled; see TODO.md.",
+    "note": "Parenthesised area code. The label is the whole number including the open paren. This was the detector's single exact miss: the pattern's leading \\b anchor could not match between a space and a non-word character, so the '(' was dropped and the span started one byte late (an exact FN here and an exact FP against the label). Fixed by giving the parenthesised branch of the phone pattern no leading anchor, so this case now scores exact-clean. It is the reason the two matching granularities are reported separately — overlap matching credited the near-miss and localised it to a boundary bug.",
     "text": "Call (555) 867-5309 before noon so the transfer can be arranged.",
     "entities": [
       { "type": "PHONE", "value": "(555) 867-5309" }

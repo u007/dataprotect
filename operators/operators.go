@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
+	"unicode/utf8"
 )
 
 // Operator transforms a single detected entity's text into its masked form.
@@ -46,6 +47,10 @@ type MaskOperator struct {
 // NewMaskOperator creates a new mask operator.
 // maskPattern uses '#' for characters to keep and '*' for characters to mask.
 // Example: "****-****-####" keeps last 4 digits of a credit card.
+//
+// The pattern is interpreted as UTF-8; an invalid byte in the PATTERN is read as
+// U+FFFD (patterns are developer constants, so this is a degenerate case). This
+// is separate from the input handling, which is byte-faithful for invalid bytes.
 func NewMaskOperator(maskPattern string) *MaskOperator {
 	return &MaskOperator{maskPattern: maskPattern}
 }
@@ -58,58 +63,76 @@ func (o *MaskOperator) Replace(ctx context.Context, value string) (string, error
 	return o.applyMask(value), nil
 }
 
-// isMaskSeparator reports whether c is punctuation that a mask pattern treats
+// isMaskSeparator reports whether r is punctuation that a mask pattern treats
 // as structure rather than data. Separators in the INPUT are dropped, and
 // separators in the PATTERN are emitted in their place.
-func isMaskSeparator(c byte) bool {
-	return c == ' ' || c == '-' || c == '.'
+func isMaskSeparator(r rune) bool {
+	return r == ' ' || r == '-' || r == '.'
 }
 
 // applyMask masks s against the configured pattern.
 //
-// The pattern is applied to the input's SIGNIFICANT characters (everything that
-// is not a space, '-' or '.'), so the pattern describes the masked value's shape
-// rather than its byte offsets:
+// The pattern is applied to the input's SIGNIFICANT RUNES (every Unicode
+// character that is not a space, '-' or '.'), so the pattern describes the
+// masked value's SHAPE, not its byte offsets:
 //
-//	'#' keeps the corresponding input character
-//	'*' masks the corresponding input character
-//	any other character is a separator, emitted from the pattern and consuming
-//	  no input character
+//	'#' keeps the corresponding input rune
+//	'*' masks the corresponding input rune
+//	any other rune is a separator, emitted from the pattern and consuming no
+//	  input rune
 //
-// That makes "****-****-****-####" keep the last four digits of a card whether
-// it was written "4111111111111111" or "4111 1111 1111 1111" — both mask to
-// "****-****-****-1111".
+// Rune semantics matter: one slot is one CHARACTER, so a multi-byte rune is
+// never split. "é" with "#*" yields "é*", not the invalid "\xC3*" that a
+// byte-wise mask produced.
 //
-// If the input has more significant characters than the pattern has slots the
-// extras are masked; if it has fewer, the remaining slots are masked too.
+// That also makes "****-****-****-####" keep the last four digits of a card
+// whether it was written "4111111111111111" or "4111 1111 1111 1111" — both
+// mask to "****-****-****-1111".
+//
+// If the input has more significant runes than the pattern has slots the extras
+// are masked; if it has fewer, the remaining slots are masked too.
+//
+// Input that is not valid UTF-8 is handled byte-faithfully: an invalid byte is
+// one significant unit and, when kept by '#', is written back verbatim rather
+// than replaced with U+FFFD. A PII scrubber must not rewrite bytes it was told
+// to keep.
 func (o *MaskOperator) applyMask(s string) string {
 	if o.maskPattern == "" {
-		return strings.Repeat("*", len(s))
+		// Mask everything, one '*' per rune (separators included).
+		return strings.Repeat("*", utf8.RuneCountInString(s))
 	}
+
+	pattern := []rune(o.maskPattern)
 
 	var result strings.Builder
 	maskIdx := 0
-	for i := 0; i < len(s); i++ {
-		if isMaskSeparator(s[i]) {
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		raw := s[i : i+size]
+		// A valid rune that is a separator is dropped. An invalid byte (RuneError
+		// with size 1) is NOT a separator — it is significant data.
+		if (r != utf8.RuneError || size > 1) && isMaskSeparator(r) {
+			i += size
 			continue
 		}
 		// Emit the pattern's separators up to the next data slot.
-		for maskIdx < len(o.maskPattern) && !isPatternSlot(o.maskPattern[maskIdx]) {
-			result.WriteByte(o.maskPattern[maskIdx])
+		for maskIdx < len(pattern) && !isPatternSlot(pattern[maskIdx]) {
+			result.WriteRune(pattern[maskIdx])
 			maskIdx++
 		}
-		if maskIdx < len(o.maskPattern) && o.maskPattern[maskIdx] == '#' {
-			result.WriteByte(s[i])
+		if maskIdx < len(pattern) && pattern[maskIdx] == '#' {
+			result.WriteString(raw)
 		} else {
 			result.WriteByte('*')
 		}
 		maskIdx++
+		i += size
 	}
 
 	// Fill any slots the input did not reach, then any trailing separators.
-	for ; maskIdx < len(o.maskPattern); maskIdx++ {
-		if !isPatternSlot(o.maskPattern[maskIdx]) {
-			result.WriteByte(o.maskPattern[maskIdx])
+	for ; maskIdx < len(pattern); maskIdx++ {
+		if !isPatternSlot(pattern[maskIdx]) {
+			result.WriteRune(pattern[maskIdx])
 		} else {
 			result.WriteByte('*')
 		}
@@ -117,9 +140,9 @@ func (o *MaskOperator) applyMask(s string) string {
 	return result.String()
 }
 
-// isPatternSlot reports whether c consumes an input character.
-func isPatternSlot(c byte) bool {
-	return c == '*' || c == '#'
+// isPatternSlot reports whether r consumes an input character.
+func isPatternSlot(r rune) bool {
+	return r == '*' || r == '#'
 }
 
 // HashOperator replaces entities with their SHA-256 hash.

@@ -3,6 +3,7 @@ package operators
 import (
 	"context"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestReplaceOperator(t *testing.T) {
@@ -60,6 +61,43 @@ func TestMaskOperator(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("mask %q with pattern %q = %q, want %q", tt.input, tt.pattern, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestMaskDoesNotSplitUTF8 pins rune semantics: one Unicode character is ONE
+// slot, so the mask must never cut a multi-byte rune in half. Before the fix,
+// "é" (2 bytes) with "#*" produced "\xC3*" — invalid UTF-8 — and the empty
+// pattern emitted one '*' per BYTE rather than per rune.
+func TestMaskDoesNotSplitUTF8(t *testing.T) {
+	tests := []struct {
+		name    string
+		pattern string
+		input   string
+		want    string
+	}{
+		{"keep a rune", "#*", "é", "é*"},
+		{"mask a rune", "**", "é", "**"},
+		{"keep rune then digit", "##", "é1", "é1"},
+		{"mask rune then keep digit", "*#", "é1", "*1"},
+		{"emoji is one slot", "#", "☃", "☃"},
+		{"tail fill counts runes not bytes", "#", "é", "é"},
+		{"empty pattern masks per rune", "", "é", "*"},
+		{"empty pattern mixed", "", "aé☃", "***"},
+		{"rune among separators", "**", "a-é", "**"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NewMaskOperator(tt.pattern).Replace(context.Background(), tt.input)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("mask %q with pattern %q = %q, want %q", tt.input, tt.pattern, got, tt.want)
+			}
+			if !utf8.ValidString(got) {
+				t.Errorf("mask %q with pattern %q = %q is not valid UTF-8", tt.input, tt.pattern, got)
 			}
 		})
 	}

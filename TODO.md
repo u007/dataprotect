@@ -12,35 +12,55 @@
 
 ## Known gaps in the current MVP
 
-- [ ] **Phone recognizer drops a leading `(` on parenthesised area codes.**
-      The pattern is `\b(?:\+?1[\s.\-]?)?\(?\d{3}\)?...`. A `\b` cannot match
-      between a space and a non-word character, so with no preceding word
-      character the optional `\(` never participates: `(555) 867-5309` is
-      reported as `555) 867-5309`. Found by seed case
-      `pos-phone-parenthesised` — an exact-match miss that overlap matching
-      still credits, which is exactly the diagnostic gap the two granularities
-      are reported to expose. Consequence beyond recall: `Scrubber.Anonymize`
-      masks the wrong span, leaving the `(` and corrupting the digit run.
-- [ ] **Overlap resolution has no general property test.** `analyzer/overlap_test.go`
-      now exercises real recognizers over card-vs-phone, IBAN-vs-digit-patterns,
+- [ ] **Phone: an unseparated country code is not parsed.** `91 555 123 4567`
+      (no `+`) is matched as `555 123 4567` — the national number only, since the
+      bare `1`-country-code handling is US-specific and there is no generic
+      "country code + national number" branch. With a `+` (`+91 555 123 4567`)
+      the whole string matches. Left UNASSERTED in `TestPhoneRecognizer`: it is
+      not clearly a false positive, and pinning it would be deciding a policy
+      nobody has. Revisit if a seed case makes it matter.
+- [ ] **`Anonymizer.Anonymize` does not validate rune boundaries.** Its bounds
+      check is byte-based (`e.Start`/`e.End` within `len(result)`), so an entity
+      whose offsets fall INSIDE a multi-byte rune would splice at a non-rune
+      boundary and yield invalid UTF-8 — whatever the operator does. Unreachable
+      today: every recognizer matches ASCII, so spans land on rune boundaries and
+      the `Analyzer` only returns such spans. Recorded because the rune-aware
+      `MaskOperator` (Fixed below) makes it tempting to assume the whole pipeline
+      is rune-safe. A guard would reject a span whose start or end is not a UTF-8
+      boundary.
+- [x] **Overlap resolution property coverage — CLOSED.** `analyzer/overlap_test.go`
+      exercises real recognizers over card-vs-phone, IBAN-vs-digit-patterns,
       bare-digits-vs-card and same-span collapse, and the `\b` regression is
       mutation-verified. `analyzer/property_test.go` adds `FuzzAnalyzeInvariants`
       (788k executions over 90s, no violations) plus corpus, determinism,
-      never-panics and monotonicity tests. **Remaining:** no fuzz target exists for
-      the `operators` package or for `Anonymizer.Anonymize`, which is the other
-      half of the byte-offset arithmetic.
+      never-panics and monotonicity tests. The other half of the byte-offset
+      arithmetic — the operators and the Anonymizer's splice — is now covered:
+      `operators/property_test.go` (`FuzzOperatorReplace`, 3.7M executions over
+      30s, no violations) pins totality, determinism, the mask no-leak invariant,
+      the mask rune-count identity and the hash length; `anonymizer/property_test.go`
+      (`FuzzAnonymizeInvariants` 1.4M and `FuzzAnonymizeNeverPanics` 628k executions
+      over 30s each, no violations) pins the left-to-right splice oracle for
+      well-formed entities, the caller-slice-not-mutated rule, and no-panic /
+      no-partial-result on malformed entity lists. Three mutants verified the new
+      properties, each compiled before being counted and each caught by its
+      intended test: leaking the input on a masked slot, dropping the trailing-slot
+      fill, and inverting the splice direction. **This entry is closed; nothing
+      remains outstanding.**
 - [ ] **Golden dataset is an 18-case seed set, not the ~500 SPEC.md calls for.**
       `testdata/golden/seed.json` and the `golden` runner now exist and are
       tested, so the ">99% precision/recall" claim is at last measurable, but
       the seed set is far too small to support that number. Measured baseline is
-      exact P=0.9231 R=0.9231 (tp=12 fp=1 fn=1) and overlap P=1.0000 R=1.0000
-      (tp=13 fp=0 fn=0) over 18 cases — recorded in `golden/accuracy_test.go`
-      as the gate thresholds, expressed as tp/total ratios so a rounded literal
-      cannot drift above the true value. Every remaining non-perfect number is
-      the parenthesised-phone defect (the one exact FN and the one exact FP), so
-      fixing that raises the baseline instead of breaking the gate. Wiring the
-      checksum validators already lifted this from P=0.8571 and made all six
-      negative cases clean.
+      exact P=1.0000 R=1.0000 (tp=13 fp=0 fn=0) and overlap P=1.0000 R=1.0000
+      (tp=13 fp=0 fn=0) over 18 cases — recorded in `golden/accuracy_test.go` as
+      the gate thresholds. They were lifted from 12/13 by fixing the
+      parenthesised-phone defect (see the regression note under "Fixed"), which
+      had been the one exact FN and the one exact FP; the gate did its job by
+      making the defect measurable, and the fix raised the recorded baseline
+      rather than breaking it. Thresholds below 1.0 are written as tp/total
+      ratios so a rounded literal cannot drift above the true value; at the
+      current perfect baseline they are literals, since a ratio of 13/13 adds
+      nothing. Wiring the checksum validators had earlier lifted the baseline
+      from P=0.8571 and made all six negative cases clean.
       **Remaining:** grow toward ~500 cases and re-tighten the thresholds each
       time; the real corpora are the intended source. **Licence review is DONE —
       see DATASET_LICENSES.md.** It corrected a wrong claim here: ai4privacy is
@@ -52,14 +72,17 @@
       `gretelai/synthetic_pii_finance_multilingual` (Apache-2.0), both clean
       synthetic corpora. Treat PIIBench's `apache-2.0` tag as unreliable — its own
       card says constituent licences govern, and it includes CoNLL-2003 and
-      ai4privacy. Still to do: fetch scripts that download to an ignored
-      directory, and never commit a corpus.
+      ai4privacy. **Fetch is DONE:** `scripts/fetch-dataset.sh` (driven by
+      `make download`) writes into the gitignored `testdata/external/` and never
+      commits a corpus; both clean corpora are fetched. **Still to do:** the
+      schema-aware converter and the corpus scoring mode — see Open Questions,
+      which carries the FP-inflation trap a naive converter would hit.
 - [ ] **Context boosting accuracy still unmeasured.** The golden gate runs
       `NewScrubber`, which does NOT enable `WithContextBoost()`. Boosting is
       wired and tested for wiring only, and the gate above would not notice if
       boosting were enabled by default and degraded results. Needs a second gate
       scored with boosting on, compared against this one.
-- [ ] **`removeOverlapping`'s equal-confidence tie-break: intent vs test.** The
+- [x] **`removeOverlapping`'s equal-confidence tie-break: intent vs test.** The
       behaviour is that on an exact tie in confidence the EARLIER span wins, and
       it is now pinned by `analyzer.TestEqualConfidenceTieIsDeterministic` at
       `analyzer/context_boost_test.go:336`. Both halves are covered — AGENTS.md
@@ -75,9 +98,10 @@
 Neither of these is an open item; recorded so a later reader does not re-raise
 them as gaps.
 
-- Golden runner had no tests — `golden/golden_test.go` (21 tests) plus
-  `golden/accuracy_test.go` cover it. Mutation-verified: reverting the
-  zero-denominator convention, the gold+pred type union, the ambiguous-label
+- Golden runner had no tests — `golden/golden_test.go` (18 tests) and
+  `golden/accuracy_test.go` (3) cover it, 21 in the package. Mutation-verified:
+  reverting the zero-denominator convention, the gold+pred type union, the
+  ambiguous-label
   guard, the text-order check, the single-credit-per-gold array, or
   `DisallowUnknownFields` each fails a specific test. One rejected mutant was an
   EQUIVALENT mutant (the card recognizer's length window can never reject a
@@ -88,6 +112,85 @@ them as gaps.
 
 ## Fixed (kept as regression notes)
 
+- **`MaskOperator` split multi-byte UTF-8 runes (byte-wise masking).**
+  Found by the new `operators/property_test.go`. `applyMask` iterated BYTES and
+  treated every non-separator byte as one slot, so `é` with `#*` produced
+  `"\xC3*"` — invalid UTF-8 — and `#` could keep a leading byte while `*` masked
+  the continuation byte; the empty pattern emitted one `*` per byte. **Fixed** by
+  making masking rune-based: `applyMask` iterates the input with
+  `utf8.DecodeRuneInString`, the pattern with `[]rune`, and the empty pattern
+  emits one `*` per rune. **Invalid UTF-8 is kept byte-faithfully** — an invalid
+  byte is one significant unit and, on a `#` slot, is written back verbatim
+  rather than replaced with U+FFFD (a scrubber must not rewrite bytes it was told
+  to keep). Every ASCII case is byte-for-byte unchanged.
+  **Regression tests:** `operators.TestMaskDoesNotSplitUTF8` (é/☃/日本語 keep+mask
+  combinations, asserts exact output AND valid UTF-8) plus the re-derived
+  rune-based `TestMaskOutputLength`, `TestMaskEmptyPatternMasksEverything`,
+  `TestMaskDoesNotLeakInputData` and `TestMaskIsIndependentOfMaskedInput`; the
+  fuzz target now asserts mask output of valid-UTF-8 input is valid UTF-8.
+  Mutation-verified: reverting the loop to bytes, or the empty pattern to
+  `len(s)`, each fails the tests. Documented in SPEC.md §Operators.
+- **`Anonymizer.Anonymize` silently corrupted OVERLAPPING entity spans.**
+  Found by the new `anonymizer/property_test.go`. Overlapping spans cannot be
+  spliced independently — replacing the rightward one leaves the leftward one's
+  offsets stale — and the old bounds check ran against the already-shrinking
+  working string, so `[2,7)` + `[5,9)` over `0123456789` returned the corrupt
+  `01<X>>9` with NO error. In a PII scrubber that can emit partly-unredacted
+  text. **Fixed** by rejecting overlaps up front (before any splice), so a
+  rejected input never yields a partial result: in the descending sort the next
+  entity overlaps iff it ends after the previous start. Adjacent spans and an
+  empty span at a boundary are correctly still accepted.
+  **Regression test:** `anonymizer.TestAnonymizeRejectsOverlappingSpans`
+  (rejects the overlap, accepts adjacent + empty-at-boundary). Mutation-verified
+  by reverting the guard. The property tests' well-formed decoder drops
+  overlaps, so the oracle never sees one — the explicit test is what pins this.
+- **Phone recognizer dropped the leading `(` (and `+`) on anchored numbers.**
+  The pattern was `\b(?:\+?1[\s.\-]?)?\(?\d{3}\)?...|\b\+\d{1,3}...`. A `\b`
+  cannot match between a space (or the start of the text) and a non-word
+  character, and both `(` and `+` are non-word, so the optional leading
+  delimiters never participated: `(555) 867-5309` was reported as
+  `555) 867-5309`, `+1-555-123-4567` as `1-555-123-4567`, and `+44 20 7946 0958`
+  at the start of a string was not matched at all. **Fixed** by splitting the
+  alternation into three branches and dropping the leading `\b` from the two
+  whose first meaningful character is a delimiter — the parenthesised branch
+  (bounded by `(`) and the international `+` branch (bounded by `+`) — while the
+  bare-US branch, which starts with a digit, keeps its `\b`. A digit run cannot
+  contain `(` or `+`, so those two branches need no left anchor; the bare branch
+  still needs one or a 16-digit card is read as a phone. The three-branch shape
+  is required: Go's RE2 has no lookbehind, so "not preceded by a word character"
+  cannot be expressed as a single anchor that also admits `(`/`+`.
+  **Scope note — the `+` half was not in the original entry.** The entry named
+  only the dropped `(`; the `+` was the identical bug in the same anchor, so
+  fixing one and not the other would have knowingly shipped half a fix.
+  **Two follow-on guards the anchorless branches needed:**
+  (a) The international branch now REQUIRES a separator after the country code
+  (`\+\d{1,3}[\s.\-]...`). Anchorless and with an optional separator it matched
+  any `+` followed by four or more digits, so at a string start or after a space
+  `+12345`, `+4111111111111111` (a card with a `+`) and arithmetic like
+  `1+23456789` were read as phones. The old leading `\b` had hidden this; the
+  new branch has to earn its own precision. Cost: an unseparated `+442079460958`
+  is not matched, which is the same as the old behaviour at a boundary.
+  (b) The parenthesised branch's bare `1` country code carries its own `\b`
+  (`\b1`), so `x1 (555) 867-5309` does not treat a glued `1` as a country code
+  (it still matches the `(555) 867-5309`).
+  **Consequence beyond recall:** `Scrubber.Anonymize` masked the wrong span,
+  leaving the `(` and corrupting the digit run.
+  **Found by** seed case `pos-phone-parenthesised` — an exact-match miss that
+  overlap matching still credits, which is exactly the diagnostic gap the two
+  granularities are reported to expose.
+  **Regression tests:** `recognizers/regex.TestPhoneRecognizer` now asserts the
+  exact span (not just the hit count) for `(555) 867-5309` at the start, in
+  prose, without a space, with a `1` and with a `+1` country code, for
+  `+1-555-123-4567` and `+44 20 7946 0958`, and for `x1 (555) 867-5309`
+  (span `(555) 867-5309`); and asserts zero matches for `+12345`, `1+23456789`,
+  `+4111111111111111`, a bare 16-digit card, a spaced card and `x555-123-4567`.
+  The count-only table it replaced is precisely why the defect shipped — the
+  recognizer reported one PHONE, one byte to the right.
+  **Mutation-verified (each mutant compiled before being counted):** restoring
+  the leading `\b` fails 7 subtests; removing the required separator from the
+  international branch fails the three `+`-guard subtests; removing the `\b`
+  from the bare `1` fails the `x1` guard. Fixing it lifted the golden exact
+  baseline from 12/13 to 13/13 (see the golden item above).
 - **`checksum.LuhnValidator` and `checksum.IBANValidator` were never registered.**
   `NewScrubber` wired only the eight `recognizers/regex` recognizers, leaving
   both validators dead code, so cards were matched on shape alone at 0.95 with
@@ -133,9 +236,12 @@ them as gaps.
 - `RegexPhoneRecognizer` needed `\b` anchors: unanchored, it matched the first ten
   digits of any longer run, so a 16-digit card was reported as a phone number and
   lost. Mutation-verified.
-- `findCardCandidates` rewinds trailing separators; `findIBANCandidates` requires a
-  four-character block after each space. Without either, valid values absorbed the
-  surrounding prose and failed their checksum. Mutation-verified.
+- `findCardCandidates` rewinds trailing separators, so a card does not absorb the
+  prose that follows it. Mutation-verified. The `findIBANCandidates` half once
+  recorded here — "a four-character block after each space" — was ITSELF the bug:
+  requiring exactly four dropped the short closing block of every conventionally
+  spaced IBAN, so a valid number was skipped in silence. The block is now 1 to 4
+  characters (`checksum.go:219-225`); see the spaced-IBAN entry above.
 - `ProcessCSV` returns `(raggedCount, error)` and pads short rows to the header
   width instead of silently accepting them. Mutation-verified.
 
@@ -159,9 +265,12 @@ them as gaps.
       success, aborts on a partial download, and **refuses to download into any
       path git would track** — that guard is what keeps dataset terms out of this
       repository. `fetch-all` skips the restricted corpora. Land in
-      `testdata/external/` (override with `DATAPROTECT_DATA_DIR`).
-      **Remaining:** a converter from each corpus's schema to `golden.Case`, and
-      a scoring mode that reads the corpus instead of `testdata/golden/`.
+      `testdata/external/` (override with `DATAPROTECT_DATA_DIR`). Both clean
+      corpora are fetched and on disk; the restricted three are skipped.
+- [ ] **Corpus converter and scoring mode — NOT STARTED.** A converter from each
+      corpus's schema to `golden.Case`, and a scoring mode that reads the corpus
+      instead of `testdata/golden/`. This is the open half of the fetch work
+      above: nothing can score the downloaded corpora yet.
       **Trap (2026-10-06): a naive converter inflates FP.** `scorePair`
       (`golden/golden.go:196-212`) counts a prediction as FP unless it matches a
       gold label of the SAME type (`p.Type != g.Type`), so a corpus labelling only
@@ -191,9 +300,11 @@ Recorded here so a later reader does not re-raise these as gaps.
   can go stale. Drift already happened once: a concurrent session rewrote both
   roots minutes after they were copied, leaving the bundle describing a package
   layout the spec says never existed. A `scripts/check-docs-sync.sh` detector was
-  written and mutation-verified, then removed on 2026-10-05 because this repo has
-  no Makefile, CI or hook — it would never have run, and an unrun check reads as
-  protection that does not actually exist.
+  written and mutation-verified, then removed on 2026-10-05 because at that time
+  there was no Makefile, CI or hook — it would never have run, and an unrun check
+  reads as protection that does not actually exist. A `Makefile` now exists
+  (`make download`, commit 3541169) but carries no docs-sync target, so the
+  detector would still never execute; the removal stands.
 - [ ] **Re-syncing is now a manual obligation.** When `SPEC.md`, `README.md` or
       `AGENTS.md` changes, re-copy the body into the matching `docs/` file and
       re-run `doc_write`. Re-apply all four link rewrites above when syncing
