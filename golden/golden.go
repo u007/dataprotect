@@ -349,6 +349,12 @@ func Load(dir string) ([]Case, error) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
+		// The schema sidecar is metadata, not a case file. Load sees every
+		// *.json in the directory, so without this skip a corpus dataset would
+		// fail wholesale with "cannot unmarshal object into []golden.Case".
+		if e.Name() == SchemaFilename {
+			continue
+		}
 		names = append(names, e.Name())
 	}
 	sort.Strings(names)
