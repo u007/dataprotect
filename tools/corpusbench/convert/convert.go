@@ -210,9 +210,11 @@ func fileSHA256(path string) (string, error) {
 
 // Write emits the case sequence and the schema sidecar into dir.
 //
-// Files are named cases-000.json, cases-001.json, ... zero-padded so lexical
-// order matches numeric order, and golden.Load reads them in sorted filename
-// order, so the loaded dataset is the same on every machine.
+// Files are named cases-000000.json, cases-000001.json, ... Six digits
+// rather than three so lexical order still matches numeric order past file
+// 999: a 3-digit name renders cases-1000.json, which sorts before
+// cases-999.json, and golden.Load reads in sorted filename order — so the
+// loaded dataset would drop the tail on a large corpus.
 //
 // An empty case set is an error: golden.Load rejects a dataset that parses to
 // zero cases, because with no cases every metric collapses to the
@@ -227,6 +229,22 @@ func Write(dir string, cases []golden.Case, schema golden.Schema) error {
 		return fmt.Errorf("creating %s: %w", dir, err)
 	}
 
+	// Replace whatever case files already sit here. An output directory is
+	// reused in normal use — vary LIMIT, re-fetch a corpus revision — and a
+	// chunk left behind by an earlier, larger conversion would survive this
+	// rewrite. golden.Load would then read more cases than this schema
+	// declares, so schema.json's `cases` would understate the sample actually
+	// scored and a sampled report could be mistaken for a full-corpus one.
+	stale, err := filepath.Glob(filepath.Join(dir, "cases-*.json"))
+	if err != nil {
+		return fmt.Errorf("matching existing case files in %s: %w", dir, err)
+	}
+	for _, name := range stale {
+		if err := os.Remove(name); err != nil {
+			return fmt.Errorf("removing stale case file %s: %w", filepath.Base(name), err)
+		}
+	}
+
 	for start, index := 0, 0; start < len(cases); start, index = start+casesPerFile, index+1 {
 		end := start + casesPerFile
 		if end > len(cases) {
@@ -236,7 +254,7 @@ func Write(dir string, cases []golden.Case, schema golden.Schema) error {
 		if err != nil {
 			return fmt.Errorf("encoding cases %d..%d: %w", start, end-1, err)
 		}
-		name := fmt.Sprintf("cases-%03d.json", index)
+		name := fmt.Sprintf("cases-%06d.json", index)
 		if err := os.WriteFile(filepath.Join(dir, name), raw, 0o644); err != nil {
 			return fmt.Errorf("writing %s: %w", name, err)
 		}

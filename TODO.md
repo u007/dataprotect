@@ -74,9 +74,11 @@
       card says constituent licences govern, and it includes CoNLL-2003 and
       ai4privacy. **Fetch is DONE:** `scripts/fetch-dataset.sh` (driven by
       `make download`) writes into the gitignored `testdata/external/` and never
-      commits a corpus; both clean corpora are fetched. **Still to do:** the
-      schema-aware converter and the corpus scoring mode — see Open Questions,
-      which carries the FP-inflation trap a naive converter would hit.
+      commits a corpus; both clean corpora are fetched. **The schema-aware
+      converter and the corpus scoring mode are DONE** — see the closed entry
+      below (`tools/corpusbench`, `make corpus`); the FP-inflation trap that
+      lived in Open Questions was resolved by the schema sidecar, not worked
+      around.
 - [ ] **Context boosting accuracy still unmeasured.** The golden gate runs
       `NewScrubber`, which does NOT enable `WithContextBoost()`. Boosting is
       wired and tested for wiring only, and the gate above would not notice if
@@ -92,6 +94,46 @@
       ("no test pins this") is not mistaken for a live gap — that claim was
       already stale when this line was first written, because AGENTS.md
       documented the policy and a later test pinned it.
+
+- [ ] **`countOverlappingPairs` undercounts when three or more spans overlap
+      each other.** `tools/corpusbench/convert/labels.go:122-127`. The sweep
+      counts, for each span, at most ONE earlier span it overlaps (whether its
+      start precedes the running `furthest` end), so three mutually overlapping
+      spans record 2 pairs instead of 3 — a single span overlapping two earlier
+      ones is credited only once. Severity: **LOW** — `overlapping_pairs` is a
+      descriptive schema field, not an input to any metric, and the full-corpus
+      runs agree with an independent pairwise count on real data (9 == 9). No
+      scoring effect. Effort: **small** — replace the sweep with an O(n log n)
+      sweep or an O(n^2) pairwise count over `seen` (bounded by labels per row).
+- [ ] **`countOverlappingPairs` panics if every label lacks offsets.**
+      `tools/corpusbench/convert/labels.go:122` reads `seen[0].end` after a
+      `len(labels) < 2` guard, but the guard is on `labels`, not on `seen`:
+      two labels whose `Start`/`End` are both nil skip the append, leaving
+      `seen` empty and `seen[0]` an index-out-of-range panic. Severity:
+      **LOW** — unreachable from the converter, which always emits offsets for
+      every converted label (a nil there would fail earlier in `resolve`);
+      it is a defensive path that would turn a data problem into a crash
+      instead of an error. Effort: **trivial** — `if len(seen) < 2 { return 0 }`.
+- [ ] **No committed test for the 500/501 chunk boundary.** No test in
+      `tools/corpusbench/convert/convert_test.go` writes more than one chunk,
+      so nothing in-repo pins that a 501-case dataset yields exactly two files
+      with no case dropped or duplicated at the seam. Severity: **LOW** — the
+      code is empirically validated: full-corpus conversions of both corpora
+      (199 chunk boundaries crossed) were checked case-by-case against an
+      independent Python oracle. But that evidence is not in the repo, so a
+      future edit to the loop could regress it unnoticed. Effort: **small** —
+      a fixture of 501 rows asserting `cases-000000.json` holds 500,
+      `cases-000001.json` holds 1, and `golden.Load` returns 501.
+- [ ] **A `(0, nil)` read is treated as end-of-file.**
+      `tools/corpusbench/convert/convert.go:120-122` breaks on `n == 0` with a
+      nil error, which is indistinguishable from a transient zero-row read; it
+      would stop conversion early and write PARTIAL output, the opposite of the
+      fail-fast "no partial output" rule. Severity: **LOW** — a reader returning
+      `(0, nil)` instead of `(0, io.EOF)` is not something parquet-go does in
+      practice, and the truncation would at least be visible as
+      `cases < source_rows` in the printed summary. Effort: **trivial** — break
+      only on `io.EOF` and return an error naming the file and row when
+      `n == 0 && err == nil`.
 
 ## Closed in the golden-dataset pass
 
@@ -111,6 +153,21 @@ them as gaps.
   so a hand-written `"negative": true` fails loudly instead of being ignored.
 
 ## Fixed (kept as regression notes)
+
+- **`convert.Write` left stale `cases-*.json` in a reused output directory.**
+  Found by the final whole-branch review. Reusing an output directory is normal
+  — vary `LIMIT`, re-fetch a corpus revision — and a chunk left behind by an
+  earlier, larger conversion survived the rewrite: `golden.Load` then read more
+  cases than `schema.json` declared (500 beside 5,596 loaded records), so the
+  benchmark header understated the sample it actually scored and a sampled
+  report could be mistaken for a full-corpus one — the guarantee the sidecar
+  exists to provide. **Fixed** by globbing and removing `cases-*.json` after
+  `MkdirAll` and before the write loop, so `Write` emits exactly the sequence
+  `schema.json` describes.
+  **Regression test:** `convert.TestWriteReplacesStaleCaseFiles` (pre-populated
+  directory → loads exactly the written cases and the stale file is gone).
+  Mutation-verified: removing the clear compiles and fails it with
+  `golden.Load returned 2 cases, want 1`.
 
 - **`MaskOperator` split multi-byte UTF-8 runes (byte-wise masking).**
   Found by the new `operators/property_test.go`. `applyMask` iterated BYTES and

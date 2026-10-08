@@ -1,6 +1,7 @@
 package golden
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -38,8 +39,29 @@ func TestResolveUsesExplicitOffsetsForRepeatedValues(t *testing.T) {
 	if gold[1].Start != 29 || gold[1].End != 48 {
 		t.Errorf("gold[1] = %d..%d, want 29..48", gold[1].Start, gold[1].End)
 	}
-	// The substring path would have rejected this: prove the ambiguity guard
-	// still fires for labels that give no offsets.
+	// The contrast that gives the assertions above their meaning: the SAME two
+	// labels with their offsets dropped fall back to substring matching, where a
+	// repeated value cannot be located at all. Before this the comment claimed
+	// exactly that while re-running resolve() on the offset-bearing case, which
+	// could not fail.
+	noOffsets := Case{
+		ID:       c.ID,
+		Text:     c.Text,
+		Entities: []Label{c.Entities[0], c.Entities[1]},
+	}
+	for i := range noOffsets.Entities {
+		noOffsets.Entities[i].Start, noOffsets.Entities[i].End = nil, nil
+	}
+	_, ambigErr := noOffsets.resolve()
+	if ambigErr == nil {
+		t.Fatal("resolve without offsets on a repeated value should report ambiguity")
+	}
+	for _, want := range []string{"exactly 1", "repeated value"} {
+		if !strings.Contains(ambigErr.Error(), want) {
+			t.Errorf("error %q should mention %q", ambigErr.Error(), want)
+		}
+	}
+	// ...and the offset-bearing original still resolves, which is the guarantee.
 	if _, err := c.resolve(); err != nil {
 		t.Errorf("resolve with offsets should not report ambiguity: %v", err)
 	}
@@ -97,6 +119,22 @@ func TestResolveRejectsHalfSpecifiedOffsets(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), "half-specified") {
 				t.Errorf("error %q should say the offsets are half-specified", err.Error())
+			}
+			// The message must name the offending VALUES. %v on a *int prints a
+			// pointer address (0x...), which tells a dataset author nothing they
+			// can act on — the whole point of reporting the mistake.
+			if strings.Contains(err.Error(), "0x") {
+				t.Errorf("error %q reports a pointer address instead of an offset value", err.Error())
+			}
+			if tc.start != nil {
+				if want := fmt.Sprintf("start=%d", *tc.start); !strings.Contains(err.Error(), want) {
+					t.Errorf("error %q should contain %q", err.Error(), want)
+				}
+			}
+			if tc.end != nil {
+				if want := fmt.Sprintf("end=%d", *tc.end); !strings.Contains(err.Error(), want) {
+					t.Errorf("error %q should contain %q", err.Error(), want)
+				}
 			}
 		})
 	}

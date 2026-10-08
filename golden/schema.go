@@ -45,7 +45,10 @@ type Schema struct {
 	SourceRows int `json:"source_rows"`
 	// Limit is the row bound applied during conversion; 0 means all rows.
 	Limit int `json:"limit"`
-	// Cases is the number of case files produced.
+	// Cases is the number of cases (records) converted, which is what a
+	// benchmark reports as its sample size. It is NOT the number of case
+	// files: output is chunked across files at a fixed records-per-file
+	// size, so the file count is far smaller than this value.
 	Cases int `json:"cases"`
 	// OffsetUnit records what label offsets are measured in. The converter
 	// always emits "bytes"; corpus offsets arrive as character indices and are

@@ -93,7 +93,7 @@ that owns its test:
   - `func LoadSchema(dir string) (Schema, error)`
   - constant for the reserved filename `schema.json`, referenced by `Load`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```go
 func TestLoadSkipsSchemaSidecar(t *testing.T) {
@@ -114,19 +114,19 @@ func TestLoadSchemaRejectsCaseArray(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the tests and verify they fail**
+- [x] **Step 2: Run the tests and verify they fail**
 
 Run: `go test ./golden/ -run 'TestLoadSkipsSchemaSidecar|TestLoadSchema' -v`
 Expected: FAIL (`LoadSchema` undefined; sidecar not yet skipped).
 
-- [ ] **Step 3: Implement `LoadSchema` and the reserved-name skip**
+- [x] **Step 3: Implement `LoadSchema` and the reserved-name skip**
 
 Define `Schema` with doc comments and `json` tags matching the field list above;
 `LoadSchema` decodes with `DisallowUnknownFields` and validates each
 `in_schema` entry through `recognizers.EntityTypeFromString`. `Load` ignores
 exactly the reserved filename. Document the reservation in `Load`'s doc comment.
 
-- [ ] **Step 4: Run the tests and the whole package**
+- [x] **Step 4: Run the tests and the whole package**
 
 Run: `go test ./golden/ -v && go test ./...`
 Expected: PASS, including every pre-existing test unchanged.
@@ -155,7 +155,7 @@ precision/false-positive counts) is silent and would make a published number wro
     compile unchanged.
   - `Report.OutOfSchema map[string]int` (counts by type; nil/empty when no filter).
 
-- [ ] **Step 1: Write the failing test — the trap TODO.md describes**
+- [x] **Step 1: Write the failing test — the trap TODO.md describes**
 
 ```go
 func TestOutOfSchemaDetectionIsNotCountedAsFP(t *testing.T) {
@@ -198,26 +198,26 @@ func TestScoreRejectsGoldOutsideSchema(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Verify it fails**
+- [x] **Step 2: Verify it fails**
 
 Run: `go test ./golden/ -run TestOutOfSchemaDetectionIsNotCountedAsFP -v`
 Expected: FAIL — `WithInSchema` undefined (feature absent).
 
-- [ ] **Step 3: Prove the trap exists without the filter**
+- [x] **Step 3: Prove the trap exists without the filter**
 
 Add a second assertion in the same file: calling `Score` with **no** option over
 the same dataset yields `rep.Exact.FP == 2` (EMAIL + the unmatched PHONE) and an
 empty `OutOfSchema`. Run it — it should PASS (documents today's behaviour, proves
 the trap is real, and pins that the default is byte-identical for the seed set).
 
-- [ ] **Step 4: Implement `Option` / `WithInSchema` and the filter**
+- [x] **Step 4: Implement `Option` / `WithInSchema` and the filter**
 
 Config holds the in-schema set (nil = no filter). `Score` drops out-of-schema
 predictions **before** exact scoring, overlap scoring, and the `ByType` loop,
 counting them by type into `Report.OutOfSchema`. `Summary` prints an
 out-of-schema line only when the bucket is non-empty.
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run: `go test ./golden/ -v && go test ./...`
 Expected: PASS; both the new test and the no-filter default test pass.
@@ -244,7 +244,7 @@ invalid UTF-8 would slip through.
     `Value` is non-empty). Both nil → the existing substring path, unchanged.
     Exactly one set → error.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```go
 func TestResolveUsesExplicitOffsetsForRepeatedValues(t *testing.T) {
@@ -265,17 +265,17 @@ func TestResolveRejectsMidRuneOffset(t *testing.T)         { /* End inside a mul
 func TestResolveSubstringPathUnchanged(t *testing.T)       { /* seed-style label, no offsets -> same spans as today */ }
 ```
 
-- [ ] **Step 2: Verify they fail**
+- [x] **Step 2: Verify they fail**
 
 Run: `go test ./golden/ -run TestResolve -v`
 Expected: FAIL — `Start` field undefined.
 
-- [ ] **Step 3: Implement offset handling in `resolve`**
+- [x] **Step 3: Implement offset handling in `resolve`**
 
 Keep the substring branch byte-for-byte identical; add the offset branch ahead of
 it with the validation listed in Produces. Reuse `utf8` boundary checks.
 
-- [ ] **Step 4: Run the full package and the CI gate**
+- [x] **Step 4: Run the full package and the CI gate**
 
 Run: `go test ./golden/ -v && go test ./...`
 Expected: PASS — including `TestGoldenDatasetAccuracy` with the untouched seed set.
@@ -299,7 +299,7 @@ confidently wrong measurements rather than a visible error.
     `charStart >= charEnd`, or a boundary not landing on a rune.
   - `type Span struct { Start, End int; Label string }` (corpus char offsets).
 
-- [ ] **Step 1: Create the tool module**
+- [x] **Step 1: Create the tool module**
 
 Scaffold `tools/corpusbench/go.mod` with only the module line
 `module dataprotect/tools/corpusbench` and its `go` directive. **Do not add the
@@ -311,7 +311,7 @@ task whose code imports both.
 Verify the root cannot see the module: `cd tools/corpusbench && go build ./...`
 succeeds, then from the root `go list ./...` contains no `tools/` entry.
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 ```go
 func TestCharToByteNonASCIIShiftsOffsets(t *testing.T) {
@@ -327,17 +327,17 @@ func FuzzCharToByte(f *testing.F) {
 }
 ```
 
-- [ ] **Step 3: Verify they fail**
+- [x] **Step 3: Verify they fail**
 
 Run: `cd tools/corpusbench && go test ./convert/ -v`
 Expected: FAIL — `CharToByte` undefined.
 
-- [ ] **Step 4: Implement `CharToByte`**
+- [x] **Step 4: Implement `CharToByte`**
 
 Single pass over `text` accumulating byte position per rune, then index the
 result. Keep it allocation-bounded for the fuzz corpus.
 
-- [ ] **Step 5: Run tests including fuzz**
+- [x] **Step 5: Run tests including fuzz**
 
 Run: `cd tools/corpusbench && go test ./convert/ -v -fuzz FuzzCharToByte -fuzztime 30s`
 Expected: PASS; fuzz finds no panic and no mid-rune result.
@@ -370,7 +370,7 @@ validation list; the hard part (offsets) already exists from Task 4.
     `url`; gretel: `email`, `phone_number`, `credit_card_number`, `ssn`,
     `ipv4`, `ipv6`, `iban`).
 
-- [ ] **Step 1: Add the tool module's dependencies**
+- [x] **Step 1: Add the tool module's dependencies**
 
 In `tools/corpusbench/go.mod` add `require dataprotect v0.0.0`,
 `replace dataprotect => ../..`, and parquet-go pinned to an exact version. This
@@ -381,7 +381,7 @@ Run: `cd tools/corpusbench && go build ./... && go mod tidy && cd .. && cd .. &&
 Expected: build succeeds; no `tools/` entry in `go list`; root `go.mod` still has
 no `require` block.
 
-- [ ] **Step 2: Write the tests**
+- [x] **Step 2: Write the tests**
 
 ```go
 func TestNemotronSpansQuotedText(t *testing.T) {
@@ -413,12 +413,12 @@ Parquet fixtures are **generated at test time by parquet-go's writer** over
 hand-written synthetic records (non-ASCII record included). No corpus bytes are
 committed.
 
-- [ ] **Step 3: Verify they fail**
+- [x] **Step 3: Verify they fail**
 
 Run: `cd tools/corpusbench && go test ./convert/ -v`
 Expected: FAIL — functions undefined.
 
-- [ ] **Step 4: Implement parsers, maps, assembly, and `Write`**
+- [x] **Step 4: Implement parsers, maps, assembly, and `Write`**
 
 Parsers return `[]Span`; `BuildLabels` is the only place offsets are translated
 (it must not bypass `CharToByte`). Validation is a closed list from spec §5.2, and
@@ -429,7 +429,7 @@ in-schema label become negative cases and are **not** failures. Overlapping gold
 labels are kept and counted into `overlapping_pairs`. `Write` emits the sorted
 fixed-width file sequence plus `schema.json`.
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run: `cd tools/corpusbench && go test ./... -v`
 Expected: PASS.
@@ -453,27 +453,27 @@ Expected: PASS.
 - Produces: binary `corpusbench` with subcommand `convert`; Makefile targets;
   `benchmark.sh` behaviour unchanged when no sidecar is present.
 
-- [ ] **Step 1: Implement the CLI and Makefile targets**
+- [x] **Step 1: Implement the CLI and Makefile targets**
 
 Positional args only: `corpusbench convert <corpus> <data-root> <limit>`.
 `LIMIT ?= 2000`. `corpus-convert` runs the tool for both corpora; `corpus` runs
 `corpus-convert` then `scripts/benchmark.sh` over each output dir; `corpus-clean`
 removes generated output. `help` lists all three with `LIMIT`'s default.
 
-- [ ] **Step 2: Wire the sidecar into `benchmark.sh`**
+- [x] **Step 2: Wire the sidecar into `benchmark.sh`**
 
 Load `schema.json` when it exists in the scored directory and pass
 `golden.WithInSchema` from it; with no sidecar the generated program must be
 byte-for-byte equivalent to today's behaviour.
 
-- [ ] **Step 3: Verify the end-to-end path**
+- [x] **Step 3: Verify the end-to-end path**
 
 Run: `make corpus && make test`
 Expected: `make corpus` converts both corpora and prints two reports (exact,
 overlap, per-type, out-of-schema); `make test` passes with all pre-existing
 tests unchanged. Confirm `git status` shows **no** file under `testdata/external/`.
 
-- [ ] **Step 4: Documentation**
+- [x] **Step 4: Documentation**
 
 Close the converter entry in `TODO.md` and add entries for whatever the
 measurement exposes (plus the deferred items the spec lists: BITCOIN coverage,
@@ -485,7 +485,7 @@ URL is nemotron-only, IBAN gretel-only, BITCOIN unmeasured, and replaces the
 link rewrites TODO.md documents. `DATASET_LICENSES.md` notes derived output stays
 in the gitignored directory. `.env.example` gains `DATAPROTECT_DATA_DIR`.
 
-- [ ] **Step 5: Final verification**
+- [x] **Step 5: Final verification**
 
 Run: `go build ./... && go vet ./... && gofmt -l . && go test ./... && make corpus`
 Expected: all clean, root `go.mod` still has no `require` block, corpus reports

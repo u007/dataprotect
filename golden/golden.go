@@ -32,6 +32,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -102,6 +103,16 @@ type Label struct {
 // with the scorer's idea of a span.
 type Prediction = recognizers.Entity
 
+// offsetDesc renders an optional offset for a diagnostic. fmt's %v on a *int
+// prints the pointer address, which tells a dataset author nothing they can act
+// on; they need the value, or the word "nil" for the side that was omitted.
+func offsetDesc(p *int) string {
+	if p == nil {
+		return "nil"
+	}
+	return strconv.Itoa(*p)
+}
+
 // resolve converts labels into concrete spans against the case text.
 func (c Case) resolve() ([]recognizers.Entity, error) {
 	cursor := 0
@@ -114,9 +125,9 @@ func (c Case) resolve() ([]recognizers.Entity, error) {
 		// would silently move the span rather than report the mistake.
 		if (l.Start == nil) != (l.End == nil) {
 			return nil, fmt.Errorf(
-				"case %q label %d: half-specified offsets (start=%v end=%v); give both or "+
+				"case %q label %d: half-specified offsets (start=%s end=%s); give both or "+
 					"neither — exactly one would move the span instead of locating it",
-				c.ID, i, l.Start, l.End)
+				c.ID, i, offsetDesc(l.Start), offsetDesc(l.End))
 		}
 		// Both offsets given: they are authoritative and bypass substring
 		// matching entirely, which is the point — a repeated value is located
@@ -502,7 +513,6 @@ func Load(dir string) ([]Case, error) {
 	return cases, nil
 }
 
-// Summary renders the report for a test failure message.
 // sortedOutOfSchemaKeys returns the out-of-schema types in sorted order so a
 // report renders identically across runs.
 func (r *Report) sortedOutOfSchemaKeys() []string {
@@ -514,6 +524,7 @@ func (r *Report) sortedOutOfSchemaKeys() []string {
 	return keys
 }
 
+// Summary renders the report for a test failure message.
 func (r *Report) Summary() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "exact-span match: P=%.4f R=%.4f F1=%.4f  (tp=%d fp=%d fn=%d)\n",

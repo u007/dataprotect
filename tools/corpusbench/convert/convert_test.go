@@ -295,12 +295,72 @@ func TestWriteEmitsSortedOutputAndSidecar(t *testing.T) {
 		t.Errorf("no cases-*.json emitted; files = %v", names)
 	}
 
-	// Deterministic file naming: zero-padded so lexical order equals numeric.
+	// Deterministic file naming: a fixed 6-digit width, so lexical order equals
+	// numeric order and STAYS equal past file 999. At 500 cases per file a
+	// 3-digit name would render cases-1000.json, which sorts before
+	// cases-999.json — silently breaking the sorted-read contract golden.Load
+	// depends on. Assert the width itself, not a couple of sample names.
 	for _, n := range names {
-		if strings.HasPrefix(n, "cases-") && !strings.Contains(n, "cases-000") &&
-			!strings.Contains(n, "cases-001") && !strings.Contains(n, "cases-002") {
-			t.Errorf("case file %q is not zero-padded to a fixed width", n)
+		if !strings.HasPrefix(n, "cases-") || !strings.HasSuffix(n, ".json") {
+			continue
 		}
+		digits := strings.TrimSuffix(strings.TrimPrefix(n, "cases-"), ".json")
+		if len(digits) != 6 {
+			t.Errorf("case file %q: width %d, want exactly 6 zero-padded digits", n, len(digits))
+			continue
+		}
+		for _, r := range digits {
+			if r < '0' || r > '9' {
+				t.Errorf("case file %q is not zero-padded digits", n)
+				break
+			}
+		}
+	}
+}
+
+// TestWriteReplacesStaleCaseFiles pins that Write replaces whatever
+// cases-*.json already sit in dir. Reusing an output directory is the normal
+// workflow (vary LIMIT, re-fetch a corpus revision), and before this fix a
+// stale chunk from an earlier, larger conversion survived the rewrite:
+// golden.Load then read MORE cases than schema.json reports, so the benchmark
+// header understated the sample it scored and could attribute a number to
+// corpus bytes it was not measured on.
+func TestWriteReplacesStaleCaseFiles(t *testing.T) {
+	root := t.TempDir()
+	writeNemotronFixture(t, root, []nemotronRow{
+		{Text: "call 555-123-4567", Spans: `[{'start': 5, 'end': 17, 'text': '555-123-4567', 'label': 'phone_number'}]`},
+	})
+
+	dir := filepath.Join(t.TempDir(), "out")
+
+	// An earlier, larger conversion left chunks behind in the target directory.
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(dir, "cases-004.json")
+	if err := os.WriteFile(stale, []byte(`[{"id":"stale-000000","text":"old row","entities":[]}]`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cases, schema, err := Nemotron(root, 0)
+	if err != nil {
+		t.Fatalf("Nemotron: unexpected error: %v", err)
+	}
+	if err := Write(dir, cases, schema); err != nil {
+		t.Fatalf("Write: unexpected error: %v", err)
+	}
+
+	loaded, err := golden.Load(dir)
+	if err != nil {
+		t.Fatalf("golden.Load: unexpected error: %v", err)
+	}
+	if len(loaded) != len(cases) {
+		t.Errorf("golden.Load returned %d cases, want %d — stale case files survive Write, "+
+			"so schema.json's cases count misdescribes what is scored",
+			len(loaded), len(cases))
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Errorf("stale %s still present after Write", filepath.Base(stale))
 	}
 }
 
