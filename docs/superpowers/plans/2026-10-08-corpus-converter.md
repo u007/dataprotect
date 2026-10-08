@@ -206,9 +206,9 @@ Expected: FAIL — `WithInSchema` undefined (feature absent).
 - [ ] **Step 3: Prove the trap exists without the filter**
 
 Add a second assertion in the same file: calling `Score` with **no** option over
-the same dataset yields `rep.Exact.FP == 1` and an empty `OutOfSchema`.
-Run it — it should PASS (documents today's behaviour and pins that the default
-is byte-identical for the seed set).
+the same dataset yields `rep.Exact.FP == 2` (EMAIL + the unmatched PHONE) and an
+empty `OutOfSchema`. Run it — it should PASS (documents today's behaviour, proves
+the trap is real, and pins that the default is byte-identical for the seed set).
 
 - [ ] **Step 4: Implement `Option` / `WithInSchema` and the filter**
 
