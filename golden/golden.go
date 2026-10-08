@@ -168,6 +168,11 @@ type Report struct {
 	// dataset or the detector failed to produce an answer, which is distinct
 	// from producing a wrong answer.
 	Errors []string `json:"errors,omitempty"`
+	// OutOfSchema counts predictions excluded by WithInSchema, keyed by entity
+	// type. It is empty when no schema is in force. Reporting the exclusion
+	// separately is what keeps it from being mistaken for a clean run: those
+	// detections were never scored, not scored and found correct.
+	OutOfSchema map[string]int `json:"out_of_schema,omitempty"`
 }
 
 // matchPolicy decides whether a prediction found a gold entity.
@@ -224,12 +229,13 @@ func scorePair(gold, pred []recognizers.Entity, policy matchPolicy) Counts {
 // A predictor error is recorded in Report.Errors and the case is skipped, not
 // counted as a failure: a detector that cannot process an input has produced no
 // answer rather than a wrong one, and conflating the two hides both.
-func Score(ctx context.Context, dir string, predict func(context.Context, string) ([]Prediction, error)) (*Report, error) {
+func Score(ctx context.Context, dir string, predict func(context.Context, string) ([]Prediction, error), opts ...Option) (*Report, error) {
+	cfg := applyOptions(opts)
 	cases, err := Load(dir)
 	if err != nil {
 		return nil, err
 	}
-	rep := &Report{ByType: map[string]Counts{}}
+	rep := &Report{ByType: map[string]Counts{}, OutOfSchema: map[string]int{}}
 
 	var exactTotal, overlapTotal Counts
 	negTotal, negClean := 0, 0
@@ -240,11 +246,21 @@ func Score(ctx context.Context, dir string, predict func(context.Context, string
 			rep.Errors = append(rep.Errors, err.Error())
 			continue
 		}
+		// Gold outside the schema can never match, because its predictions are
+		// filtered out below. Scoring it would quietly count false negatives,
+		// so it is an error naming the type rather than a wrong number.
+		if err := cfg.checkGoldInsideSchema(gold, c.ID); err != nil {
+			return nil, err
+		}
 		pred, err := predict(ctx, c.Text)
 		if err != nil {
 			rep.Errors = append(rep.Errors, fmt.Sprintf("case %q: predictor error: %v", c.ID, err))
 			continue
 		}
+		// Excluded before exact matching, overlap matching and the per-type
+		// loop alike: filtering in only one place would let the two
+		// granularities disagree for a reason that is not a boundary bug.
+		pred = cfg.splitPredictions(pred, rep.OutOfSchema)
 
 		e := scorePair(gold, pred, exactPolicy)
 		o := scorePair(gold, pred, overlapPolicy)
@@ -406,6 +422,17 @@ func Load(dir string) ([]Case, error) {
 }
 
 // Summary renders the report for a test failure message.
+// sortedOutOfSchemaKeys returns the out-of-schema types in sorted order so a
+// report renders identically across runs.
+func (r *Report) sortedOutOfSchemaKeys() []string {
+	keys := make([]string, 0, len(r.OutOfSchema))
+	for k := range r.OutOfSchema {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func (r *Report) Summary() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "exact-span match: P=%.4f R=%.4f F1=%.4f  (tp=%d fp=%d fn=%d)\n",
@@ -414,6 +441,15 @@ func (r *Report) Summary() string {
 		r.Overlap.Precision, r.Overlap.Recall, r.Overlap.F1, r.Overlap.TP, r.Overlap.FP, r.Overlap.FN)
 	fmt.Fprintf(&b, "negative cases:   %d clean of %d\n",
 		r.Exact.NegativesClean, r.Exact.Negatives)
+	// Printed only when non-empty: a schema-free run must look exactly as it
+	// always has, and a line saying "none excluded" would be noise.
+	if len(r.OutOfSchema) > 0 {
+		b.WriteString("out-of-schema (not scored):")
+		for _, k := range r.sortedOutOfSchemaKeys() {
+			fmt.Fprintf(&b, " %s=%d", k, r.OutOfSchema[k])
+		}
+		b.WriteString("\n")
+	}
 	b.WriteString("\nby type (exact):\n")
 	for _, k := range r.sortedTypeKeys() {
 		c := r.ByType[k]
