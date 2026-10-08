@@ -33,9 +33,33 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"dataprotect/recognizers"
 )
+
+// isRuneBoundary reports whether byte offset i begins a rune in s.
+//
+// It walks the runes instead of testing s[i] alone: testing s[i] only says the
+// byte is not a UTF-8 continuation byte, which for malformed input can be true
+// of a position that is not a boundary at all. Walking cannot be fooled, and
+// this runs once per label rather than in a loop.
+func isRuneBoundary(s string, i int) bool {
+	if i < 0 || i > len(s) {
+		return false
+	}
+	for off := 0; off < i; {
+		_, size := utf8.DecodeRuneInString(s[off:])
+		if size < 1 {
+			return false
+		}
+		off += size
+		if off > i {
+			return false
+		}
+	}
+	return true
+}
 
 // Case is one hand-labelled input/output pair.
 //
@@ -60,6 +84,17 @@ type Case struct {
 type Label struct {
 	Type  recognizers.EntityType `json:"type"`
 	Value string                 `json:"value"`
+	// Start and End are optional byte offsets into Case.Text. Both nil means
+	// "locate Value by substring", which is how every hand-authored case works
+	// and remains unchanged. Both set means "use these directly", which is what
+	// converted corpus cases need: 13.9% of nemotron positives and 14.9% of
+	// gretel positives repeat a value, and a repeated value cannot be located
+	// unambiguously by substring.
+	//
+	// Pointers rather than ints with -1 as a sentinel, so a span at byte 0 is
+	// not confused with "no offsets given". Giving exactly one is an error.
+	Start *int `json:"start,omitempty"`
+	End   *int `json:"end,omitempty"`
 }
 
 // Prediction is what a detector produced. It reuses recognizers.Entity rather
@@ -74,6 +109,52 @@ func (c Case) resolve() ([]recognizers.Entity, error) {
 	for i, l := range c.Entities {
 		if l.Value == "" {
 			return nil, fmt.Errorf("case %q label %d: empty value", c.ID, i)
+		}
+		// Exactly one offset given: a malformed label. Treating the nil as zero
+		// would silently move the span rather than report the mistake.
+		if (l.Start == nil) != (l.End == nil) {
+			return nil, fmt.Errorf(
+				"case %q label %d: half-specified offsets (start=%v end=%v); give both or "+
+					"neither — exactly one would move the span instead of locating it",
+				c.ID, i, l.Start, l.End)
+		}
+		// Both offsets given: they are authoritative and bypass substring
+		// matching entirely, which is the point — a repeated value is located
+		// by position, not by uniqueness.
+		if l.Start != nil {
+			start, end := *l.Start, *l.End
+			if start < 0 || end > len(c.Text) || start > len(c.Text) {
+				return nil, fmt.Errorf(
+					"case %q label %d: offsets %d..%d out of bounds for text of %d bytes",
+					c.ID, i, start, end, len(c.Text))
+			}
+			if start >= end {
+				return nil, fmt.Errorf(
+					"case %q label %d: empty or inverted span %d..%d", c.ID, i, start, end)
+			}
+			// Corpus offsets are character indices. A byte slice taken at a
+			// mid-rune offset yields invalid UTF-8, which would then be reported
+			// as the entity's text and copied into any downstream document.
+			if !isRuneBoundary(c.Text, start) || !isRuneBoundary(c.Text, end) {
+				return nil, fmt.Errorf(
+					"case %q label %d: offsets %d..%d do not land on a rune boundary in %q; "+
+						"corpus offsets are character indices and must be translated to bytes",
+					c.ID, i, start, end, c.Text)
+			}
+			if got := c.Text[start:end]; got != l.Value {
+				return nil, fmt.Errorf(
+					"case %q label %d: value %q does not match text[%d:%d] = %q; the offsets "+
+						"and the value disagree, so the label cannot be trusted",
+					c.ID, i, l.Value, start, end, got)
+			}
+			out = append(out, recognizers.Entity{
+				Type:       l.Type,
+				Start:      start,
+				End:        end,
+				Text:       l.Value,
+				Confidence: 1.0,
+			})
+			continue
 		}
 		// Reject ambiguity rather than silently taking the first match. Counting
 		// the whole text is what makes a repeated value an error: taking the
