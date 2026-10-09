@@ -39,7 +39,7 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
 - **Context-aware confidence boosting** — opt-in via `analyzer.WithContextBoost()`, applied
   before the confidence filter and before overlap resolution
 - **Structured data** — CSV batch processing
-- **Golden dataset** — 72-case hand-labelled seed set for CI, plus an
+- **Golden dataset** — 74-case hand-labelled seed set for CI, plus an
   on-demand corpus measurement over the fetched corpora (`make corpus`)
 
 ### Later (v2+):
@@ -195,7 +195,7 @@ the check guards direct callers.
 
 ## Recognizers (MVP)
 
-| Recognizer | Entity Type | Method | Target | Measured (72-case seed) |
+| Recognizer | Entity Type | Method | Target | Measured (74-case seed) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
 | Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=1.0000 R=1.0000 |
@@ -207,11 +207,11 @@ the check guards direct callers.
 | Bitcoin | `BITCOIN` | Regex (P2PKH, P2SH, Bech32) | >99% P&R | P=1.0000 R=1.0000 (no checksum validator) |
 | SG NRIC/FIN | `SG_NRIC` | Regex + check letter (S, T, F, G) | >99% P&R | P=1.0000 R=1.0000 (M prefix unsupported) |
 | Malaysia MyKad | `MY_IC` | Regex (hyphenated) + date check | >99% P&R | P=1.0000 R=1.0000 (no checksum exists) |
-| Thailand citizen ID | `TH_ID` | Regex + mod-11 check digit | >99% P&R | P=1.0000 R=1.0000 (Luhn-passing IDs collide with CREDIT_CARD, see TODO.md) |
+| Thailand citizen ID | `TH_ID` | Regex + mod-11 check digit | >99% P&R | P=1.0000 R=1.0000 (Luhn-passing IDs are typed TH_ID, decision d) |
 | Malaysia passport | `MY_PASSPORT` | Regex (A/H/K + 8 digits) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Wikipedia and Purview, not PRADO) |
 
 **"Target" is a goal for a ~500-case dataset; "Measured" is what
-`scripts/benchmark.sh` reports today over the 72-case seed set.** The measured
+`scripts/benchmark.sh` reports today over the 74-case seed set.** The measured
 cells are 1.0 except IP_ADDRESS, whose batch-2 defect is in TODO.md. None of
 these cells is evidence that the targets are met: the shortfall is the dataset
 and that one defect. The Luhn and mod-97 validators are wired into the default
@@ -227,7 +227,7 @@ the measured column is evidence.
 Note the aggregate is not an average of this table, and the per-type cells are
 coarse: `PHONE`, `SSN` and `EMAIL` rest on four cases each, so a single flipped case
 moves any of them a long way. Aggregate exact precision/recall over the whole seed set
-is P=0.9787 R=1.0000 (tp=46 fp=1 fn=0), and overlap matching — which tolerates
+is P=0.9796 R=1.0000 (tp=48 fp=1 fn=0), and overlap matching — which tolerates
 mis-sized spans — gives the same. Before the parenthesised-phone
 fix the exact aggregate was P=0.9231 R=0.9231 while overlap stayed at 1.0000; the
 gap between the two granularities is exactly what localised the mis-sized span,
@@ -374,10 +374,10 @@ func (bp *BatchProcessor) ProcessCSV(ctx context.Context, r io.Reader, w io.Writ
 ## Testing Strategy
 
 ### Golden Dataset
-- ~500 hand-labeled samples — **72 exist** in `testdata/golden/seed.json`; the
+- ~500 hand-labeled samples — **74 exist** in `testdata/golden/seed.json`; the
   remaining ~450 do not
 - CI regression testing on every commit: `golden/accuracy_test.go` gates on
-  precision/recall thresholds and fails if the dataset drops below 72 cases (ratcheted with each batch)
+  precision/recall thresholds and fails if the dataset drops below 74 cases (ratcheted with each batch)
 - Precision/recall/F1 per entity type, plus aggregate, under two matching
   policies (exact span and byte overlap)
 
@@ -410,7 +410,7 @@ proves nothing.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 72-case seed (not ~500); the corpora are measured on demand instead |
+| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 74-case seed (not ~500); the corpora are measured on demand instead |
 | 2 | NLP recognizer (prose) | Later |
 | 3 | Secret recognizers (patterns + entropy) | Later |
 | 4 | FPE operator | Later |
@@ -422,7 +422,7 @@ proves nothing.
 ## Success Criteria (MVP)
 
 - [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT
-      MET, now measured.** The seed set reads P=0.9787 R=1.0000 over 72
+      MET, now measured.** The seed set reads P=0.9796 R=1.0000 over 74
       cases, which cannot support a >99% claim. The corpora are now measurable
       and do not come close: exact aggregate P=0.8340 R=0.8699 (nemotron) and
       P=0.3557 R=0.7673 (gretel) over 2000 records each — see "Corpus

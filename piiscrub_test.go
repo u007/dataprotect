@@ -219,3 +219,16 @@ func TestScrubberBitcoinSpanNotDisplacedByEmbeddedNRIC(t *testing.T) {
 		t.Errorf("BITCOIN span = %q, want the whole token", got)
 	}
 }
+
+func TestScrubberRedactsLuhnValidThaiIDAsThaiID(t *testing.T) {
+	// A Thai ID that also passes Luhn is typed TH_ID and fully redacted, not
+	// masked as a card with its check digit showing.
+	s := NewScrubber()
+	out, err := s.Anonymize(context.Background(), "Citizen ID 1000000000009 on file")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out != "Citizen ID [REDACTED] on file" {
+		t.Errorf("got %q, want the Thai ID fully redacted", out)
+	}
+}

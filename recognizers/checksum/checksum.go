@@ -8,7 +8,12 @@ import (
 	"strings"
 
 	"dataprotect/recognizers"
+	"dataprotect/recognizers/national"
 )
+
+// thIDValidator decides whether a span is a Thai citizen ID. It is shared, so
+// the card recognizer can defer to the Thai recognizer on the same span.
+var thIDValidator = national.NewTHIDValidator()
 
 // LuhnValidator validates credit card numbers using the Luhn algorithm.
 type LuhnValidator struct{}
@@ -51,12 +56,19 @@ func (v *LuhnValidator) Validate(number string) bool {
 }
 
 // Recognize validates credit card candidates from text.
+//
+// A 13-digit Thai citizen ID can also pass Luhn. When the Thai recognizer would
+// report the same span, the card recognizer stays silent, so the span is typed
+// TH_ID rather than CREDIT_CARD. Otherwise a card mask would keep the check
+// digit visible. The Thai recognizer uses word boundaries, so only spans with
+// non-word characters on both sides are deferred; a glued candidate is still
+// reported here as a card, so it is never left unredacted.
 func (v *LuhnValidator) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	// Find all number sequences that could be credit cards
 	candidates := findCardCandidates(text)
 	entities := make([]recognizers.Entity, 0)
 	for _, c := range candidates {
-		if v.Validate(c.text) {
+		if v.Validate(c.text) && !thaiIDOwns(text, c) {
 			entities = append(entities, recognizers.Entity{
 				Type:       recognizers.EntityCreditCard,
 				Start:      c.start,
@@ -102,6 +114,24 @@ func findCardCandidates(text string) []cardCandidate {
 		})
 	}
 	return candidates
+}
+
+// thaiIDOwns reports whether the Thai citizen ID recognizer reports this exact
+// span, so the card recognizer must not report it too.
+func thaiIDOwns(text string, c cardCandidate) bool {
+	if c.start > 0 && isWordByte(text[c.start-1]) {
+		return false
+	}
+	if c.end < len(text) && isWordByte(text[c.end]) {
+		return false
+	}
+	return thIDValidator.Validate(c.text)
+}
+
+// isWordByte matches the characters that Go's \b word boundary treats as word
+// characters.
+func isWordByte(c byte) bool {
+	return isLetter(c) || isDigit(c) || c == '_'
 }
 
 func isCardSeparator(c byte) bool {

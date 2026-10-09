@@ -221,3 +221,35 @@ func stripSpaces(s string) string {
 	}
 	return string(out)
 }
+
+func TestLuhnRecognizeDefersThaiIDSpan(t *testing.T) {
+	// 1000000000009 passes both the Thai mod-11 check and Luhn. The Thai
+	// recognizer owns the span, so the card recognizer must not report it.
+	v := NewLuhnValidator()
+	ctx := context.Background()
+	for _, text := range []string{
+		"Citizen ID 1000000000009 on file",
+		"Citizen ID 1-0000-00000-00-9 on file",
+	} {
+		entities, err := v.Recognize(ctx, text)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entities) != 0 {
+			t.Errorf("Recognize(%q) = %+v, want no card", text, entities)
+		}
+	}
+}
+
+func TestLuhnRecognizeKeepsCardWhenThaiSpanNotOwned(t *testing.T) {
+	// Same digits, but glued to a letter, so the Thai word boundary does not
+	// match. The card must still be reported, or the number would go unredacted.
+	v := NewLuhnValidator()
+	entities, err := v.Recognize(context.Background(), "ref x1000000000009 on file")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 || entities[0].Text != "1000000000009" {
+		t.Fatalf("got %+v, want one card 1000000000009", entities)
+	}
+}

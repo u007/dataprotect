@@ -46,10 +46,10 @@
       intended test: leaking the input on a masked slot, dropping the trailing-slot
       fill, and inverting the splice direction. **This entry is closed; nothing
       remains outstanding.**
-- [ ] **Four-part version strings are read as IPv4.** `neg-ip-version-four-part`
+- [ ] **Four-part version strings are read as IPv4.** Accepted as a known defect on 2026-10-09 (option a below). `neg-ip-version-four-part`
       ("Upgrade the agent to 3.10.2.7") has four valid octets, so the IP
       recognizer reports it. `neg-version-string` passes only because its
-      version has three parts. **Decision needed:** (a) accept it, since a dotted
+      version has three parts. **Decided 2026-10-09: (a), accept it as a known defect.** Options that were considered: (a) accept it, since a dotted
       quad is IP-shaped; (b) suppress it when a version word such as "version",
       "v" or "upgrade" precedes it, which is a heuristic and needs a sign-off; or
       (c) drop the IP recognizer's shape for values with small octets. Recorded,
@@ -60,16 +60,16 @@
       scrubber over every negative case: the only detection left is
       `neg-ip-version-four-part`. `pos-url-http` now describes a https URL with
       a path followed by prose, not a sentence period it never had.
-- [ ] **Golden dataset is a 72-case seed set, not the ~500 SPEC.md calls for.**
+- [ ] **Golden dataset is a 74-case seed set, not the ~500 SPEC.md calls for.**
       `testdata/golden/seed.json` and the `golden` runner now exist and are
       tested, so the ">99% precision/recall" claim is at last measurable, but
       the seed set is far too small to support that number. Batch 2 (13 cases)
       took the baseline off 1.0 on purpose. Batch 3 (13 cases) added the national
-      IDs. Batch 4 (5 cases) added Malaysia passports. Batch 5 (4 cases) added a label-glued SG NRIC and keyed bare MyKad. Current: exact P=0.9787
-      R=1.0000 (tp=46 fp=1 fn=0), overlap the same, 26 of 27 negatives clean. One of
+      IDs. Batch 4 (5 cases) added Malaysia passports. Batch 5 (4 cases) added a label-glued SG NRIC and keyed bare MyKad. Batch 6 (2 cases) added Luhn-valid Thai IDs, typed TH_ID by decision (d). Current: exact P=0.9796
+      R=1.0000 (tp=48 fp=1 fn=0), overlap the same, 26 of 27 negatives clean. One of
       the two defects behind it is fixed (URL, now trimmed); the IP
       version-string defect remains and is its own entry above. Thresholds:
-      `46.0 / 47.0` for exact precision, and a literal `1.0` for recall.
+      `48.0 / 49.0` for exact precision, and a literal `1.0` for recall.
       Earlier history:
       the parenthesised-phone fix moved 12/13 to 13/13 on the 18-case seed, and
       wiring the checksum validators lifted exact P from 0.8571 and cleared all
@@ -402,7 +402,7 @@ SPEC.md § "Corpus measurement (2026-10-09)"; reproduce with `make corpus`.
       - **PRADO attempts (2026-10-09):** WebFetch returned 403. The htrcli browser route failed (content-script injection error), `--cdp` fetch is unsupported, and the claude-in-chrome extension was not connected. Retry from a browser session the user opens.
 - [ ] **National ID coverage gaps.** (a) Singapore M-prefix is unsupported: its check-letter table is unconfirmed. (b) Malaysia MyKad place-of-birth codes are not validated: the code list is unconfirmed, and the MyKad check-style digit is not validated either. (c) Thailand bare 13-digit form has about a 1-in-10 false-match rate on random digits, so it needs a measured FP rate on labelled text before trust. (d) Batch 3 added synthetic golden cases for them (4 SG, 2 MY, 2 TH positives; 5 negatives). The corpora don't label these types, so no recognizer is measured on real text.
 - [ ] **National-ID gaps from the earlier national-ID commit (9594065), fail-open.** A background security review flagged the national-ID recognizers as fail-open. Its finding bodies never arrived, so the items below are what my probes through `Scrubber.Anonymize` found, not the review's wording. Fixed: a label-glued SG NRIC (`NRICS1234567D`) is found, only when the NRIC or FIN label comes before it. The earlier fix dropped the leading `\b` for every NRIC, so a 0.99 NRIC inside a shape-only 0.95 bitcoin token (`1Ab3CdEf5Gh7Jk9Mn2Pq4RsS1234567D`) won the overlap and left 23 characters visible. The review flagged this as an overlap displacement. The bare-token case is now back to one full BITCOIN span, and a differential over 4072 seed and corpus texts shows no lost detections. Fixed: bare 12-digit MyKad is found only after an identity-card keyword (Purview's list; date check kept). Still open, strict by choice: a Thai ID glued to a letter (`ID3100600445635`) is not redacted, because relaxing `\b` would also redact order and reference numbers such as `ORD3100600445635`. Decision needed: accept that as documented scope, or pay the false-positive cost.
-- [ ] **Valid Thai citizen ID that passes Luhn is reported as CREDIT_CARD.** `1000000000009` has a valid mod-11 check digit and also passes Luhn. The card recognizer (0.99) beats TH_ID (0.95), so the number is typed as CREDIT_CARD and masked as payment data. Probed: both `1000000000009` and `1-0000-00000-00-9` give CREDIT_CARD. Decision needed: which type should win when a valid Thai ID also passes Luhn. No golden case is written for it, because labelling it TH_ID would settle that decision. Measured 2026-10-09 (fuzz, generated check-valid IDs in unlabelled contexts): 6 of 30 IDs were typed CREDIT_CARD, in every non-glued context and both forms. The masked output for `1000000000009` is `****-****-****-9***`, so the check digit stays visible. A background review flagged this as a false negative in the redaction control. Recommendation: TH_ID should win when a 13-digit number passes both the Thai check and Luhn, because a 13-digit card is rare and a Thai ID is the more specific match. That is a confidence change, so it waits for the user's decision.
+- [x] **Valid Thai citizen ID that passes Luhn was reported as CREDIT_CARD. Decided 2026-10-09: TH_ID wins (decision d).** Before the decision, `1000000000009` (and `1-0000-00000-00-9`) passed both the Thai mod-11 check and Luhn, so the card recognizer (0.99) beat TH_ID (0.95). The masked output was `****-****-****-9***`, which shows the check digit. Fuzzing generated check-valid IDs in unlabelled contexts found 6 of 30 typed CREDIT_CARD, in every non-glued context and both forms. A background review flagged it as a false negative in the redaction control. Implemented: the Luhn recognizer defers a span to the Thai recognizer when that recognizer would report the same span with the same word boundaries. Other spans stay CREDIT_CARD, including glued candidates, so nothing goes unredacted. Golden cases `pos-th-id-luhn-valid` and `pos-th-id-luhn-valid-hyphen` pin the result. Rejected alternative: raising TH_ID above 0.99. That would also beat URL, email and SSN at 0.99 on overlap, so a URL containing a Thai-shaped number would lose its path to the mask.
 - [ ] **Phone pattern matches ID-number digit runs (nemotron).** Of the 419
       nemotron PHONE false positives, 408 sit on spans the corpus labels as
       ID fields: `biometric_identifier` 117, `customer_id` 83,
@@ -414,7 +414,8 @@ SPEC.md § "Corpus measurement (2026-10-09)"; reproduce with `make corpus`.
       sample of the phone FPs, then decide whether the phone branch needs
       context or a stronger shape rule. This is a detector fix, not a scope
       question.
-- [ ] **SSN residual false positives are a label-scope decision, not a regex defect.**
+- [x] **SSN residual false positives are a label-scope decision, not a regex defect. Decided 2026-10-09: (a), keep as FPs, shown in the headline.**
+- [x] **`credit_debit_card` stays in NemotronLabels. Decided 2026-10-09: (c), no removal.** The label keeps the 18 CREDIT_CARD false positives on `device_identifier` and `account_number` counted against precision. Removing the label would hide them, so it was rejected.
       Hand-checked by bucket over the same 2000-row samples `make corpus` scores
       (scratch analysis, not committed). **Nemotron: 25 SSN FP**, every one at a
       span the source labels with an unmapped type: 23 `tax_id`, 1
@@ -422,7 +423,7 @@ SPEC.md § "Corpus measurement (2026-10-09)"; reproduce with `make corpus`.
       in tax-ID wording. **Gretel: 1 SSN FP**, dashed, labelled by nothing.
       Figures below use the overlap policy, so they approximate the exact-span
       report. **Decision needed:**
-      - **(a) keep as FPs.** No change. Nemotron SSN stays P=0.8780.
+      - **(a) keep as FPs (chosen).** No change. Nemotron SSN stays P=0.8780.
       - **(b) map `tax_id` to SSN.** Nemotron has 31 `tax_id` spans in the sample:
         23 are dashed 3-2-4 (today's FPs, which would become TPs), and 8 are
         EIN-shaped (`99-9999999`, 5) or `P`-prefixed (3), which the SSN pattern

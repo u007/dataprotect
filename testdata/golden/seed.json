@@ -659,5 +659,27 @@
     "note": "Keyword present, but the twelve digits have day 31 in February. Fails the date check.",
     "text": "MyKad 900231103421 was typed on the form.",
     "entities": []
+  },
+  {
+    "id": "pos-th-id-luhn-valid",
+    "note": "Thai citizen ID with a valid mod-11 check digit that also passes Luhn. Decision (d): it is typed TH_ID, not CREDIT_CARD, so the whole number is redacted and no card mask shows the check digit.",
+    "text": "Citizen ID 1000000000009 was copied from the card.",
+    "entities": [
+      {
+        "type": "TH_ID",
+        "value": "1000000000009"
+      }
+    ]
+  },
+  {
+    "id": "pos-th-id-luhn-valid-hyphen",
+    "note": "The hyphenated form of the same Luhn-valid Thai citizen ID. Typed TH_ID by decision (d).",
+    "text": "Citizen ID 1-0000-00000-00-9 was copied from the card.",
+    "entities": [
+      {
+        "type": "TH_ID",
+        "value": "1-0000-00000-00-9"
+      }
+    ]
   }
 ]
