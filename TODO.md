@@ -60,15 +60,16 @@
       scrubber over every negative case: the only detection left is
       `neg-ip-version-four-part`. `pos-url-http` now describes a https URL with
       a path followed by prose, not a sentence period it never had.
-- [ ] **Golden dataset is a 50-case seed set, not the ~500 SPEC.md calls for.**
+- [ ] **Golden dataset is a 63-case seed set, not the ~500 SPEC.md calls for.**
       `testdata/golden/seed.json` and the `golden` runner now exist and are
       tested, so the ">99% precision/recall" claim is at last measurable, but
       the seed set is far too small to support that number. Batch 2 (13 cases)
-      took the baseline off 1.0 on purpose. Current: exact P=0.9706 R=1.0000
-      (tp=33 fp=1 fn=0), overlap the same, 17 of 18 negatives clean. One of
+      took the baseline off 1.0 on purpose. Batch 3 (13 cases) added the national
+      IDs. Current: exact P=0.9762 R=1.0000
+      (tp=41 fp=1 fn=0), overlap the same, 22 of 23 negatives clean. One of
       the two defects behind it is fixed (URL, now trimmed); the IP
       version-string defect remains and is its own entry above. Thresholds:
-      `33.0 / 34.0` for exact precision, and a literal `1.0` for recall.
+      `41.0 / 42.0` for exact precision, and a literal `1.0` for recall.
       Earlier history:
       the parenthesised-phone fix moved 12/13 to 13/13 on the 18-case seed, and
       wiring the checksum validators lifted exact P from 0.8571 and cleared all
@@ -397,7 +398,8 @@ SPEC.md § "Corpus measurement (2026-10-09)"; reproduce with `make corpus`.
       - **Singapore:** Purview gives E/K, seven digits, one letter. The Sumsub sample `E93874729W` has eight digits, so it contradicts Purview. Wikipedia gives no format. PRADO (`sgp`) returned 403.
       - **Thailand:** no source states the format. Wikipedia lists the field without a format. PRADO (`THA-AO-06001`) returned 403. The 2-letter and 1-letter candidates from search are unresolved.
       - **Decision needed:** accept Wikipedia and Purview as the basis for Malaysia, or fetch PRADO from a browser session. No rule is written until that is settled.
-- [ ] **National ID coverage gaps.** (a) Singapore M-prefix is unsupported: its check-letter table is unconfirmed. (b) Malaysia MyKad place-of-birth codes are not validated: the code list is unconfirmed, and the MyKad check-style digit is not validated either. (c) Thailand bare 13-digit form has about a 1-in-10 false-match rate on random digits, so it needs a measured FP rate on labelled text before trust. (d) No golden cases exist yet for these types, and the corpora don't label them, so none of these recognizers is measured on labelled data.
+- [ ] **National ID coverage gaps.** (a) Singapore M-prefix is unsupported: its check-letter table is unconfirmed. (b) Malaysia MyKad place-of-birth codes are not validated: the code list is unconfirmed, and the MyKad check-style digit is not validated either. (c) Thailand bare 13-digit form has about a 1-in-10 false-match rate on random digits, so it needs a measured FP rate on labelled text before trust. (d) Batch 3 added synthetic golden cases for them (4 SG, 2 MY, 2 TH positives; 5 negatives). The corpora don't label these types, so no recognizer is measured on real text.
+- [ ] **Valid Thai citizen ID that passes Luhn is reported as CREDIT_CARD.** `1000000000009` has a valid mod-11 check digit and also passes Luhn. The card recognizer (0.99) beats TH_ID (0.95), so the number is typed as CREDIT_CARD and masked as payment data. Probed: both `1000000000009` and `1-0000-00000-00-9` give CREDIT_CARD. Open decision (d) in the national-ID entry above: which type should win. No golden case is written for it, because labelling it TH_ID would settle that decision.
 - [ ] **Phone pattern matches ID-number digit runs (nemotron).** Of the 419
       nemotron PHONE false positives, 408 sit on spans the corpus labels as
       ID fields: `biometric_identifier` 117, `customer_id` 83,

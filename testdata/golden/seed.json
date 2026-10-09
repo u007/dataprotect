@@ -462,5 +462,123 @@
     "note": "Four-part version string, not an IP address.",
     "text": "Upgrade the agent to 3.10.2.7 before Friday.",
     "entities": []
+  },
+  {
+    "id": "pos-sg-nric-s",
+    "note": "Singapore NRIC with an S prefix in an onboarding line. Check letter from the published NRIC weights (2,7,6,5,4,3,2) with no offset for S.",
+    "text": "Applicant NRIC S1234567D was verified at the front desk.",
+    "entities": [
+      {
+        "type": "SG_NRIC",
+        "value": "S1234567D"
+      }
+    ]
+  },
+  {
+    "id": "pos-sg-fin-g",
+    "note": "Singapore FIN with a G prefix (issued after 2000) in a roster. Check letter from the published weights, prefix G uses the F/G table with offset 4.",
+    "text": "Foreign worker FIN G1234567X is on the roster.",
+    "entities": [
+      {
+        "type": "SG_NRIC",
+        "value": "G1234567X"
+      }
+    ]
+  },
+  {
+    "id": "pos-sg-nric-t",
+    "note": "Singapore NRIC with a T prefix (issued after 2000). Check letter computed from the published weights with offset 4; the S/T table is shared.",
+    "text": "Holder T0123456G was verified at the desk.",
+    "entities": [
+      {
+        "type": "SG_NRIC",
+        "value": "T0123456G"
+      }
+    ]
+  },
+  {
+    "id": "pos-sg-fin-f",
+    "note": "Singapore FIN with an F prefix (issued before 2000). Check letter from the published weights, prefix F uses the F/G table with no offset.",
+    "text": "Holder F1234567N was verified at the desk.",
+    "entities": [
+      {
+        "type": "SG_NRIC",
+        "value": "F1234567N"
+      }
+    ]
+  },
+  {
+    "id": "pos-my-ic",
+    "note": "Malaysia MyKad in printed hyphenated form, date of birth 15 May 1990. No checksum exists, so validity is the date alone.",
+    "text": "Staff MyKad 900515-10-3421 is on file for payroll.",
+    "entities": [
+      {
+        "type": "MY_IC",
+        "value": "900515-10-3421"
+      }
+    ]
+  },
+  {
+    "id": "pos-my-ic-leap-day",
+    "note": "Malaysia MyKad with date of birth 29 February 2000, a real leap day. Tests that the two-digit year 00 admits 29 February.",
+    "text": "Born 000229-08-1234 per the form, MyKad copy attached.",
+    "entities": [
+      {
+        "type": "MY_IC",
+        "value": "000229-08-1234"
+      }
+    ]
+  },
+  {
+    "id": "pos-th-id-hyphen",
+    "note": "Thai citizen ID in the printed hyphenated form. Check digit 5 from the published mod-11 algorithm (weights 13 to 2 on the first 12 digits).",
+    "text": "Thai ID 3-1006-00445-63-5 was copied for the bank.",
+    "entities": [
+      {
+        "type": "TH_ID",
+        "value": "3-1006-00445-63-5"
+      }
+    ]
+  },
+  {
+    "id": "pos-th-id-bare",
+    "note": "Thai citizen ID as a bare 13-digit run with a valid mod-11 check digit. It fails Luhn, so the checksum card path does not claim it.",
+    "text": "Thai ID 3100600445635 was copied for the bank.",
+    "entities": [
+      {
+        "type": "TH_ID",
+        "value": "3100600445635"
+      }
+    ]
+  },
+  {
+    "id": "neg-sg-nric-bad-check-letter",
+    "note": "Singapore-shaped S number whose check letter is wrong for its digits (the right letter is D). Treated as not a valid identifier, the same convention as the other invalid-checksum negatives.",
+    "text": "Check letter typo: S1234567A was typed on the form.",
+    "entities": []
+  },
+  {
+    "id": "neg-my-invalid-month",
+    "note": "MyKad-shaped number with month 13. Fails the date check, so it is not reported.",
+    "text": "Month typo: MyKad 901340-10-3421 was typed on the form.",
+    "entities": []
+  },
+  {
+    "id": "neg-my-invalid-day",
+    "note": "MyKad-shaped number with day 31 in February. Fails the date check.",
+    "text": "Day typo: MyKad 900231-10-3421 was typed on the form.",
+    "entities": []
+  },
+  {
+    "id": "neg-th-bare-bad-check",
+    "note": "Bare 13-digit run with the wrong mod-11 check digit (correct last digit is 5). Fails Luhn too, so no card is reported.",
+    "text": "Check typo: Thai ID 3100600445636 was typed on the form.",
+    "entities": []
+  },
+  {
+    "id": "neg-th-hyphen-bad-check",
+    "note": "Hyphenated Thai ID shape with the wrong check digit (correct last digit is 5).",
+    "text": "Hyphen typo: Thai ID 3-1006-00445-63-6 was typed on the form.",
+    "entities": []
   }
 ]

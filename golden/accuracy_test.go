@@ -19,50 +19,49 @@ const datasetDir = "../testdata/golden"
 // moves recall by a large fraction — so a shrinking dataset would silently
 // weaken the gate rather than fail it. Ratcheted with each batch: it tracks the
 // current seed count, so any drop below it fails.
-const minCases = 50
+const minCases = 63
 
 // Gate thresholds.
 //
-// These are the MEASURED baseline, not a target. The seed set is 50 cases, far
+// These are the MEASURED baseline, not a target. The seed set is 63 cases, far
 // too small to claim SPEC.md's ">99% precision/recall"; claiming it here would
 // make the gate a rubber stamp. Each constant is the EXACT measured value, so
 // any regression fails immediately and any improvement is a deliberate
 // threshold bump in this file rather than a silent drift.
 //
-// Batch 2 (13 cases) moved the baseline off 1.0 on purpose. One defect remains
-// and is recorded, not relabelled:
+// One defect remains and is recorded, not relabelled:
 //   - neg-ip-version-four-part: "3.10.2.7" has valid IPv4 octets and is read as
 //     an IP address (one negative case not clean). See TODO.md.
 //
-// The earlier sentence-final URL defect, pos-url-trailing-period, is fixed: the
-// URL recognizer now trims trailing punctuation, and that case passes.
+// Batch 3 added the national IDs (SG NRIC/FIN, MY MyKad, TH citizen ID). All
+// eight positives were detected and the five invalid-checksum negatives stayed
+// clean. The one defect above is still the only false positive.
 //
-// The measured baseline is exact P=0.9706 R=1.0000 (tp=33 fp=1 fn=0), overlap
-// P=0.9706 R=1.0000 (tp=33 fp=1 fn=0), and 17 of 18 negative cases clean. These
+// The measured baseline is exact P=0.9762 R=1.0000 (tp=41 fp=1 fn=0), overlap
+// P=0.9762 R=1.0000 (tp=41 fp=1 fn=0), and 22 of 23 negative cases clean. These
 // numbers describe this hand-labelled seed set, NOT the detector in general —
 // SPEC.md's ">99%" needs a ~500-case hand-labelled set. The corpora in
 // testdata/external are scored by `make corpus` but are not that set (see
-// TODO.md). With 34 predictions one flipped case moves precision by ~3%, so
+// TODO.md). With 42 predictions one flipped case moves precision by ~2%, so
 // the number is coarse; it is kept exact so a regression fails immediately.
 //
 // An earlier baseline (exact P=0.8571 R=0.9231, tp=12 fp=2 fn=1) preceded the
 // checksum-validator wiring. CREDIT_CARD went from P=0.7500 to P=1.0000 and all
 // negative cases became clean, because cards are now validated rather than
-// matched on shape alone. The parenthesised-phone fix that followed raised the
-// recorded baseline from 12/13 to 13/13 on the 18-case seed.
+// matched on shape alone.
 //
 // While a threshold sits below 1.0, write it as the measured tp/(tp+fp) and
 // tp/(tp+fn) RATIO rather than a rounded literal: 10/11 is 0.9090909..., so a
 // literal 0.9091 is a hair ABOVE the true value and the gate would fail on a run
 // that exactly met its baseline — a rounding trap, not a regression. Deriving
 // the constant from the counts makes the comparison exact and self-documenting.
-// A ratio with an equal numerator and denominator (33.0/33.0) adds nothing and
+// A ratio with an equal numerator and denominator (41.0/41.0) adds nothing and
 // draws an "identical expressions" lint warning, so a sitting-at-1.0 constant
 // stays a literal with its counts in the trailing comment.
 const (
-	minExactPrecision = 33.0 / 34.0 // tp=33 fp=1   -> 33/34
-	minExactRecall    = 1.0         // tp=33 fn=0   -> 33/33
-	minOverlapRecall  = 1.0         // tp=33 fn=0   -> 33/33
+	minExactPrecision = 41.0 / 42.0 // tp=41 fp=1   -> 41/42
+	minExactRecall    = 1.0         // tp=41 fn=0   -> 41/41
+	minOverlapRecall  = 1.0         // tp=41 fn=0   -> 41/41
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled
