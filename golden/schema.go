@@ -54,6 +54,10 @@ type Schema struct {
 	// always emits "bytes"; corpus offsets arrive as character indices and are
 	// translated, so anything else would mean the labels are unusable.
 	OffsetUnit string `json:"offset_unit"`
+	// UnlabelledRecorded records that the converter wrote each case's unlabelled
+	// spans (see Case.Unlabelled). A schema without it was written before the
+	// field existed, and Score refuses it rather than report an empty bucket.
+	UnlabelledRecorded bool `json:"unlabelled_recorded"`
 	// InSchema is the set of types this dataset labels, sorted.
 	InSchema []recognizers.EntityType `json:"in_schema"`
 	// UnmappedLabels lists corpus labels the converter deliberately dropped,

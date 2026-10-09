@@ -4,7 +4,10 @@
     "note": "Plain business email in a support reply.",
     "text": "Hi, please confirm the receipt to billing@acme-supply.example so we can release the invoice.",
     "entities": [
-      { "type": "EMAIL", "value": "billing@acme-supply.example" }
+      {
+        "type": "EMAIL",
+        "value": "billing@acme-supply.example"
+      }
     ]
   },
   {
@@ -12,7 +15,10 @@
     "note": "Subaddress and plus-tag; the label covers only the address, not the trailing punctuation.",
     "text": "Escalations go to ops+oncall@northwind-logistics.example, not to the shared inbox.",
     "entities": [
-      { "type": "EMAIL", "value": "ops+oncall@northwind-logistics.example" }
+      {
+        "type": "EMAIL",
+        "value": "ops+oncall@northwind-logistics.example"
+      }
     ]
   },
   {
@@ -20,7 +26,10 @@
     "note": "US number in prose. Expects the recognizer to report the whole run including separators.",
     "text": "Our depot line is 555-123-4567 if the shipment is late again.",
     "entities": [
-      { "type": "PHONE", "value": "555-123-4567" }
+      {
+        "type": "PHONE",
+        "value": "555-123-4567"
+      }
     ]
   },
   {
@@ -28,7 +37,10 @@
     "note": "Parenthesised area code. The label is the whole number including the open paren. This was the detector's single exact miss: the pattern's leading \\b anchor could not match between a space and a non-word character, so the '(' was dropped and the span started one byte late (an exact FN here and an exact FP against the label). Fixed by giving the parenthesised branch of the phone pattern no leading anchor, so this case now scores exact-clean. It is the reason the two matching granularities are reported separately — overlap matching credited the near-miss and localised it to a boundary bug.",
     "text": "Call (555) 867-5309 before noon so the transfer can be arranged.",
     "entities": [
-      { "type": "PHONE", "value": "(555) 867-5309" }
+      {
+        "type": "PHONE",
+        "value": "(555) 867-5309"
+      }
     ]
   },
   {
@@ -36,7 +48,10 @@
     "note": "US social security number in an HR note.",
     "text": "HR recorded 123-45-6789 against the onboarding form, pending verification.",
     "entities": [
-      { "type": "SSN", "value": "123-45-6789" }
+      {
+        "type": "SSN",
+        "value": "123-45-6789"
+      }
     ]
   },
   {
@@ -44,7 +59,10 @@
     "note": "Dotted-quad IPv4 in a server address.",
     "text": "The nightly export job connects to 192.168.10.42 over the private subnet.",
     "entities": [
-      { "type": "IP_ADDRESS", "value": "192.168.10.42" }
+      {
+        "type": "IP_ADDRESS",
+        "value": "192.168.10.42"
+      }
     ]
   },
   {
@@ -52,7 +70,10 @@
     "note": "Plain http URL. Expects the recognizer to stop before the sentence period.",
     "text": "See https://acme.example.com/status for the current incident summary.",
     "entities": [
-      { "type": "URL", "value": "https://acme.example.com/status" }
+      {
+        "type": "URL",
+        "value": "https://acme.example.com/status"
+      }
     ]
   },
   {
@@ -60,7 +81,10 @@
     "note": "Card number that passes the Luhn checksum, spaced in fours.",
     "text": "The customer charged 4111 1111 1111 1111 twice; both need refunding.",
     "entities": [
-      { "type": "CREDIT_CARD", "value": "4111 1111 1111 1111" }
+      {
+        "type": "CREDIT_CARD",
+        "value": "4111 1111 1111 1111"
+      }
     ]
   },
   {
@@ -68,8 +92,14 @@
     "note": "Three types in one text, labelled in reading order.",
     "text": "Send the invoice to finance@contoso.example, copy ap@contoso.example, and file it under PO-2026-0041.",
     "entities": [
-      { "type": "EMAIL", "value": "finance@contoso.example" },
-      { "type": "EMAIL", "value": "ap@contoso.example" }
+      {
+        "type": "EMAIL",
+        "value": "finance@contoso.example"
+      },
+      {
+        "type": "EMAIL",
+        "value": "ap@contoso.example"
+      }
     ]
   },
   {
@@ -95,7 +125,10 @@
     "note": "Regression case for the historical phone-vs-card defect. A bare 16-digit run has no non-digit boundary, so the phone recognizer's \\b anchors cannot match it at all and the CARD must win. Unanchored, the phone pattern would match the first ten digits, score 0.98 against the card's 0.95, and take the span — a precision loss and a mis-typed entity. Mutation-verified: removing the \\b anchors fails this case.",
     "text": "Card 4111111111111111 was charged to the account yesterday.",
     "entities": [
-      { "type": "CREDIT_CARD", "value": "4111111111111111" }
+      {
+        "type": "CREDIT_CARD",
+        "value": "4111111111111111"
+      }
     ]
   },
   {
@@ -103,7 +136,10 @@
     "note": "Second regression case for the phone-vs-card \b defect, in a sentence where the digits are described as an opaque token. 5555555555554444 is a Luhn-VALID Mastercard, so the Luhn validator detects it and the card must win over the phone recognizer. (An earlier version of this case used 1234567890123456 and was WRONG: that number fails Luhn, so a checksum-validating detector must reject it, and the case was measuring a card that does not exist. Replaced, not relabelled, because the intent was always a valid card.)",
     "text": "The rotating token 5555555555554444 expired before the batch finished.",
     "entities": [
-      { "type": "CREDIT_CARD", "value": "5555555555554444" }
+      {
+        "type": "CREDIT_CARD",
+        "value": "5555555555554444"
+      }
     ]
   },
   {
@@ -123,13 +159,308 @@
     "note": "Documentation-style addresses. These are real matches for the email pattern, so this case is deliberately NOT labelled as a negative for EMAIL; it records that example addresses are detected.",
     "text": "The RFC reserves example.com and example.net for documentation, along with user@example.com.",
     "entities": [
-      { "type": "EMAIL", "value": "user@example.com" }
+      {
+        "type": "EMAIL",
+        "value": "user@example.com"
+      }
     ]
   },
   {
     "id": "neg-short-digits",
     "note": "Small numbers that are neither phone numbers nor cards.",
     "text": "Warehouse bay 42 received 118 units on Tuesday and 76 on Wednesday, for a week total of 194.",
+    "entities": []
+  },
+  {
+    "id": "pos-iban-de",
+    "note": "German IBAN in a payment instruction.",
+    "text": "Please wire the refund to IBAN DE89370400440532013000 before Friday.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "DE89370400440532013000"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-gb",
+    "note": "UK IBAN with mixed letters and digits.",
+    "text": "Our UK account is GB82WEST12345698765432 with the bank on Mill Street.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "GB82WEST12345698765432"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-fr",
+    "note": "French IBAN, longest of the set.",
+    "text": "Remit the Paris invoice to FR1420041010050500013M02606 today.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "FR1420041010050500013M02606"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-spaced",
+    "note": "Grouped IBAN, the form people actually paste.",
+    "text": "The transfer reference DE89 3704 0044 0532 0130 00 cleared overnight.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "DE89 3704 0044 0532 0130 00"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-ch",
+    "note": "Swiss IBAN.",
+    "text": "Zurich settlement runs through CH9300762011623852957 each quarter.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "CH9300762011623852957"
+      }
+    ]
+  },
+  {
+    "id": "neg-iban-bad-checksum",
+    "note": "IBAN shape, mod-97 fails: must not be reported.",
+    "text": "The transfer citing IBAN DE89370400440532013001 failed validation.",
+    "entities": []
+  },
+  {
+    "id": "neg-iban-malformed",
+    "note": "IBAN shape, wrong check digits.",
+    "text": "Support logged GB82WEST12345698765433 as a rejected payment reference.",
+    "entities": []
+  },
+  {
+    "id": "pos-bitcoin-legacy",
+    "note": "Legacy base58 P2PKH address.",
+    "text": "Send the payout to 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa and archive this note.",
+    "entities": [
+      {
+        "type": "BITCOIN",
+        "value": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+      }
+    ]
+  },
+  {
+    "id": "pos-bitcoin-cold",
+    "note": "Second legacy address, different prefix body.",
+    "text": "Cold storage still holds 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2 in reserve.",
+    "entities": [
+      {
+        "type": "BITCOIN",
+        "value": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2"
+      }
+    ]
+  },
+  {
+    "id": "pos-bitcoin-bech32",
+    "note": "bech32 (BIP173 test vector) — the other regex branch.",
+    "text": "Settlement landed at bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 this morning.",
+    "entities": [
+      {
+        "type": "BITCOIN",
+        "value": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
+      }
+    ]
+  },
+  {
+    "id": "neg-bitcoin-invalid-char",
+    "note": "'0' is not in the base58 alphabet: shape must fail.",
+    "text": "The mistyped wallet 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfN0 was rejected.",
+    "entities": []
+  },
+  {
+    "id": "neg-bitcoin-too-short",
+    "note": "Below the 26-character minimum.",
+    "text": "The truncated wallet 1BvBMSEYstWetqTFn5Au4m4 was rejected by the desk.",
+    "entities": []
+  },
+  {
+    "id": "pos-ssn-dotted",
+    "note": "Dotted SSN, the second separator style.",
+    "text": "Her dotted SSN 123.45.6789 is on file with payroll.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "123.45.6789"
+      }
+    ]
+  },
+  {
+    "id": "neg-ssn-account-number",
+    "note": "Bare nine digits in prose — the 449-FP shape.",
+    "text": "Account Number: 123456789 appears on the statement footer.",
+    "entities": []
+  },
+  {
+    "id": "neg-ssn-cas",
+    "note": "Bare nine digits behind a document label.",
+    "text": "CAS No.: 123456789 was printed on the collection receipt.",
+    "entities": []
+  },
+  {
+    "id": "neg-ssn-passport",
+    "note": "Bare nine digits that are not an SSN at all.",
+    "text": "Passport Number: 322996077 is shown on the visa page.",
+    "entities": []
+  },
+  {
+    "id": "pos-card-mastercard",
+    "note": "Luhn-valid Mastercard test number.",
+    "text": "Mastercard 5500005555555559 was declined for the subscription.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "5500005555555559"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-amex-15",
+    "note": "15-digit Amex test number: length coverage.",
+    "text": "The Amex charge of 340000000000009 posted overnight.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "340000000000009"
+      }
+    ]
+  },
+  {
+    "id": "neg-card-luhn-two",
+    "note": "Luhn-invalid in prose: must not be reported.",
+    "text": "A mistyped 4111111111111112 fails the checksum and is not a card.",
+    "entities": []
+  },
+  {
+    "id": "pos-ip-v4-private",
+    "note": "Private-range IPv4 in an operations sentence: a second IP positive.",
+    "text": "Route the batch through 10.20.30.40 until the cutover.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.20.30.40"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-v4-public",
+    "note": "Public-range IPv4 at the end of the sentence before a comma.",
+    "text": "Allow 203.0.113.250 through the firewall, then re-run the scan.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "203.0.113.250"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-query",
+    "note": "HTTPS URL with a query string: the query must be kept whole.",
+    "text": "Open https://shop.example.net/orders?id=4821&view=full to check the order.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://shop.example.net/orders?id=4821&view=full"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-path-hyphen",
+    "note": "HTTP URL with hyphens and a file extension in the path.",
+    "text": "Mirror at http://files.example.org/release-notes/v2-final.html now.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "http://files.example.org/release-notes/v2-final.html"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-trailing-period",
+    "note": "Sentence-final URL. The label excludes the sentence period.",
+    "text": "Full details are at https://acme.example.com/status.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://acme.example.com/status"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-international",
+    "note": "International number with a country code and spaces.",
+    "text": "Ring +44 20 7946 0958 before ten.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+44 20 7946 0958"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-dotted",
+    "note": "Bare US number with dot separators.",
+    "text": "Reach dispatch on 555.867.5309 any time.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555.867.5309"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-spaced",
+    "note": "SSN with space separators in a payroll sentence.",
+    "text": "Payroll has SSN 123 45 6789 on record.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "123 45 6789"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-mixed-separators",
+    "note": "SSN with a dash and a space: each separator position is independent.",
+    "text": "Her file lists 234-56 7890 for the tax year.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "234-56 7890"
+      }
+    ]
+  },
+  {
+    "id": "neg-ssn-single-separator",
+    "note": "Nine digits with one separator; not an SSN.",
+    "text": "Batch 123-456789 shipped on Monday.",
+    "entities": []
+  },
+  {
+    "id": "neg-card-luhn-failing-2",
+    "note": "16-digit tracking code that fails the Luhn check; not a card number.",
+    "text": "Tracking code 5555 5555 5555 4440 is an internal reference.",
+    "entities": []
+  },
+  {
+    "id": "neg-iban-mod97-failing-gb",
+    "note": "Spaced GB IBAN shape with a wrong check digit; not an IBAN.",
+    "text": "Mandate reference GB29 NWBK 6016 1331 9268 18 is pending.",
+    "entities": []
+  },
+  {
+    "id": "neg-ip-version-four-part",
+    "note": "Four-part version string, not an IP address.",
+    "text": "Upgrade the agent to 3.10.2.7 before Friday.",
     "entities": []
   }
 ]

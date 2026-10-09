@@ -99,25 +99,33 @@ func convertParquet[T any](corpus, dataRoot, relPath string, limit int,
 			for _, name := range unmappedNames {
 				unmapped[name] = true
 			}
+			unlabelled, err := BuildUnlabelled(text, spans, labelMap)
+			if err != nil {
+				return nil, golden.Schema{}, fmt.Errorf(
+					"corpus %s: file %s row %d: %w", corpus, relPath, row, err)
+			}
 			if len(labels) == 0 {
 				negatives++
 			}
-			overlaps += countOverlappingPairs(labels)
+			pairs, err := countOverlappingPairs(labels)
+			if err != nil {
+				return nil, golden.Schema{}, fmt.Errorf(
+					"corpus %s: file %s row %d: %w", corpus, relPath, row, err)
+			}
+			overlaps += pairs
 			cases = append(cases, golden.Case{
-				ID:       fmt.Sprintf("%s-%06d", corpus, row),
-				Text:     text,
-				Entities: labels,
+				ID:         fmt.Sprintf("%s-%06d", corpus, row),
+				Text:       text,
+				Entities:   labels,
+				Unlabelled: unlabelled,
 			})
 			row++
 		}
-		if readErr == io.EOF {
-			break
+		done, err := endOfRead(corpus, relPath, row, n, readErr)
+		if err != nil {
+			return nil, golden.Schema{}, err
 		}
-		if readErr != nil {
-			return nil, golden.Schema{}, fmt.Errorf(
-				"corpus %s: file %s: reading row %d: %w", corpus, relPath, row, readErr)
-		}
-		if n == 0 {
+		if done {
 			break
 		}
 	}
@@ -129,20 +137,39 @@ func convertParquet[T any](corpus, dataRoot, relPath string, limit int,
 	}
 
 	return cases, golden.Schema{
-		Corpus:           corpus,
-		Source:           relPath,
-		SourceSHA256:     sum,
-		SourceRevision:   revision,
-		SourceRows:       sourceRows,
-		Limit:            limit,
-		Cases:            len(cases),
-		OffsetUnit:       "bytes",
-		InSchema:         inSchemaTypes(labelMap),
-		UnmappedLabels:   sortedKeys(unmapped),
-		OverlappingPairs: overlaps,
-		Negatives:        negatives,
-		GeneratedBy:      "tools/corpusbench convert",
+		Corpus:             corpus,
+		Source:             relPath,
+		SourceSHA256:       sum,
+		SourceRevision:     revision,
+		SourceRows:         sourceRows,
+		Limit:              limit,
+		Cases:              len(cases),
+		OffsetUnit:         "bytes",
+		InSchema:           inSchemaTypes(labelMap),
+		UnmappedLabels:     sortedKeys(unmapped),
+		OverlappingPairs:   overlaps,
+		UnlabelledRecorded: true,
+		Negatives:          negatives,
+		GeneratedBy:        "tools/corpusbench convert",
 	}, nil
+}
+
+// endOfRead decides whether a parquet read ends the scan. Rows with a nil error
+// continue the scan; io.EOF is the one clean end, and any rows returned with it
+// have already been converted by the caller. A read that yields no rows and no
+// error is refused rather than treated as the end: stopping there would write a
+// partial dataset with nothing to say it was partial.
+func endOfRead(corpus, relPath string, row, n int, readErr error) (bool, error) {
+	switch {
+	case readErr == io.EOF:
+		return true, nil
+	case readErr != nil:
+		return false, fmt.Errorf("corpus %s: file %s: reading row %d: %w", corpus, relPath, row, readErr)
+	case n == 0:
+		return false, fmt.Errorf("corpus %s: file %s: read returned no rows and no error at row %d; "+
+			"stopping here would write a partial dataset", corpus, relPath, row)
+	}
+	return false, nil
 }
 
 // inSchemaTypes is the sorted set of types the label map can produce. It is

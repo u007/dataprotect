@@ -2,6 +2,9 @@ package convert
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -431,5 +434,100 @@ func TestWrittenOutputLoadsThroughGolden(t *testing.T) {
 	}
 	if loaded[0].ID != cases[0].ID {
 		t.Errorf("case id = %q, want %q", loaded[0].ID, cases[0].ID)
+	}
+}
+
+// casesPerFile+1 cases must split into a full first chunk and a single-case
+// second one, with the order and the count preserved through golden.Load. The
+// boundary is where an off-by-one in the chunk arithmetic would drop or
+// duplicate a case, so it is tested at exactly that size.
+func TestWriteChunkBoundaryKeepsEveryCaseInOrder(t *testing.T) {
+	total := casesPerFile + 1
+	cases := make([]golden.Case, 0, total)
+	for i := 0; i < total; i++ {
+		cases = append(cases, golden.Case{ID: fmt.Sprintf("case-%04d", i), Text: "no pii here"})
+	}
+	dir := t.TempDir()
+	if err := Write(dir, cases, golden.Schema{Corpus: "synthetic", Cases: total}); err != nil {
+		t.Fatalf("Write: unexpected error: %v", err)
+	}
+
+	wantSizes := map[string]int{"cases-000000.json": casesPerFile, "cases-000001.json": 1}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotFiles := 0
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), "cases-") {
+			continue
+		}
+		gotFiles++
+		want, ok := wantSizes[e.Name()]
+		if !ok {
+			t.Errorf("unexpected case file %s", e.Name())
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var chunk []golden.Case
+		if err := json.Unmarshal(raw, &chunk); err != nil {
+			t.Fatalf("%s: %v", e.Name(), err)
+		}
+		if len(chunk) != want {
+			t.Errorf("%s holds %d cases, want %d", e.Name(), len(chunk), want)
+		}
+	}
+	if gotFiles != len(wantSizes) {
+		t.Errorf("got %d case files, want %d", gotFiles, len(wantSizes))
+	}
+
+	loaded, err := golden.Load(dir)
+	if err != nil {
+		t.Fatalf("golden.Load: unexpected error: %v", err)
+	}
+	if len(loaded) != total {
+		t.Fatalf("golden.Load returned %d cases, want %d", len(loaded), total)
+	}
+	for i, c := range loaded {
+		if want := fmt.Sprintf("case-%04d", i); c.ID != want {
+			t.Fatalf("loaded[%d].ID = %q, want %q (dropped, duplicated or reordered at the seam)", i, c.ID, want)
+		}
+	}
+}
+
+// A read that returns no rows and no error must not end the scan: that is how a
+// partial dataset gets written with no sign it was partial. Only io.EOF ends it.
+func TestEndOfReadOnlyEOFEndsTheScan(t *testing.T) {
+	boom := fmt.Errorf("disk gone")
+	cases := []struct {
+		name    string
+		n       int
+		readErr error
+		done    bool
+		wantErr bool
+	}{
+		{"rows and no error continue", 3, nil, false, false},
+		{"io.EOF ends cleanly", 0, io.EOF, true, false},
+		{"rows with io.EOF end cleanly", 2, io.EOF, true, false},
+		{"zero rows and no error is refused", 0, nil, false, true},
+		{"a read error is reported", 0, boom, false, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			done, err := endOfRead("nemotron-pii", "data/x.parquet", 7, tc.n, tc.readErr)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("error = %v, wantErr %v", err, tc.wantErr)
+			}
+			if done != tc.done {
+				t.Errorf("done = %v, want %v", done, tc.done)
+			}
+		})
+	}
+	_, err := endOfRead("nemotron-pii", "data/x.parquet", 7, 0, nil)
+	if err == nil || !strings.Contains(err.Error(), "row 7") || !strings.Contains(err.Error(), "data/x.parquet") {
+		t.Errorf("zero-row error %v should name the file and row", err)
 	}
 }

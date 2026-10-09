@@ -46,21 +46,36 @@
       intended test: leaking the input on a masked slot, dropping the trailing-slot
       fill, and inverting the splice direction. **This entry is closed; nothing
       remains outstanding.**
-- [ ] **Golden dataset is an 18-case seed set, not the ~500 SPEC.md calls for.**
+- [ ] **Four-part version strings are read as IPv4.** `neg-ip-version-four-part`
+      ("Upgrade the agent to 3.10.2.7") has four valid octets, so the IP
+      recognizer reports it. `neg-version-string` passes only because its
+      version has three parts. **Decision needed:** (a) accept it, since a dotted
+      quad is IP-shaped; (b) suppress it when a version word such as "version",
+      "v" or "upgrade" precedes it, which is a heuristic and needs a sign-off; or
+      (c) drop the IP recognizer's shape for values with small octets. Recorded,
+      not fixed.
+- [ ] **Batch-1 notes in `seed.json` are stale or wrong.** Two need fixing:
+      `neg-luhn-failing-card` says the detector reports its card because the
+      Luhn validator is not registered; the validator is wired and the case is
+      clean. `pos-url-http` says it expects the recognizer to stop before a
+      sentence period, but its text has no period (the URL is followed by " for
+      the current..."). That is why the trailing-period defect got through batch
+      1. Its note also says "http" while the URL is https. Fix the notes so
+      they describe what the text tests (trivial); the labels stay as they are. Not edited here,
+      so batch 1 and batch 2 stay separable.
+- [ ] **Golden dataset is a 50-case seed set, not the ~500 SPEC.md calls for.**
       `testdata/golden/seed.json` and the `golden` runner now exist and are
       tested, so the ">99% precision/recall" claim is at last measurable, but
-      the seed set is far too small to support that number. Measured baseline is
-      exact P=1.0000 R=1.0000 (tp=13 fp=0 fn=0) and overlap P=1.0000 R=1.0000
-      (tp=13 fp=0 fn=0) over 18 cases — recorded in `golden/accuracy_test.go` as
-      the gate thresholds. They were lifted from 12/13 by fixing the
-      parenthesised-phone defect (see the regression note under "Fixed"), which
-      had been the one exact FN and the one exact FP; the gate did its job by
-      making the defect measurable, and the fix raised the recorded baseline
-      rather than breaking it. Thresholds below 1.0 are written as tp/total
-      ratios so a rounded literal cannot drift above the true value; at the
-      current perfect baseline they are literals, since a ratio of 13/13 adds
-      nothing. Wiring the checksum validators had earlier lifted the baseline
-      from P=0.8571 and made all six negative cases clean.
+      the seed set is far too small to support that number. Batch 2 (13 cases)
+      took the baseline off 1.0 on purpose. Current: exact P=0.9706 R=1.0000
+      (tp=33 fp=1 fn=0), overlap the same, 17 of 18 negatives clean. One of
+      the two defects behind it is fixed (URL, now trimmed); the IP
+      version-string defect remains and is its own entry above. Thresholds:
+      `33.0 / 34.0` for exact precision, and a literal `1.0` for recall.
+      Earlier history:
+      the parenthesised-phone fix moved 12/13 to 13/13 on the 18-case seed, and
+      wiring the checksum validators lifted exact P from 0.8571 and cleared all
+      six negatives.
       **Remaining:** grow toward ~500 cases and re-tighten the thresholds each
       time; the real corpora are the intended source. **Licence review is DONE —
       see DATASET_LICENSES.md.** It corrected a wrong claim here: ai4privacy is
@@ -95,45 +110,31 @@
       already stale when this line was first written, because AGENTS.md
       documented the policy and a later test pinned it.
 
-- [ ] **`countOverlappingPairs` undercounts when three or more spans overlap
-      each other.** `tools/corpusbench/convert/labels.go:122-127`. The sweep
-      counts, for each span, at most ONE earlier span it overlaps (whether its
-      start precedes the running `furthest` end), so three mutually overlapping
-      spans record 2 pairs instead of 3 — a single span overlapping two earlier
-      ones is credited only once. Severity: **LOW** — `overlapping_pairs` is a
-      descriptive schema field, not an input to any metric, and the full-corpus
-      runs agree with an independent pairwise count on real data (9 == 9). No
-      scoring effect. Effort: **small** — replace the sweep with an O(n log n)
-      sweep or an O(n^2) pairwise count over `seen` (bounded by labels per row).
-- [ ] **`countOverlappingPairs` panics if every label lacks offsets.**
-      `tools/corpusbench/convert/labels.go:122` reads `seen[0].end` after a
-      `len(labels) < 2` guard, but the guard is on `labels`, not on `seen`:
-      two labels whose `Start`/`End` are both nil skip the append, leaving
-      `seen` empty and `seen[0]` an index-out-of-range panic. Severity:
-      **LOW** — unreachable from the converter, which always emits offsets for
-      every converted label (a nil there would fail earlier in `resolve`);
-      it is a defensive path that would turn a data problem into a crash
-      instead of an error. Effort: **trivial** — `if len(seen) < 2 { return 0 }`.
-- [ ] **No committed test for the 500/501 chunk boundary.** No test in
-      `tools/corpusbench/convert/convert_test.go` writes more than one chunk,
-      so nothing in-repo pins that a 501-case dataset yields exactly two files
-      with no case dropped or duplicated at the seam. Severity: **LOW** — the
-      code is empirically validated: full-corpus conversions of both corpora
-      (199 chunk boundaries crossed) were checked case-by-case against an
-      independent Python oracle. But that evidence is not in the repo, so a
-      future edit to the loop could regress it unnoticed. Effort: **small** —
-      a fixture of 501 rows asserting `cases-000000.json` holds 500,
-      `cases-000001.json` holds 1, and `golden.Load` returns 501.
-- [ ] **A `(0, nil)` read is treated as end-of-file.**
-      `tools/corpusbench/convert/convert.go:120-122` breaks on `n == 0` with a
-      nil error, which is indistinguishable from a transient zero-row read; it
-      would stop conversion early and write PARTIAL output, the opposite of the
-      fail-fast "no partial output" rule. Severity: **LOW** — a reader returning
-      `(0, nil)` instead of `(0, io.EOF)` is not something parquet-go does in
-      practice, and the truncation would at least be visible as
-      `cases < source_rows` in the printed summary. Effort: **trivial** — break
-      only on `io.EOF` and return an error naming the file and row when
-      `n == 0 && err == nil`.
+- [ ] **BITCOIN recognizer has no checksum validator — shape-only.** Any
+      base58-looking string matching P2PKH/P2SH or Bech32 shape is reported.
+      Measured only on the 3 seed BITCOIN cases (P=1.0000); neither corpus
+      labels BITCOIN, and gretel's 44 BITCOIN detections are excluded as
+      out-of-schema rather than scored. Fix: add Base58Check and Bech32 checksum
+      validators, then re-measure. Required by the no-silent-gap rule.
+- [ ] **CREDIT_CARD recall is bounded by Luhn against synthetic data.** On
+      nemotron, R=0.0945 with 230 FNs — and all 230 fail the Luhn check while
+      exactly the 24 Luhn-valid ones are the true positives. The validator is
+      working as designed (it is the same check that rejects a Luhn-failing seed
+      negative). Open question, not a defect: is a corpus of non-Luhn-valid
+      "card numbers" a fair recall target for a Luhn-gated detector? If not, the
+      conversion should either exclude those gold labels or the metric should
+      report them separately.
+- [ ] **Corpus-side label quality depresses measured precision.** gretel EMAIL
+      reads P=0.3281, but spot-checking shows the corpus labels the local part
+      (`user_name 90..96 = 'lowe73'`) rather than the full address, markdown
+      `[addr](mailto:addr)` renders each address twice while only one
+      occurrence is labelled, and 106 of 647 email-shaped occurrences in
+      email-bearing records carry no email label at all. A corpus miss looks
+      exactly like our false positive. Before any threshold is recorded from
+      these numbers, spot-check a sample of FPs by hand (spec §8 risk 4).
+- [ ] **gretel PHONE precision (0.2772) is unexplained.** Unlike SSN and
+      CREDIT_CARD, no hand-check has been done. Do not record a PHONE threshold
+      until a sample has been reviewed.
 
 ## Closed in the golden-dataset pass
 
@@ -154,6 +155,53 @@ them as gaps.
 
 ## Fixed (kept as regression notes)
 
+- [x] **Scorer counted detections on unlabelled spans as wrong, with no way to tell.** Fixed: the converter keeps the spans a corpus labels outside our type map (`Case.Unlabelled`, byte offsets, validated like labels). The scorer sets aside a false positive that lands on one and touches no mapped gold, and reports it as a bucket by "TYPE on source label". The headline is unchanged. Precedence: a true positive; any touch of mapped gold stays FP; an unlabelled span goes to the bucket; anything else is FP. Both matching policies use the same rule. The upper-bound precision is labelled as a bound, not accuracy. A corpus schema without `unlabelled_recorded` is refused, so a stale dataset can't report an empty bucket. Tests: `golden/unlabelled_test.go` (6 cases, including the precedence and stale-schema refusal, and a mutation that drops the touches-gold check fails two of them); `TestBuildUnlabelledKeepsOnlyUnmappedSpansInBytes` covers the multibyte byte-offset case. Evidence: `make corpus` re-run; headline numbers identical to before.
+- [x] **URL regex kept a trailing sentence period.** Fixed in
+      `recognizers/regex/regex.go`. `trimURL` drops trailing `.,;:!?*'` and
+      backtick always, and a closing `)` or `]` only when the URL has no matching
+      opener, so `Foo_(bar)` keeps its paren. A scheme left with nothing after it
+      (`http://.`) is dropped. The trim set follows the corpus: 406 bare trailing
+      `.`, 64 `,`, and a few `)`, `).`, `**.`, backtick. The doc comment states the
+      policy. Tests: `TestURLRecognizerExactSpan` asserts exact `Text` per case,
+      and was red before the fix. Mutation-checked: a single-pass trim fails the
+      stacked-closer case, and no balance check fails the balanced-paren case.
+      Evidence (`make corpus`, nemotron URL, exact span): P 0.3053→0.9900, R
+      0.2846→0.9229, tp 214→694, fp 487→7. Overlap and every other type are
+      unchanged. `pos-url-trailing-period` now passes.
+- [x] **nemotron URL precision was a boundary problem.** Closed by the entry
+      above: the disagreements were span boundaries, not missed detections, and
+      most were a trailing `.` or `,`. The 58 URL exact misses (false negatives)
+      are not analysed here; the tally covered only predictions, so they are
+      gold URLs with no exact prediction, and remain unexplained.
+- [x] **`countOverlappingPairs` undercounted spans overlapping three or more others.**
+      Fixed in `tools/corpusbench/convert/labels.go`: a pairwise count replaces the
+      furthest-end sweep. `TestCountOverlappingPairsCountsEveryPair` covers three
+      mutually overlapping spans (3, was 2), touching spans (0) and identical
+      spans (1). Re-converting both corpora leaves gretel `overlapping_pairs` at 9
+      and nemotron at 0, so no corpus has a three-way overlap that moved a number.
+- [x] **`countOverlappingPairs` panicked when no label had offsets.** The
+      `seen[0]` index ran on an empty slice. It now returns an error naming the
+      label, and the converter wraps it with corpus, file and row. Test:
+      `TestCountOverlappingPairsRejectsMissingOffsets`. Not a silent skip, and no
+      length guard.
+- [x] **No committed test for the 500/501 chunk boundary.** Added
+      `TestWriteChunkBoundaryKeepsEveryCaseInOrder`: 501 cases must write as 500
+      plus 1, and `golden.Load` must return them in order with no loss or
+      duplicates. Mutation-checked: dropping one case per chunk, a chunk index
+      that never advances, and a missing final clamp each fail it.
+- [x] **A `(0, nil)` read was treated as end of file.** `convert.go` now ends
+      the scan only on `io.EOF` (rows returned with it are still converted), and
+      refuses a zero-row read with no error, naming file and row. Test:
+      `TestEndOfReadOnlyEOFEndsTheScan`. Mutation-checked: removing the guard
+      fails it. Both real corpora still convert with unchanged totals.
+
+- [x] **SSN matches any bare nine-digit run. FIXED.** `regex.go` now requires
+      a separator at both positions in prose, and accepts a bare nine-digit
+      value only when it is the whole (trimmed) input, so `CAS No.: 123456789`,
+      `Account Number: 123456789` and `Passport Number: 322996077` no longer
+      match. Evidence (`make corpus`, 2000 records each): gretel SSN P 0.0929 →
+      0.9787 (FP 449 → 1); nemotron SSN P 0.3495 → 0.8780; recall unchanged
+      (gretel 0.8846, nemotron 1.0000). Regression rows in `regex_test.go`.
 - **`convert.Write` left stale `cases-*.json` in a reused output directory.**
   Found by the final whole-branch review. Reusing an output directory is normal
   — vary `LIMIT`, re-fetch a corpus revision — and a chunk left behind by an
@@ -344,45 +392,46 @@ them as gaps.
 
 ## Open findings from the first corpus measurement
 
-All four were invisible to the 18-case seed set. Numbers and evidence are in
-SPEC.md § "Corpus measurement (2026-10-08)"; reproduce with `make corpus`.
+These findings were invisible to the seed set. Numbers and evidence are in
+SPEC.md § "Corpus measurement (2026-10-09)"; reproduce with `make corpus`.
 
-- [ ] **SSN matches any bare nine-digit run.** `regex.go` uses
-      `\b\d{3}[\s.\-]?\d{2}[\s.\-]?\d{4}\b` where every separator is
-      optional, so `CAS No.: 123456789`, `Account Number: 123456789` and
-      `Passport Number: 322996077` are all read as SSNs. Costs 449 false
-      positives on gretel (P=0.0929) while recall stays 0.8846. The seed set's
-      single SSN is dashed, so no seed case could ever expose this. Likely fix
-      is requiring a separator or a stronger left context; decide the policy
-      deliberately — a bare nine-digit SSN is legitimate, so a blanket
-      requirement would cost recall.
-- [ ] **CREDIT_CARD recall is bounded by Luhn against synthetic data.** On
-      nemotron, R=0.0945 with 230 FNs — and all 230 fail the Luhn check while
-      exactly the 24 Luhn-valid ones are the true positives. The validator is
-      working as designed (it is the same check that rejects a Luhn-failing seed
-      negative). Open question, not a defect: is a corpus of non-Luhn-valid
-      "card numbers" a fair recall target for a Luhn-gated detector? If not, the
-      conversion should either exclude those gold labels or the metric should
-      report them separately.
-- [ ] **Corpus-side label quality depresses measured precision.** gretel EMAIL
-      reads P=0.3281, but spot-checking shows the corpus labels the local part
-      (`user_name 90..96 = 'lowe73'`) rather than the full address, markdown
-      `[addr](mailto:addr)` renders each address twice while only one
-      occurrence is labelled, and 106 of 647 email-shaped occurrences in
-      email-bearing records carry no email label at all. A corpus miss looks
-      exactly like our false positive. Before any threshold is recorded from
-      these numbers, spot-check a sample of FPs by hand (spec §8 risk 4).
-- [ ] **nemotron URL precision is a boundary problem, not a detection problem.**
-      All 701 URL detections overlap a gold URL; only 214 match it exactly. The
-      exact/overlap gap localises the loss to span boundaries. Worth checking
-      which side disagrees — corpus labels include or exclude a trailing path,
-      query or scheme — before treating 487 as false positives.
-- [ ] **gretel PHONE precision (0.2775) is unexplained.** Unlike SSN and
-      CREDIT_CARD, no hand-check has been done. Do not record a PHONE threshold
-      until a sample has been reviewed.
-
-## Deferred (decided against doing here)
-
+- [ ] **Passports are not covered (Malaysia, Singapore, Thailand, and other Asian countries).** Old and new formats need primary-source confirmation before any rule is written. Passport numbers are short alphanumerics, so a shape-only rule would over-match; they likely need a context word such as "passport" or a dedicated checksum. Not started.
+- [ ] **National ID coverage gaps.** (a) Singapore M-prefix is unsupported: its check-letter table is unconfirmed. (b) Malaysia MyKad place-of-birth codes are not validated: the code list is unconfirmed, and the MyKad check-style digit is not validated either. (c) Thailand bare 13-digit form has about a 1-in-10 false-match rate on random digits, so it needs a measured FP rate on labelled text before trust. (d) No golden cases exist yet for these types, and the corpora don't label them, so none of these recognizers is measured on labelled data.
+- [ ] **Phone pattern matches ID-number digit runs (nemotron).** Of the 419
+      nemotron PHONE false positives, 408 sit on spans the corpus labels as
+      ID fields: `biometric_identifier` 117, `customer_id` 83,
+      `account_number` 79, `medical_record_number` 76,
+      `health_plan_beneficiary_number` 34, and smaller counts. Likely cause:
+      the bare 10-digit branch of the phone pattern matches any 10-digit run.
+      Not yet confirmed by hand. CREDIT_CARD has a similar pattern: 18 FPs,
+      9 `device_identifier` and 9 `account_number`. Next step: hand-check a
+      sample of the phone FPs, then decide whether the phone branch needs
+      context or a stronger shape rule. This is a detector fix, not a scope
+      question.
+- [ ] **SSN residual false positives are a label-scope decision, not a regex defect.**
+      Hand-checked by bucket over the same 2000-row samples `make corpus` scores
+      (scratch analysis, not committed). **Nemotron: 25 SSN FP**, every one at a
+      span the source labels with an unmapped type: 23 `tax_id`, 1
+      `certificate_license_number`, 1 `medical_record_number`. All 25 are dashed,
+      in tax-ID wording. **Gretel: 1 SSN FP**, dashed, labelled by nothing.
+      Figures below use the overlap policy, so they approximate the exact-span
+      report. **Decision needed:**
+      - **(a) keep as FPs.** No change. Nemotron SSN stays P=0.8780.
+      - **(b) map `tax_id` to SSN.** Nemotron has 31 `tax_id` spans in the sample:
+        23 are dashed 3-2-4 (today's FPs, which would become TPs), and 8 are
+        EIN-shaped (`99-9999999`, 5) or `P`-prefixed (3), which the SSN pattern
+        cannot match, so they become FNs. Estimate SSN P≈0.99 (203/205), R≈0.96
+        (203/211). This labels US tax IDs as SSNs, which is a claim about the
+        corpus, not a detector fix.
+      - **(c) exclude unmapped-label spans, as out-of-schema types already are.**
+        This changes every type. Nemotron PHONE P 0.5703→0.9806 (408 of its 419
+        FPs sit on unmapped spans), CREDIT_CARD P 0.5714→1.0 (all 18 FPs), SSN
+        0.8780→1.0. Gretel CREDIT_CARD 0.5094→0.5870, EMAIL 0.3702→0.3768 (the
+        `user_name` case is only 10 detections, so the effect is small), PHONE
+        unchanged. The nemotron PHONE result means the current PHONE precision
+        figure is mostly a scope artefact, which SPEC does not yet say.
+      Option (c) moves every corpus number, so it is not applied. Until one of
+      (a)-(c) is chosen, record no SSN precision target.
 - [ ] **BITCOIN coverage.** Neither corpus labels it, so it stays unmeasured.
       Needs a third corpus or a hand-authored seed extension.
 - [ ] **Per-language scoring of gretel.** One conversion uses `combined_test`;

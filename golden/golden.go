@@ -79,6 +79,22 @@ type Case struct {
 	Note     string  `json:"note,omitempty"`
 	Text     string  `json:"text"`
 	Entities []Label `json:"entities"`
+	// Unlabelled lists spans the source corpus annotates with a label this
+	// dataset does not map to an entity type. They are not gold: the corpus
+	// makes no claim about them. A detection that lands on one, and touches no
+	// mapped gold, is bucketed out of the false positives rather than counted
+	// as wrong. See Report.Unlabelled. Hand-labelled cases omit the field.
+	Unlabelled []UnlabelledSpan `json:"unlabelled,omitempty"`
+}
+
+// UnlabelledSpan is one span a corpus annotates with a label outside its type
+// map. Both offsets are required: unlike a Label there is no substring fallback,
+// because a span that cannot be located exactly cannot be bucketed exactly.
+type UnlabelledSpan struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
+	Start *int   `json:"start"`
+	End   *int   `json:"end"`
 }
 
 // Label is one expected entity, identified by the exact text it covers.
@@ -198,6 +214,44 @@ func (c Case) resolve() ([]recognizers.Entity, error) {
 	return out, nil
 }
 
+// unlabelledSpan is an unlabelled span resolved to byte offsets.
+type unlabelledSpan struct {
+	label      string
+	start, end int
+}
+
+// resolveUnlabelled checks each unlabelled span against the case text with the
+// same rules a label gets: bounds, a non-empty span, rune boundaries, and a value
+// that matches the text at its offsets. A mismatch means a broken span, and it
+// is reported rather than bucketed.
+func (c Case) resolveUnlabelled() ([]unlabelledSpan, error) {
+	out := make([]unlabelledSpan, 0, len(c.Unlabelled))
+	for i, u := range c.Unlabelled {
+		if u.Label == "" {
+			return nil, fmt.Errorf("case %q unlabelled span %d: empty label name", c.ID, i)
+		}
+		if u.Start == nil || u.End == nil {
+			return nil, fmt.Errorf("case %q unlabelled span %d (%s): both start and end are required",
+				c.ID, i, u.Label)
+		}
+		start, end := *u.Start, *u.End
+		if start < 0 || end > len(c.Text) || start >= end {
+			return nil, fmt.Errorf("case %q unlabelled span %d (%s): offsets %d..%d out of bounds or empty for text of %d bytes",
+				c.ID, i, u.Label, start, end, len(c.Text))
+		}
+		if !isRuneBoundary(c.Text, start) || !isRuneBoundary(c.Text, end) {
+			return nil, fmt.Errorf("case %q unlabelled span %d (%s): offsets %d..%d do not land on a rune boundary",
+				c.ID, i, u.Label, start, end)
+		}
+		if got := c.Text[start:end]; got != u.Value {
+			return nil, fmt.Errorf("case %q unlabelled span %d (%s): value %q does not match text[%d:%d] = %q",
+				c.ID, i, u.Label, u.Value, start, end, got)
+		}
+		out = append(out, unlabelledSpan{label: u.Label, start: start, end: end})
+	}
+	return out, nil
+}
+
 // Counts holds true positives, false positives and false negatives under one
 // matching policy.
 type Counts struct {
@@ -265,6 +319,91 @@ type Report struct {
 	// separately is what keeps it from being mistaken for a clean run: those
 	// detections were never scored, not scored and found correct.
 	OutOfSchema map[string]int `json:"out_of_schema,omitempty"`
+	// Unlabelled is nil unless the dataset declares unlabelled spans (a corpus
+	// schema that records them) or a case carries one. It sets aside false
+	// positives that land on an unlabelled span, and it never changes Exact or
+	// Overlap; it reports what the headline precision would be without them.
+	Unlabelled *UnlabelledReport `json:"unlabelled,omitempty"`
+}
+
+// UnlabelledReport is the bucket of detections on unlabelled spans, and the
+// precision that results from setting them aside. The precision is an UPPER
+// BOUND on accuracy, not accuracy: a detection on an unlabelled span may be real
+// PII the corpus did not label, or it may be a genuine error. The bucket cannot
+// tell which, and the headline precision counts all of them as wrong.
+type UnlabelledReport struct {
+	// ExactRemoved and OverlapRemoved count false positives set aside under each
+	// matching policy.
+	ExactRemoved   int `json:"exact_removed"`
+	OverlapRemoved int `json:"overlap_removed"`
+	// ExactUpperBoundP and OverlapUpperBoundP are the precisions with the bucket
+	// set aside: TP / (TP + FP - removed).
+	ExactUpperBoundP   float64 `json:"exact_upper_bound_precision"`
+	OverlapUpperBoundP float64 `json:"overlap_upper_bound_precision"`
+	// ByLabel counts the exact-policy bucket by "TYPE on source_label", so a
+	// reader can tell a scope gap (tax_id) from a detector defect (account_number).
+	ByLabel map[string]int `json:"by_label"`
+}
+
+// unlabelledKey renders one bucket entry, e.g. "PHONE on account_number".
+func unlabelledKey(typ recognizers.EntityType, label string) string {
+	return string(typ) + " on " + label
+}
+
+// bucket counts the unmatched predictions that land on an unlabelled span and
+// touch no mapped gold. Precedence, in order: a true positive is never here; a
+// detection touching any mapped gold stays a false positive, because a wrong
+// type or a boundary miss is an error and not a scope question; a detection on
+// an unlabelled span goes in the bucket; anything else is a plain false positive.
+// byLabel, when non-nil, collects the bucket by "TYPE on label".
+func bucket(unmatched []Prediction, gold []recognizers.Entity, spans []unlabelledSpan, byLabel map[string]int) int {
+	removed := 0
+	for _, p := range unmatched {
+		touchesGold := false
+		for _, g := range gold {
+			if overlapPolicy(p, g) {
+				touchesGold = true
+				break
+			}
+		}
+		if touchesGold {
+			continue
+		}
+		for _, u := range spans {
+			if p.Start < u.end && u.start < p.End {
+				removed++
+				if byLabel != nil {
+					byLabel[unlabelledKey(p.Type, u.label)]++
+				}
+				break
+			}
+		}
+	}
+	return removed
+}
+
+// schemaDeclaresUnlabelled reports whether dir holds a corpus schema that records
+// unlabelled spans. A schema that lacks the field was written before the field
+// existed, so its bucket would read zero for a reason that has nothing to do with
+// the detector. That is refused, not scored, and the error names the fix.
+func schemaDeclaresUnlabelled(dir string) (bool, error) {
+	_, err := os.Stat(filepath.Join(dir, SchemaFilename))
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("checking schema in %s: %w", dir, err)
+	}
+	sch, err := LoadSchema(dir)
+	if err != nil {
+		return false, err
+	}
+	if !sch.UnlabelledRecorded {
+		return false, fmt.Errorf("dataset %s: schema.json does not record unlabelled spans "+
+			"(unlabelled_recorded is absent or false); re-run make corpus-convert so detections "+
+			"on unlabelled spans are bucketed rather than counted with an empty bucket", dir)
+	}
+	return true, nil
 }
 
 // matchPolicy decides whether a prediction found a gold entity.
@@ -288,7 +427,16 @@ func overlapPolicy(pred Prediction, gold recognizers.Entity) bool {
 // prediction shared between two golds is credited to the first, which is
 // deliberate and deterministic rather than optimal.
 func scorePair(gold, pred []recognizers.Entity, policy matchPolicy) Counts {
+	c, _ := scorePairDetail(gold, pred, policy)
+	return c
+}
+
+// scorePairDetail is scorePair plus the unmatched predictions, which are the
+// false positives. Scoring is unchanged; the list lets the unlabelled bucket
+// decide which of them to set aside.
+func scorePairDetail(gold, pred []recognizers.Entity, policy matchPolicy) (Counts, []Prediction) {
 	var c Counts
+	var unmatched []Prediction
 	used := make([]bool, len(gold))
 	for _, p := range pred {
 		hit := -1
@@ -306,6 +454,7 @@ func scorePair(gold, pred []recognizers.Entity, policy matchPolicy) Counts {
 			c.TP++
 		} else {
 			c.FP++
+			unmatched = append(unmatched, p)
 		}
 	}
 	for _, ok := range used {
@@ -313,7 +462,7 @@ func scorePair(gold, pred []recognizers.Entity, policy matchPolicy) Counts {
 			c.FN++
 		}
 	}
-	return c
+	return c, unmatched
 }
 
 // Score runs every case through predict and aggregates the results.
@@ -327,7 +476,15 @@ func Score(ctx context.Context, dir string, predict func(context.Context, string
 	if err != nil {
 		return nil, err
 	}
+	hasSchema, err := schemaDeclaresUnlabelled(dir)
+	if err != nil {
+		return nil, err
+	}
 	rep := &Report{ByType: map[string]Counts{}, OutOfSchema: map[string]int{}}
+	var unl *UnlabelledReport
+	if hasSchema {
+		unl = &UnlabelledReport{ByLabel: map[string]int{}}
+	}
 
 	var exactTotal, overlapTotal Counts
 	negTotal, negClean := 0, 0
@@ -337,6 +494,14 @@ func Score(ctx context.Context, dir string, predict func(context.Context, string
 		if err != nil {
 			rep.Errors = append(rep.Errors, err.Error())
 			continue
+		}
+		unlSpans, err := c.resolveUnlabelled()
+		if err != nil {
+			rep.Errors = append(rep.Errors, err.Error())
+			continue
+		}
+		if len(unlSpans) > 0 && unl == nil {
+			unl = &UnlabelledReport{ByLabel: map[string]int{}}
 		}
 		// Gold outside the schema can never match, because its predictions are
 		// filtered out below. Scoring it would quietly count false negatives,
@@ -354,14 +519,19 @@ func Score(ctx context.Context, dir string, predict func(context.Context, string
 		// granularities disagree for a reason that is not a boundary bug.
 		pred = cfg.splitPredictions(pred, rep.OutOfSchema)
 
-		e := scorePair(gold, pred, exactPolicy)
-		o := scorePair(gold, pred, overlapPolicy)
+		e, eFP := scorePairDetail(gold, pred, exactPolicy)
+		o, oFP := scorePairDetail(gold, pred, overlapPolicy)
 		exactTotal.TP += e.TP
 		exactTotal.FP += e.FP
 		exactTotal.FN += e.FN
 		overlapTotal.TP += o.TP
 		overlapTotal.FP += o.FP
 		overlapTotal.FN += o.FN
+
+		if unl != nil {
+			unl.ExactRemoved += bucket(eFP, gold, unlSpans, unl.ByLabel)
+			unl.OverlapRemoved += bucket(oFP, gold, unlSpans, nil)
+		}
 
 		if len(gold) == 0 {
 			negTotal++
@@ -386,6 +556,11 @@ func Score(ctx context.Context, dir string, predict func(context.Context, string
 
 	rep.Exact = metricsOf(exactTotal, negTotal, negClean)
 	rep.Overlap = metricsOf(overlapTotal, negTotal, negClean)
+	if unl != nil {
+		unl.ExactUpperBoundP = ratio(exactTotal.TP, exactTotal.TP+exactTotal.FP-unl.ExactRemoved)
+		unl.OverlapUpperBoundP = ratio(overlapTotal.TP, overlapTotal.TP+overlapTotal.FP-unl.OverlapRemoved)
+		rep.Unlabelled = unl
+	}
 	return rep, nil
 }
 
@@ -541,6 +716,25 @@ func (r *Report) Summary() string {
 			fmt.Fprintf(&b, " %s=%d", k, r.OutOfSchema[k])
 		}
 		b.WriteString("\n")
+	}
+	if u := r.Unlabelled; u != nil {
+		fmt.Fprintf(&b, "excluding unlabelled spans (upper bound, not accuracy): exact P=%.4f overlap P=%.4f\n",
+			u.ExactUpperBoundP, u.OverlapUpperBoundP)
+		fmt.Fprintf(&b, "detections on unlabelled spans, set aside from FP: exact %d, overlap %d\n",
+			u.ExactRemoved, u.OverlapRemoved)
+		keys := make([]string, 0, len(u.ByLabel))
+		for k := range u.ByLabel {
+			keys = append(keys, k)
+		}
+		sort.Slice(keys, func(i, j int) bool {
+			if u.ByLabel[keys[i]] != u.ByLabel[keys[j]] {
+				return u.ByLabel[keys[i]] > u.ByLabel[keys[j]]
+			}
+			return keys[i] < keys[j]
+		})
+		for _, k := range keys {
+			fmt.Fprintf(&b, "  %5d  %s\n", u.ByLabel[k], k)
+		}
 	}
 	b.WriteString("\nby type (exact):\n")
 	for _, k := range r.sortedTypeKeys() {

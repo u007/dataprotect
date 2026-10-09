@@ -206,3 +206,87 @@ func TestBuildLabelsAlwaysSetsOffsets(t *testing.T) {
 	}
 	_ = golden.Case{} // package import used by the type under test
 }
+
+// Three spans that all overlap each other are three pairs. The schema reports
+// this count, so an undercount would misstate how much nesting the corpus holds.
+func TestCountOverlappingPairsCountsEveryPair(t *testing.T) {
+	cases := []struct {
+		name  string
+		spans [][2]int
+		want  int
+	}{
+		{"three mutually overlapping", [][2]int{{0, 10}, {1, 20}, {2, 3}}, 3},
+		{"touching spans do not overlap", [][2]int{{0, 5}, {5, 10}}, 0},
+		{"identical spans are one pair", [][2]int{{4, 9}, {4, 9}}, 1},
+		{"nested span counts once", [][2]int{{0, 10}, {3, 4}}, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var labels []golden.Label
+			for _, s := range tc.spans {
+				start, end := s[0], s[1]
+				labels = append(labels, golden.Label{Start: &start, End: &end})
+			}
+			got, err := countOverlappingPairs(labels)
+			if err != nil {
+				t.Fatalf("countOverlappingPairs: unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("countOverlappingPairs = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+// A label without offsets must fail loudly. The old sweep skipped it and could
+// then index an empty slice, panicking on exactly the input it had skipped.
+func TestCountOverlappingPairsRejectsMissingOffsets(t *testing.T) {
+	start := 0
+	labels := []golden.Label{
+		{Type: recognizers.EntityEmail, Value: "a@b.co", Start: &start},
+		{Type: recognizers.EntityEmail, Value: "a@b.co"},
+	}
+	if _, err := countOverlappingPairs(labels); err == nil {
+		t.Fatal("countOverlappingPairs with a label missing its End: want error, got nil")
+	}
+	none := []golden.Label{{Type: recognizers.EntityEmail, Value: "a@b.co"}, {Type: recognizers.EntityEmail, Value: "x@y.co"}}
+	if _, err := countOverlappingPairs(none); err == nil {
+		t.Fatal("countOverlappingPairs with no offsets at all: want error, got nil")
+	}
+}
+
+// Unmapped spans are kept with byte offsets, because the scorer must bucket a
+// detection by position. The sample has a two-byte rune before the span, so the
+// character and byte offsets differ and a missing translation would show.
+func TestBuildUnlabelledKeepsOnlyUnmappedSpansInBytes(t *testing.T) {
+	const text = "Zoë paid 555-867-5309 via account 12345"
+	spans := []Span{
+		{Start: 9, End: 21, Label: "phone_number"},    // mapped: not unlabelled
+		{Start: 34, End: 39, Label: "account_number"}, // unmapped: kept
+	}
+	got, err := BuildUnlabelled(text, spans, NemotronLabels)
+	if err != nil {
+		t.Fatalf("BuildUnlabelled: unexpected error: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("got %d unlabelled spans, want 1: %+v", len(got), got)
+	}
+	u := got[0]
+	if u.Label != "account_number" || u.Value != "12345" {
+		t.Errorf("span = %q %q, want account_number 12345", u.Label, u.Value)
+	}
+	if *u.Start != 35 || *u.End != 40 {
+		t.Errorf("byte offsets = %d..%d, want 35..40", *u.Start, *u.End)
+	}
+	if text[*u.Start:*u.End] != u.Value {
+		t.Errorf("text[%d:%d] = %q, does not match value %q", *u.Start, *u.End, text[*u.Start:*u.End], u.Value)
+	}
+}
+
+// An unlabelled span with a bad offset is an error, not a silent drop.
+func TestBuildUnlabelledFailsFastOnBadOffset(t *testing.T) {
+	spans := []Span{{Start: 0, End: 500, Label: "account_number"}}
+	if _, err := BuildUnlabelled("short", spans, NemotronLabels); err == nil {
+		t.Fatal("BuildUnlabelled with out-of-range span: want error, got nil")
+	}
+}

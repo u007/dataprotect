@@ -17,51 +17,52 @@ const datasetDir = "../testdata/golden"
 // minCases guards against a green gate produced by an empty or truncated
 // dataset. With few cases every metric is coarse, and a single flipped case
 // moves recall by a large fraction — so a shrinking dataset would silently
-// weaken the gate rather than fail it.
-const minCases = 12
+// weaken the gate rather than fail it. Ratcheted with each batch: it tracks the
+// current seed count, so any drop below it fails.
+const minCases = 50
 
 // Gate thresholds.
 //
-// These are the MEASURED baseline, not a target. The seed set is 18 cases, far
+// These are the MEASURED baseline, not a target. The seed set is 50 cases, far
 // too small to claim SPEC.md's ">99% precision/recall"; claiming it here would
 // make the gate a rubber stamp. Each constant is the EXACT measured value, so
 // any regression fails immediately and any improvement is a deliberate
 // threshold bump in this file rather than a silent drift.
 //
-// The measured baseline is exact P=1.0000 R=1.0000 (tp=13 fp=0 fn=0) and
-// overlap P=1.0000 R=1.0000 (tp=13 fp=0 fn=0); all six negative cases are
-// clean. It is perfect, which is a property of this 18-case seed set, NOT a
-// claim about the detector in general — SPEC.md's ">99%" needs the ~500-case
-// corpora in testdata/external, which nothing can score yet (see TODO.md). With
-// 13 positives one flipped case still moves recall by ~8%, so the number is
-// coarse; it is kept exact so a regression fails immediately.
+// Batch 2 (13 cases) moved the baseline off 1.0 on purpose. One defect remains
+// and is recorded, not relabelled:
+//   - neg-ip-version-four-part: "3.10.2.7" has valid IPv4 octets and is read as
+//     an IP address (one negative case not clean). See TODO.md.
 //
-// This baseline was reached by fixing the parenthesised-phone defect (the phone
-// recognizer dropped the leading "("), which had been the single exact false
-// negative AND the single exact false positive — exact P/R were 12/13 before.
-// That is the gate working as intended: the defect was measurable, and fixing
-// it raised the recorded baseline instead of breaking it.
+// The earlier sentence-final URL defect, pos-url-trailing-period, is fixed: the
+// URL recognizer now trims trailing punctuation, and that case passes.
+//
+// The measured baseline is exact P=0.9706 R=1.0000 (tp=33 fp=1 fn=0), overlap
+// P=0.9706 R=1.0000 (tp=33 fp=1 fn=0), and 17 of 18 negative cases clean. These
+// numbers describe this hand-labelled seed set, NOT the detector in general —
+// SPEC.md's ">99%" needs a ~500-case hand-labelled set. The corpora in
+// testdata/external are scored by `make corpus` but are not that set (see
+// TODO.md). With 34 predictions one flipped case moves precision by ~3%, so
+// the number is coarse; it is kept exact so a regression fails immediately.
 //
 // An earlier baseline (exact P=0.8571 R=0.9231, tp=12 fp=2 fn=1) preceded the
 // checksum-validator wiring. CREDIT_CARD went from P=0.7500 to P=1.0000 and all
 // negative cases became clean, because cards are now validated rather than
-// matched on shape alone.
+// matched on shape alone. The parenthesised-phone fix that followed raised the
+// recorded baseline from 12/13 to 13/13 on the 18-case seed.
 //
 // While a threshold sits below 1.0, write it as the measured tp/(tp+fp) and
 // tp/(tp+fn) RATIO rather than a rounded literal: 10/11 is 0.9090909..., so a
 // literal 0.9091 is a hair ABOVE the true value and the gate would fail on a run
 // that exactly met its baseline — a rounding trap, not a regression. Deriving
 // the constant from the counts makes the comparison exact and self-documenting.
-//
-// The current baseline is perfect, so all three are exactly 1.0 and are written
-// as literals: a ratio with an equal numerator and denominator (13.0/13.0) adds
-// nothing here and only draws a "identical expressions" lint warning. The counts
-// each literal represents are in the trailing comments. If a case is added that
-// is not yet passed, re-introduce the ratio form for the affected constant.
+// A ratio with an equal numerator and denominator (33.0/33.0) adds nothing and
+// draws an "identical expressions" lint warning, so a sitting-at-1.0 constant
+// stays a literal with its counts in the trailing comment.
 const (
-	minExactPrecision = 1.0 // tp=13 fp=0 -> 13/13
-	minExactRecall    = 1.0 // tp=13 fn=0 -> 13/13
-	minOverlapRecall  = 1.0 // tp=13 fn=0 -> 13/13
+	minExactPrecision = 33.0 / 34.0 // tp=33 fp=1   -> 33/34
+	minExactRecall    = 1.0         // tp=33 fn=0   -> 33/33
+	minOverlapRecall  = 1.0         // tp=33 fn=0   -> 33/33
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled

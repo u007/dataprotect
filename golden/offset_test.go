@@ -68,7 +68,7 @@ func TestResolveUsesExplicitOffsetsForRepeatedValues(t *testing.T) {
 }
 
 // TestResolveSubstringPathUnchanged pins backwards compatibility: the committed
-// 18-case seed set gives no offsets, and its spans must be byte-for-byte what
+// seed set gives no offsets, and its spans must be byte-for-byte what
 // they have always been.
 func TestResolveSubstringPathUnchanged(t *testing.T) {
 	c := Case{

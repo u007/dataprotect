@@ -1,7 +1,7 @@
 ---
 type: Concept
 title: piiscrub — Usage & Quick Start
-description: 'Entry point for using the piiscrub Go library: feature list (8 regex and 2 checksum recognizers, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 18-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
+description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum and 3 national-ID recognizers, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 50-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
 tags:
   - pii
   - go
@@ -19,6 +19,8 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 
 - **8 regex recognizers** — email, phone, SSN, IP, URL, IBAN, bitcoin, plus a
   shape-only credit-card recognizer
+- **3 national ID recognizers** — Singapore NRIC/FIN, Malaysia MyKad and
+  Thailand citizen ID, each validated by its own rule. Passports are not covered yet
 - **2 checksum validators, wired into the default pipeline** — Luhn (credit
   cards), mod-97 (IBAN). Cards are detected by Luhn rather than by digit shape,
   so a long number that fails the checksum is not redacted as payment data.
@@ -27,11 +29,10 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 - **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`)
 - **Measured, not claimed** — a hand-labelled seed dataset, an on-demand corpus
   measurement over the fetched corpora, and a scoring runner
-  gate accuracy in CI. Current baseline over 18 cases: exact-span
-  P=1.0000 R=1.0000, overlap P=1.0000 R=1.0000. Run `scripts/benchmark.sh`.
-  The seed set is far from the ~500 cases the accuracy targets assume, and every
-  entity type is not yet covered, so treat the numbers as a floor rather than a
-  result.
+  gate accuracy in CI. Current baseline over 50 cases: exact-span
+  P=0.9706 R=1.0000, overlap P=0.9706 R=1.0000. Run `scripts/benchmark.sh`.
+  The seed set is far from the ~500 cases the accuracy targets assume, so treat
+  the numbers as a floor rather than a result.
 - **Zero external dependencies** — stdlib only
 - **~100-200 MB RAM** — vs Presidio's 4 GB
 
@@ -114,8 +115,8 @@ func main() {
 
 ## Testing & dataset coverage
 
-Accuracy here is measured, not asserted. `testdata/golden/seed.json` holds 18
-hand-labelled cases (12 positive, 6 negative), and `golden/accuracy_test.go`
+Accuracy here is measured, not asserted. `testdata/golden/seed.json` holds 50
+hand-labelled cases (32 positive, 18 negative), and `golden/accuracy_test.go`
 gates on the exact measured baseline, so a regression fails the build instead of
 drifting silently. Labels are written from the text, never copied from detector
 output — a dataset derived from the detector's own predictions cannot fail and
@@ -123,27 +124,28 @@ proves nothing. Run `scripts/benchmark.sh` for the full report.
 
 | Match policy | Precision | Recall | F1 | tp/fp/fn |
 |---|---|---|---|---|
-| exact span | 1.0000 | 1.0000 | 1.0000 | 13/0/0 |
-| byte overlap | 1.0000 | 1.0000 | 1.0000 | 13/0/0 |
+| exact span | 0.9706 | 1.0000 | 0.9851 | 33/1/0 |
+| byte overlap | 0.9706 | 1.0000 | 0.9851 | 33/1/0 |
 
-Coverage by entity type — 6 of the 8 recognizers have any coverage at all, and
-five of those rest on a single case:
+Coverage by entity type, counting the cases that carry each type:
 
 | Entity type | Cases |
 |---|---|
 | EMAIL | 4 |
-| CREDIT_CARD | 3 |
-| PHONE | 2 |
-| SSN | 1 |
-| IP_ADDRESS | 1 |
-| URL | 1 |
-| IBAN | **0 — untested** |
-| BITCOIN | **0 — untested** |
+| CREDIT_CARD | 5 |
+| PHONE | 4 |
+| SSN | 4 |
+| IP_ADDRESS | 3 |
+| URL | 4 |
+| IBAN | 5 |
+| BITCOIN | 3 (shape-only, no checksum) |
 
-Every measured number is now perfect, but that is a property of this 18-case
-seed set and not a claim about the detector. IBAN and bitcoin are entirely
-unmeasured, and 18 cases is far from the ~500 the accuracy targets assume, so
-read every number above as a floor rather than a result. This baseline was
+The numbers are not perfect. Batch 2 exposed two detector defects. The URL one,
+a sentence-final period kept, is fixed. The other, a four-part version string
+read as an IP, is still open; that case stays labelled as written and is in
+TODO.md. The seed set
+is 50 cases, far from the ~500 the accuracy targets assume, so read every
+number above as a floor rather than a result. This baseline was
 reached by fixing the phone recognizer's dropped leading `(` on parenthesised
 area codes — until that fix it was the single false positive and the single
 false negative.
@@ -166,7 +168,7 @@ restrict commercial use.
 | `piibench` | apache *declared* | audit first |
 
 Both clean corpora are fetchable **and now scored**: `make corpus` converts them
-and prints a report (see SPEC.md § "Corpus measurement (2026-10-08)" for the
+and prints a report (see SPEC.md § "Corpus measurement (2026-10-09)" for the
 numbers and what explains each gap). The conversion is schema-aware — each
 converted dataset carries a `schema.json` naming the entity types it labels, and
 the scorer excludes detections of any other type from the false-positive count
@@ -175,13 +177,13 @@ would score a correct EMAIL detection as a false positive.
 
 | | nemotron (2000 of 100000) | gretel (2000 of 5596) |
 |---|---|---|
-| exact | P=0.5994 R=0.6935 | P=0.2821 R=0.7673 |
-| byte overlap | P=0.7541 R=0.8725 | P=0.2969 R=0.8075 |
+| exact | P=0.8340 R=0.8699 | P=0.3557 R=0.7673 |
+| byte overlap | P=0.8365 R=0.8725 | P=0.3743 R=0.8075 |
 
 Those are real numbers from a 2000-record sample, not a target: the seed set
-above is perfect because 18 cases cannot contradict it, while 2000 real records
-find defects the seed set cannot reach — the SSN pattern matches any bare
-nine-digit run (`Account Number: 123456789`), and gretel labels the local part
+above is too small to test the detector at scale, while 2000 real records
+find defects the seed set cannot reach — the SSN pattern matched any bare
+nine-digit run (`Account Number: 123456789`, now fixed), and gretel labels the local part
 of an address as `user_name` rather than the full email. Every large gap is
 explained in SPEC.md rather than waved away.
 

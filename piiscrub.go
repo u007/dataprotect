@@ -9,6 +9,7 @@ import (
 	"dataprotect/operators"
 	"dataprotect/recognizers"
 	"dataprotect/recognizers/checksum"
+	"dataprotect/recognizers/national"
 	"dataprotect/recognizers/regex"
 )
 
@@ -48,6 +49,9 @@ func NewScrubber() *Scrubber {
 	a.AddRecognizer(regex.NewBitcoinRecognizer())
 	a.AddRecognizer(checksum.NewLuhnValidator())
 	a.AddRecognizer(checksum.NewIBANValidator())
+	a.AddRecognizer(national.NewSGNRICRecognizer())
+	a.AddRecognizer(national.NewMYICRecognizer())
+	a.AddRecognizer(national.NewTHIDRecognizer())
 
 	an := anonymizer.New()
 	an.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
@@ -58,6 +62,9 @@ func NewScrubber() *Scrubber {
 	an.SetOperator(recognizers.EntityURL, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntityIBAN, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntityBitcoin, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntitySGNRIC, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityMYIC, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityTHID, operators.NewRedactOperator())
 
 	return &Scrubber{
 		analyzer:   a,

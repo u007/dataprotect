@@ -18,6 +18,9 @@ const (
 	EntityURL        EntityType = "URL"
 	EntityIBAN       EntityType = "IBAN"
 	EntityBitcoin    EntityType = "BITCOIN"
+	EntitySGNRIC     EntityType = "SG_NRIC"
+	EntityMYIC       EntityType = "MY_IC"
+	EntityTHID       EntityType = "TH_ID"
 )
 
 // Entity represents a detected PII entity in text.
@@ -54,6 +57,12 @@ func EntityTypeFromString(s string) (EntityType, error) {
 		return EntityIBAN, nil
 	case "BITCOIN":
 		return EntityBitcoin, nil
+	case "SG_NRIC":
+		return EntitySGNRIC, nil
+	case "MY_IC":
+		return EntityMYIC, nil
+	case "TH_ID":
+		return EntityTHID, nil
 	default:
 		return "", fmt.Errorf("unknown entity type: %s", s)
 	}

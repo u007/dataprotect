@@ -38,7 +38,7 @@ func writeSchemaFixture(t *testing.T, caseJSON, schemaJSON string) string {
 const (
 	trapText         = "Call 555-123-4567 or a@b.com, or 555-999-0000."
 	trapGoldJSON     = `[{"id":"t1","text":"Call 555-123-4567 or a@b.com, or 555-999-0000.","entities":[{"type":"PHONE","value":"555-123-4567"}]}]`
-	trapSchemaJSON   = `{"corpus":"gretel-pii-finance","in_schema":["PHONE"],"offset_unit":"bytes"}`
+	trapSchemaJSON   = `{"corpus":"gretel-pii-finance","in_schema":["PHONE"],"offset_unit":"bytes","unlabelled_recorded":true}`
 	trapGoldStart    = 5
 	trapGoldEnd      = 17
 	trapEmailStart   = 21
@@ -131,7 +131,7 @@ func TestScoreWithoutSchemaCountsEveryPrediction(t *testing.T) {
 // FNs for entities the detector was never allowed to report. Fail loudly instead.
 func TestScoreRejectsGoldOutsideSchema(t *testing.T) {
 	gold := `[{"id":"g1","text":"write to a@b.com today","entities":[{"type":"EMAIL","value":"a@b.com"}]}]`
-	schema := `{"corpus":"gretel-pii-finance","in_schema":["PHONE"],"offset_unit":"bytes"}`
+	schema := `{"corpus":"gretel-pii-finance","in_schema":["PHONE"],"offset_unit":"bytes","unlabelled_recorded":true}`
 	dir := writeSchemaFixture(t, gold, schema)
 
 	_, err := Score(context.Background(), dir, func(context.Context, string) ([]Prediction, error) {

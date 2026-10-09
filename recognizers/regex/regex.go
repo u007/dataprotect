@@ -150,14 +150,33 @@ func (r *CreditCardRecognizer) Recognize(ctx context.Context, text string) ([]re
 }
 
 // SSNRecognizer detects US Social Security numbers.
+//
+// A US SSN is 3-2-4, and both separator positions are required when the value
+// appears inside other text. Every separator used to be optional, which made
+// any bare nine-digit run match: `Account Number: 123456789`,
+// `CAS No.: 123456789` and `Passport Number: 322996077` were all read as SSNs,
+// costing 449 of 483 precision on gretel (exact P=0.0929). A single separator
+// is nearly as loose — corpus longitudes like 177.978032 matched it.
+//
+// A bare nine-digit value is still accepted when the digits ARE the whole
+// input: a declared field, a CSV cell or a standalone token carries no
+// surrounding context to be ambiguous with, and the batch processor analyses
+// one cell at a time. That carve-out is what keeps a bare `ssn` column value
+// scrubbed while refusing the same digits in a sentence.
+//
+// The recall cost of requiring separators is nil on the evidence: 220 of the
+// 232 SSN labels across both corpora are dashed and NONE is bare, while all
+// 714 bare nine-digit matches sat inside prose.
 type SSNRecognizer struct {
-	pattern *regexp.Regexp
+	pattern *regexp.Regexp // canonical 3-2-4 with a separator at both positions
+	bare    *regexp.Regexp // a bare nine-digit value, anchored to the whole input
 }
 
 // NewSSNRecognizer creates a new SSN recognizer.
 func NewSSNRecognizer() *SSNRecognizer {
 	return &SSNRecognizer{
-		pattern: regexp.MustCompile(`\b\d{3}[\s.\-]?\d{2}[\s.\-]?\d{4}\b`),
+		pattern: regexp.MustCompile(`\b\d{3}[\s.\-]\d{2}[\s.\-]\d{4}\b`),
+		bare:    regexp.MustCompile(`^\d{9}$`),
 	}
 }
 
@@ -167,6 +186,16 @@ func (r *SSNRecognizer) Name() string { return "regex_ssn" }
 // Recognize detects SSNs in text.
 func (r *SSNRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	matches := r.pattern.FindAllStringIndex(text, -1)
+
+	// The whole-value carve-out: a bare nine-digit run counts only when the
+	// digits are the entire (whitespace-trimmed) input. A non-empty result of
+	// TrimSpace that fails ^\d{9}$ contributes nothing, and strings.Index on a
+	// successful match therefore locates the leading trim exactly.
+	if trimmed := strings.TrimSpace(text); r.bare.MatchString(trimmed) {
+		lead := strings.Index(text, trimmed)
+		matches = append(matches, []int{lead, lead + len(trimmed)})
+	}
+
 	entities := make([]recognizers.Entity, 0, len(matches))
 	for _, m := range matches {
 		ssn := strings.ReplaceAll(text[m[0]:m[1]], " ", "")
@@ -217,6 +246,16 @@ func (r *IPRecognizer) Recognize(ctx context.Context, text string) ([]recognizer
 }
 
 // URLRecognizer detects URLs.
+//
+// The pattern takes every character up to whitespace or a delimiter, so a URL
+// that ends a sentence or a markdown span would keep the punctuation around it.
+// Recognize trims that trailing punctuation with trimURL. The policy is
+// deliberately narrow: a trailing `.,;:!?*'` and backtick are always dropped,
+// and a closing `)` or `]` only when the URL has no matching opener. A
+// Wikipedia-style `Foo_(bar)` keeps its paren. The set follows what the corpus
+// shows: nemotron's URL disagreements are trailing `.` and `,`, then unmatched
+// `)`, `**`, and backticks. A `'` is trimmed because the pattern accepts it
+// and a single-quoted URL is far more common than one that ends in `'`.
 type URLRecognizer struct {
 	pattern *regexp.Regexp
 }
@@ -236,15 +275,38 @@ func (r *URLRecognizer) Recognize(ctx context.Context, text string) ([]recognize
 	matches := r.pattern.FindAllStringIndex(text, -1)
 	entities := make([]recognizers.Entity, 0, len(matches))
 	for _, m := range matches {
+		u := trimURL(text[m[0]:m[1]])
+		// A scheme with nothing after it ("http://." trims to "http://") is not a URL.
+		if strings.HasSuffix(u, "://") {
+			continue
+		}
 		entities = append(entities, recognizers.Entity{
 			Type:       recognizers.EntityURL,
 			Start:      m[0],
-			End:        m[1],
-			Text:       text[m[0]:m[1]],
+			End:        m[0] + len(u),
+			Text:       u,
 			Confidence: 0.99,
 		})
 	}
 	return entities, nil
+}
+
+// trimURL drops trailing sentence punctuation from a URL match, repeating until
+// the end is stable so that "https://x.com/a)." loses both the ")" and the ".".
+// Every trimmed byte is ASCII, so the result stays on a rune boundary.
+func trimURL(u string) string {
+	for u != "" {
+		last := u[len(u)-1]
+		switch {
+		case strings.IndexByte(".,;:!?*'`", last) >= 0:
+		case last == ')' && strings.Count(u, "(") < strings.Count(u, ")"):
+		case last == ']' && strings.Count(u, "[") < strings.Count(u, "]"):
+		default:
+			return u
+		}
+		u = u[:len(u)-1]
+	}
+	return u
 }
 
 // IBANRecognizer detects IBANs.

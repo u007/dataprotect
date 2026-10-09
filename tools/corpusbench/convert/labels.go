@@ -92,6 +92,31 @@ func BuildLabels(text string, spans []Span, labelMap map[string]recognizers.Enti
 	return labels, unmapped, nil
 }
 
+// BuildUnlabelled returns the spans whose corpus label is not in labelMap, with
+// byte offsets, so the scorer can bucket a detection by position. These spans
+// are not gold: the corpus annotates them, but with a label this dataset does not
+// score. They use the same character-to-byte translation as BuildLabels, and a
+// bad offset is an error for the same reason.
+func BuildUnlabelled(text string, spans []Span, labelMap map[string]recognizers.EntityType) ([]golden.UnlabelledSpan, error) {
+	var out []golden.UnlabelledSpan
+	for i, sp := range spans {
+		if _, mapped := labelMap[sp.Label]; mapped {
+			continue
+		}
+		byteStart, byteEnd, err := CharToByte(text, sp.Start, sp.End)
+		if err != nil {
+			return nil, fmt.Errorf("span %d (label %q): %w", i, sp.Label, err)
+		}
+		out = append(out, golden.UnlabelledSpan{
+			Label: sp.Label,
+			Value: text[byteStart:byteEnd],
+			Start: &byteStart,
+			End:   &byteEnd,
+		})
+	}
+	return out, nil
+}
+
 // countOverlappingPairs counts gold labels that overlap another.
 //
 // Overlap is valid annotation nesting and is kept — scorePair handles it, and
@@ -99,34 +124,25 @@ func BuildLabels(text string, spans []Span, labelMap map[string]recognizers.Enti
 // is not in play. The count exists so schema.json states it rather than leaving
 // a reader to wonder whether overlaps were resolved away.
 //
-// Labels are sorted by start first, so the count is stable regardless of file
-// order and a label nested inside an earlier one is counted once.
-func countOverlappingPairs(labels []golden.Label) int {
-	if len(labels) < 2 {
-		return 0
-	}
-	type span struct{ start, end int }
-	seen := make([]span, 0, len(labels))
+// Every pair is compared, so a span overlapping several others is credited once
+// per pair. Spans that only touch (one ends where the next starts) do not count.
+//
+// A label without offsets is an error rather than a skip: a silent skip would
+// undercount the schema's overlap total without any sign of it.
+func countOverlappingPairs(labels []golden.Label) (int, error) {
 	for _, l := range labels {
 		if l.Start == nil || l.End == nil {
-			continue // cannot happen for converted labels; defensive
-		}
-		seen = append(seen, span{*l.Start, *l.End})
-	}
-	sort.Slice(seen, func(i, j int) bool {
-		if seen[i].start == seen[j].start {
-			return seen[i].end < seen[j].end
-		}
-		return seen[i].start < seen[j].start
-	})
-	pairs, furthest := 0, seen[0].end
-	for i := 1; i < len(seen); i++ {
-		if seen[i].start < furthest {
-			pairs++
-		}
-		if seen[i].end > furthest {
-			furthest = seen[i].end
+			return 0, fmt.Errorf("label %q (%q) has no byte offsets; overlap cannot be counted", l.Type, l.Value)
 		}
 	}
-	return pairs
+	pairs := 0
+	for i := range labels {
+		for j := i + 1; j < len(labels); j++ {
+			a, b := labels[i], labels[j]
+			if *a.Start < *b.End && *b.Start < *a.End {
+				pairs++
+			}
+		}
+	}
+	return pairs, nil
 }
