@@ -235,16 +235,55 @@ func TestScrubberRedactsLuhnValidThaiIDAsThaiID(t *testing.T) {
 	}
 }
 
-func TestLuhnThaiIDSurvivesHighThresholdWithoutThaiRecognizer(t *testing.T) {
-	// A Luhn-valid Thai ID must stay redacted when the Thai recognizer is not
-	// wired and the caller raises the confidence threshold above 0.95.
+func TestRawLuhnKeepsCardAboveThaiThreshold(t *testing.T) {
+	// The raw Luhn validator reports a card at 0.99, and a threshold of 0.98
+	// keeps it. Typing it as TH_ID is the Scrubber's job, so a card-only caller
+	// is unaffected by the Thai decision.
 	a := analyzer.New(analyzer.WithMinConfidence(0.98))
 	a.AddRecognizer(checksum.NewLuhnValidator())
 	entities, err := a.Analyze(context.Background(), "Citizen ID 1000000000009 on file")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(entities) != 1 || entities[0].Type != recognizers.EntityTHID {
-		t.Fatalf("got %+v, want one TH_ID", entities)
+	if len(entities) != 1 || entities[0].Type != recognizers.EntityCreditCard {
+		t.Fatalf("got %+v, want one CREDIT_CARD", entities)
+	}
+}
+
+func TestScrubberTypesLuhnValidThaiIDAsTHID(t *testing.T) {
+	// Scrubber.Analyze retypes the resolved card span, so the Thai ID keeps the
+	// card's 0.99 and is reported as TH_ID.
+	entities, err := NewScrubber().Analyze(context.Background(), "Citizen ID 1000000000009 on file")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 || entities[0].Type != recognizers.EntityTHID || entities[0].Confidence != 0.99 {
+		t.Fatalf("got %+v, want one TH_ID at 0.99", entities)
+	}
+}
+
+func TestScrubberEveryEntityTypeHasOperator(t *testing.T) {
+	// An entity of each type must come out changed. A type with no operator
+	// passes through untouched, which is the fail-open case this test guards.
+	s := NewScrubber()
+	for _, typ := range recognizers.AllEntityTypes {
+		out, err := s.anonymizer.Anonymize(context.Background(), "x", []recognizers.Entity{
+			{Type: typ, Start: 0, End: 1, Text: "x", Confidence: 0.99},
+		})
+		if err != nil {
+			t.Fatalf("type %s: unexpected error: %v", typ, err)
+		}
+		if out == "x" {
+			t.Errorf("type %s has no operator in NewScrubber; its spans would pass through", typ)
+		}
+	}
+}
+
+func TestAllEntityTypesParse(t *testing.T) {
+	for _, typ := range recognizers.AllEntityTypes {
+		got, err := recognizers.EntityTypeFromString(string(typ))
+		if err != nil || got != typ {
+			t.Errorf("EntityTypeFromString(%q) = %q, %v; want %q", typ, got, err, typ)
+		}
 	}
 }

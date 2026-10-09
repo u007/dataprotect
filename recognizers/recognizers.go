@@ -24,6 +24,24 @@ const (
 	EntityMYPassport EntityType = "MY_PASSPORT"
 )
 
+// AllEntityTypes lists every EntityType constant. A test checks that each one
+// has an operator in the default Scrubber, so a new type cannot ship without
+// one. A new constant must be added here as well.
+var AllEntityTypes = []EntityType{
+	EntityEmail,
+	EntityPhone,
+	EntityCreditCard,
+	EntitySSN,
+	EntityIP,
+	EntityURL,
+	EntityIBAN,
+	EntityBitcoin,
+	EntitySGNRIC,
+	EntityMYIC,
+	EntityTHID,
+	EntityMYPassport,
+}
+
 // Entity represents a detected PII entity in text.
 type Entity struct {
 	Type       EntityType

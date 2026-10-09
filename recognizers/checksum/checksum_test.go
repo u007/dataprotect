@@ -224,36 +224,16 @@ func stripSpaces(s string) string {
 	return string(out)
 }
 
-func TestLuhnRecognizeTypesThaiIDSpanAsTHID(t *testing.T) {
-	// 1000000000009 passes both the Thai mod-11 check and Luhn. It is typed TH_ID
-	// at the card's own confidence, so it does not depend on the Thai recognizer
-	// being wired or on a threshold between 0.95 and 0.99.
+func TestLuhnRecognizeReportsThaiValidSpanAsCard(t *testing.T) {
+	// 1000000000009 is also a valid Thai citizen ID. The raw Luhn validator
+	// still reports a card: typing it as TH_ID is the Scrubber's job, after
+	// overlap resolution, so a card-only caller keeps the card it always had.
 	v := NewLuhnValidator()
-	ctx := context.Background()
-	for _, tc := range []struct{ text, want string }{
-		{"Citizen ID 1000000000009 on file", "1000000000009"},
-		{"Citizen ID 1-0000-00000-00-9 on file", "1-0000-00000-00-9"},
-	} {
-		entities, err := v.Recognize(ctx, tc.text)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(entities) != 1 || entities[0].Type != recognizers.EntityTHID ||
-			entities[0].Text != tc.want || entities[0].Confidence != 0.99 {
-			t.Errorf("Recognize(%q) = %+v, want one TH_ID %q at 0.99", tc.text, entities, tc.want)
-		}
-	}
-}
-
-func TestLuhnRecognizeKeepsCardWhenThaiSpanNotOwned(t *testing.T) {
-	// Same digits, but glued to a letter, so the Thai word boundary does not
-	// match. The card must still be reported, or the number would go unredacted.
-	v := NewLuhnValidator()
-	entities, err := v.Recognize(context.Background(), "ref x1000000000009 on file")
+	entities, err := v.Recognize(context.Background(), "Citizen ID 1000000000009 on file")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(entities) != 1 || entities[0].Text != "1000000000009" {
-		t.Fatalf("got %+v, want one card 1000000000009", entities)
+	if len(entities) != 1 || entities[0].Type != recognizers.EntityCreditCard {
+		t.Fatalf("got %+v, want one CREDIT_CARD", entities)
 	}
 }

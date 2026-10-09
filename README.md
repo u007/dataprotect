@@ -61,7 +61,7 @@ func main() {
     a.AddRecognizer(checksum.NewLuhnValidator())
 
     // Build anonymizer
-    an := anonymizer.New()
+    an := anonymizer.New(anonymizer.WithDefaultOperator(operators.NewRedactOperator()))
     an.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
     an.SetOperator(recognizers.EntityPhone, operators.NewMaskOperator("***-***-####"))
     an.SetOperator(recognizers.EntityCreditCard, operators.NewMaskOperator("****-****-****-####"))

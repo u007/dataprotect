@@ -74,16 +74,50 @@ func NewScrubber() *Scrubber {
 	}
 }
 
+// thIDValidator decides whether a card span is a Thai citizen ID.
+var thIDValidator = national.NewTHIDValidator()
+
 // Analyze detects PII entities in text.
+//
+// A credit card whose span is a Thai citizen ID is returned as TH_ID. This runs
+// after overlap resolution, so the span keeps the card's confidence and the
+// overlap outcome is unchanged. The recognizers themselves always report a card.
 func (s *Scrubber) Analyze(ctx context.Context, text string) ([]recognizers.Entity, error) {
-	return s.analyzer.Analyze(ctx, text)
+	entities, err := s.analyzer.Analyze(ctx, text)
+	if err != nil {
+		return nil, err
+	}
+	for i := range entities {
+		if entities[i].Type == recognizers.EntityCreditCard && isThaiIDSpan(text, entities[i].Start, entities[i].End) {
+			entities[i].Type = recognizers.EntityTHID
+		}
+	}
+	return entities, nil
 }
 
 // Anonymize detects and anonymizes PII in text.
 func (s *Scrubber) Anonymize(ctx context.Context, text string) (string, error) {
-	entities, err := s.analyzer.Analyze(ctx, text)
+	entities, err := s.Analyze(ctx, text)
 	if err != nil {
 		return "", err
 	}
 	return s.anonymizer.Anonymize(ctx, text, entities)
+}
+
+// isThaiIDSpan reports whether text[start:end] is a Thai citizen ID, bounded the
+// way the Thai pattern's word boundaries bound it. A glued run stays a card.
+func isThaiIDSpan(text string, start, end int) bool {
+	if start > 0 && isWordByte(text[start-1]) {
+		return false
+	}
+	if end < len(text) && isWordByte(text[end]) {
+		return false
+	}
+	return thIDValidator.Validate(text[start:end])
+}
+
+// isWordByte matches the characters that Go's \b word boundary treats as word
+// characters.
+func isWordByte(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'
 }

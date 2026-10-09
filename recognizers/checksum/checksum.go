@@ -8,12 +8,7 @@ import (
 	"strings"
 
 	"dataprotect/recognizers"
-	"dataprotect/recognizers/national"
 )
-
-// thIDValidator decides whether a span is a Thai citizen ID. It is shared, so
-// the card recognizer can defer to the Thai recognizer on the same span.
-var thIDValidator = national.NewTHIDValidator()
 
 // LuhnValidator validates credit card numbers using the Luhn algorithm.
 type LuhnValidator struct{}
@@ -56,30 +51,20 @@ func (v *LuhnValidator) Validate(number string) bool {
 }
 
 // Recognize validates credit card candidates from text.
-//
-// A Luhn-valid candidate is reported at 0.99. When it is also a Thai citizen ID
-// on the same span (see thaiIDOwns), it is typed TH_ID at the same 0.99, so the
-// redaction does not depend on the Thai recognizer being wired or on the
-// confidence threshold, and it keeps the overlap priority the card had.
 func (v *LuhnValidator) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	// Find all number sequences that could be credit cards
 	candidates := findCardCandidates(text)
 	entities := make([]recognizers.Entity, 0)
 	for _, c := range candidates {
-		if !v.Validate(c.text) {
-			continue
+		if v.Validate(c.text) {
+			entities = append(entities, recognizers.Entity{
+				Type:       recognizers.EntityCreditCard,
+				Start:      c.start,
+				End:        c.end,
+				Text:       c.text,
+				Confidence: 0.99,
+			})
 		}
-		typ := recognizers.EntityCreditCard
-		if thaiIDOwns(text, c) {
-			typ = recognizers.EntityTHID
-		}
-		entities = append(entities, recognizers.Entity{
-			Type:       typ,
-			Start:      c.start,
-			End:        c.end,
-			Text:       c.text,
-			Confidence: 0.99,
-		})
 	}
 	return entities, nil
 }
@@ -117,26 +102,6 @@ func findCardCandidates(text string) []cardCandidate {
 		})
 	}
 	return candidates
-}
-
-// thaiIDOwns reports whether this span is a Thai citizen ID, so it is typed
-// TH_ID rather than CREDIT_CARD. It must be bounded the way the Thai pattern's
-// word boundaries bound it, so only spans the Thai pattern would also match are
-// typed TH_ID. A glued candidate stays a card.
-func thaiIDOwns(text string, c cardCandidate) bool {
-	if c.start > 0 && isWordByte(text[c.start-1]) {
-		return false
-	}
-	if c.end < len(text) && isWordByte(text[c.end]) {
-		return false
-	}
-	return thIDValidator.Validate(c.text)
-}
-
-// isWordByte matches the characters that Go's \b word boundary treats as word
-// characters.
-func isWordByte(c byte) bool {
-	return isLetter(c) || isDigit(c) || c == '_'
 }
 
 func isCardSeparator(c byte) bool {
