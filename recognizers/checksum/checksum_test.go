@@ -3,6 +3,8 @@ package checksum
 import (
 	"context"
 	"testing"
+
+	"dataprotect/recognizers"
 )
 
 func TestLuhnValidate(t *testing.T) {
@@ -222,21 +224,23 @@ func stripSpaces(s string) string {
 	return string(out)
 }
 
-func TestLuhnRecognizeDefersThaiIDSpan(t *testing.T) {
-	// 1000000000009 passes both the Thai mod-11 check and Luhn. The Thai
-	// recognizer owns the span, so the card recognizer must not report it.
+func TestLuhnRecognizeTypesThaiIDSpanAsTHID(t *testing.T) {
+	// 1000000000009 passes both the Thai mod-11 check and Luhn. It is typed TH_ID
+	// at the card's own confidence, so it does not depend on the Thai recognizer
+	// being wired or on a threshold between 0.95 and 0.99.
 	v := NewLuhnValidator()
 	ctx := context.Background()
-	for _, text := range []string{
-		"Citizen ID 1000000000009 on file",
-		"Citizen ID 1-0000-00000-00-9 on file",
+	for _, tc := range []struct{ text, want string }{
+		{"Citizen ID 1000000000009 on file", "1000000000009"},
+		{"Citizen ID 1-0000-00000-00-9 on file", "1-0000-00000-00-9"},
 	} {
-		entities, err := v.Recognize(ctx, text)
+		entities, err := v.Recognize(ctx, tc.text)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(entities) != 0 {
-			t.Errorf("Recognize(%q) = %+v, want no card", text, entities)
+		if len(entities) != 1 || entities[0].Type != recognizers.EntityTHID ||
+			entities[0].Text != tc.want || entities[0].Confidence != 0.99 {
+			t.Errorf("Recognize(%q) = %+v, want one TH_ID %q at 0.99", tc.text, entities, tc.want)
 		}
 	}
 }

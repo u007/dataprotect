@@ -5,7 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"dataprotect/analyzer"
 	"dataprotect/recognizers"
+	"dataprotect/recognizers/checksum"
 )
 
 func TestScrubberAnonymize(t *testing.T) {
@@ -230,5 +232,19 @@ func TestScrubberRedactsLuhnValidThaiIDAsThaiID(t *testing.T) {
 	}
 	if out != "Citizen ID [REDACTED] on file" {
 		t.Errorf("got %q, want the Thai ID fully redacted", out)
+	}
+}
+
+func TestLuhnThaiIDSurvivesHighThresholdWithoutThaiRecognizer(t *testing.T) {
+	// A Luhn-valid Thai ID must stay redacted when the Thai recognizer is not
+	// wired and the caller raises the confidence threshold above 0.95.
+	a := analyzer.New(analyzer.WithMinConfidence(0.98))
+	a.AddRecognizer(checksum.NewLuhnValidator())
+	entities, err := a.Analyze(context.Background(), "Citizen ID 1000000000009 on file")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 || entities[0].Type != recognizers.EntityTHID {
+		t.Fatalf("got %+v, want one TH_ID", entities)
 	}
 }

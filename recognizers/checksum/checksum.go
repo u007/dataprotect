@@ -57,26 +57,29 @@ func (v *LuhnValidator) Validate(number string) bool {
 
 // Recognize validates credit card candidates from text.
 //
-// A 13-digit Thai citizen ID can also pass Luhn. When the Thai recognizer would
-// report the same span, the card recognizer stays silent, so the span is typed
-// TH_ID rather than CREDIT_CARD. Otherwise a card mask would keep the check
-// digit visible. The Thai recognizer uses word boundaries, so only spans with
-// non-word characters on both sides are deferred; a glued candidate is still
-// reported here as a card, so it is never left unredacted.
+// A Luhn-valid candidate is reported at 0.99. When it is also a Thai citizen ID
+// on the same span (see thaiIDOwns), it is typed TH_ID at the same 0.99, so the
+// redaction does not depend on the Thai recognizer being wired or on the
+// confidence threshold, and it keeps the overlap priority the card had.
 func (v *LuhnValidator) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	// Find all number sequences that could be credit cards
 	candidates := findCardCandidates(text)
 	entities := make([]recognizers.Entity, 0)
 	for _, c := range candidates {
-		if v.Validate(c.text) && !thaiIDOwns(text, c) {
-			entities = append(entities, recognizers.Entity{
-				Type:       recognizers.EntityCreditCard,
-				Start:      c.start,
-				End:        c.end,
-				Text:       c.text,
-				Confidence: 0.99,
-			})
+		if !v.Validate(c.text) {
+			continue
 		}
+		typ := recognizers.EntityCreditCard
+		if thaiIDOwns(text, c) {
+			typ = recognizers.EntityTHID
+		}
+		entities = append(entities, recognizers.Entity{
+			Type:       typ,
+			Start:      c.start,
+			End:        c.end,
+			Text:       c.text,
+			Confidence: 0.99,
+		})
 	}
 	return entities, nil
 }
@@ -116,8 +119,10 @@ func findCardCandidates(text string) []cardCandidate {
 	return candidates
 }
 
-// thaiIDOwns reports whether the Thai citizen ID recognizer reports this exact
-// span, so the card recognizer must not report it too.
+// thaiIDOwns reports whether this span is a Thai citizen ID, so it is typed
+// TH_ID rather than CREDIT_CARD. It must be bounded the way the Thai pattern's
+// word boundaries bound it, so only spans the Thai pattern would also match are
+// typed TH_ID. A glued candidate stays a card.
 func thaiIDOwns(text string, c cardCandidate) bool {
 	if c.start > 0 && isWordByte(text[c.start-1]) {
 		return false
