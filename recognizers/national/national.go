@@ -64,9 +64,15 @@ type SGNRICRecognizer struct {
 }
 
 // NewSGNRICRecognizer creates a Singapore NRIC/FIN recognizer.
+//
+// A number needs a word boundary before it, unless the label NRIC or FIN comes
+// first. So "NRICS1234567D" is found, but an NRIC-shaped run inside a longer
+// token is not. Without that rule a 0.99 NRIC would win the overlap against a
+// shape-only 0.95 entity such as a bitcoin address and leave the rest of it
+// visible. Only the number is captured.
 func NewSGNRICRecognizer() *SGNRICRecognizer {
 	return &SGNRICRecognizer{
-		pattern:   regexp.MustCompile(`[STFG]\d{7}[A-Z]\b`),
+		pattern:   regexp.MustCompile(`\b(?:(?i:nric|fin)\s?)?([STFG]\d{7}[A-Z])\b`),
 		validator: NewSGNRICValidator(),
 	}
 }
@@ -77,15 +83,15 @@ func (r *SGNRICRecognizer) Name() string { return "national_sg_nric" }
 // Recognize detects valid Singapore NRIC and FIN numbers.
 func (r *SGNRICRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	var entities []recognizers.Entity
-	for _, m := range r.pattern.FindAllStringIndex(text, -1) {
-		id := text[m[0]:m[1]]
+	for _, m := range r.pattern.FindAllStringSubmatchIndex(text, -1) {
+		id := text[m[2]:m[3]]
 		if !r.validator.Validate(id) {
 			continue
 		}
 		entities = append(entities, recognizers.Entity{
 			Type:       recognizers.EntitySGNRIC,
-			Start:      m[0],
-			End:        m[1],
+			Start:      m[2],
+			End:        m[3],
 			Text:       id,
 			Confidence: 0.99,
 		})

@@ -202,3 +202,20 @@ func TestScrubberFindsMYPassportWithKeyword(t *testing.T) {
 		t.Errorf("MY_PASSPORT span = %q, want %q", got, "A12345678")
 	}
 }
+
+func TestScrubberBitcoinSpanNotDisplacedByEmbeddedNRIC(t *testing.T) {
+	// The bitcoin span is shape-only at 0.95. An NRIC-shaped run at its end must
+	// not win the overlap and leave the address prefix visible.
+	s := NewScrubber()
+	text := "send 1Ab3CdEf5Gh7Jk9Mn2Pq4RsS1234567D now"
+	entities, err := s.Analyze(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 || entities[0].Type != recognizers.EntityBitcoin {
+		t.Fatalf("want one BITCOIN and nothing else, got %+v", entities)
+	}
+	if got := text[entities[0].Start:entities[0].End]; got != "1Ab3CdEf5Gh7Jk9Mn2Pq4RsS1234567D" {
+		t.Errorf("BITCOIN span = %q, want the whole token", got)
+	}
+}

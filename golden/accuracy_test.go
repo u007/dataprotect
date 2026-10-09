@@ -36,7 +36,7 @@ const minCases = 72
 // Batch 3 added the national IDs (SG NRIC/FIN, MY MyKad, TH citizen ID). All
 // eight positives were detected and the five invalid-checksum negatives stayed
 // clean. Batch 4 added Malaysia passports (keyword-backed): three positives were
-// detected and the two negatives stayed clean. Batch 5 added a glued SG NRIC and
+// detected and the two negatives stayed clean. Batch 5 added a label-glued SG NRIC and
 // a keyword-gated bare MyKad: two positives were detected and the two negatives
 // stayed clean. The one defect above is still the only false positive.
 //

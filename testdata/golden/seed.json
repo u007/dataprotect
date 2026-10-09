@@ -628,7 +628,7 @@
   },
   {
     "id": "pos-sg-nric-glued",
-    "note": "Singapore NRIC run straight after a word with no space (NRICS1234567D). Valid check letter, so the glued prefix is the only thing tested.",
+    "note": "Singapore NRIC run straight after its NRIC label with no space (NRICS1234567D). Valid check letter. Found only because the label is present; an unlabelled glued run is not reported.",
     "text": "Applicant record NRICS1234567D was on file.",
     "entities": [
       {

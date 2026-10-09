@@ -267,3 +267,34 @@ func TestMYICRecognizeBareRejected(t *testing.T) {
 		}
 	}
 }
+
+func TestSGNRICRecognizeNotInsideLongerToken(t *testing.T) {
+	// A check-valid NRIC at the end of an alphanumeric run, with no label before
+	// it, must not be reported. Reporting it would outrank a shape-only bitcoin
+	// span and leave the rest of the token visible.
+	r := NewSGNRICRecognizer()
+	got, err := r.Recognize(context.Background(), "send 1Ab3CdEf5Gh7Jk9Mn2Pq4RsS1234567D now")
+	if err != nil {
+		t.Fatalf("Recognize: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("got %+v, want none", got)
+	}
+}
+
+func TestSGNRICRecognizeLabelledGlued(t *testing.T) {
+	r := NewSGNRICRecognizer()
+	got, err := r.Recognize(context.Background(), "FINF1234567N and NRICS1234567D")
+	if err != nil {
+		t.Fatalf("Recognize: %v", err)
+	}
+	want := []string{"F1234567N", "S1234567D"}
+	if len(got) != len(want) {
+		t.Fatalf("got %+v, want %v", got, want)
+	}
+	for i, e := range got {
+		if e.Text != want[i] {
+			t.Errorf("entity %d Text = %q, want %q", i, e.Text, want[i])
+		}
+	}
+}
