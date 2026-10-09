@@ -54,15 +54,12 @@
       "v" or "upgrade" precedes it, which is a heuristic and needs a sign-off; or
       (c) drop the IP recognizer's shape for values with small octets. Recorded,
       not fixed.
-- [ ] **Batch-1 notes in `seed.json` are stale or wrong.** Two need fixing:
-      `neg-luhn-failing-card` says the detector reports its card because the
-      Luhn validator is not registered; the validator is wired and the case is
-      clean. `pos-url-http` says it expects the recognizer to stop before a
-      sentence period, but its text has no period (the URL is followed by " for
-      the current..."). That is why the trailing-period defect got through batch
-      1. Its note also says "http" while the URL is https. Fix the notes so
-      they describe what the text tests (trivial); the labels stay as they are. Not edited here,
-      so batch 1 and batch 2 stay separable.
+- [x] **Batch-1 notes in `seed.json` were stale or wrong.** Both rewritten to
+      describe what the text tests; labels unchanged. `neg-luhn-failing-card`
+      is clean (Luhn is wired in `NewScrubber`), confirmed by running the
+      scrubber over every negative case: the only detection left is
+      `neg-ip-version-four-part`. `pos-url-http` now describes a https URL with
+      a path followed by prose, not a sentence period it never had.
 - [ ] **Golden dataset is a 50-case seed set, not the ~500 SPEC.md calls for.**
       `testdata/golden/seed.json` and the `golden` runner now exist and are
       tested, so the ">99% precision/recall" claim is at last measurable, but
@@ -395,7 +392,11 @@ them as gaps.
 These findings were invisible to the seed set. Numbers and evidence are in
 SPEC.md § "Corpus measurement (2026-10-09)"; reproduce with `make corpus`.
 
-- [ ] **Passports are not covered (Malaysia, Singapore, Thailand, and other Asian countries).** Old and new formats need primary-source confirmation before any rule is written. Passport numbers are short alphanumerics, so a shape-only rule would over-match; they likely need a context word such as "passport" or a dedicated checksum. Not started.
+- [ ] **Passports are not covered (Malaysia, Singapore, Thailand, and other Asian countries).** Old and new formats need primary-source confirmation before any rule is written. Passport numbers are short alphanumerics, so a shape-only rule would over-match; they likely need a context word such as "passport" or a dedicated checksum. Status after a source check: no rule written.
+      - **Malaysia:** Wikipedia gives one letter then eight digits, prefixes A/H/K, example `A00000000`, with no date split for old versus the 30 June 2026 booklet. Microsoft Purview gives the same shape, with a context keyword and no checksum. Both are secondary. The EU PRADO specimen record (`mys`) is the primary source, but PRADO returned HTTP 403 to every fetch.
+      - **Singapore:** Purview gives E/K, seven digits, one letter. The Sumsub sample `E93874729W` has eight digits, so it contradicts Purview. Wikipedia gives no format. PRADO (`sgp`) returned 403.
+      - **Thailand:** no source states the format. Wikipedia lists the field without a format. PRADO (`THA-AO-06001`) returned 403. The 2-letter and 1-letter candidates from search are unresolved.
+      - **Decision needed:** accept Wikipedia and Purview as the basis for Malaysia, or fetch PRADO from a browser session. No rule is written until that is settled.
 - [ ] **National ID coverage gaps.** (a) Singapore M-prefix is unsupported: its check-letter table is unconfirmed. (b) Malaysia MyKad place-of-birth codes are not validated: the code list is unconfirmed, and the MyKad check-style digit is not validated either. (c) Thailand bare 13-digit form has about a 1-in-10 false-match rate on random digits, so it needs a measured FP rate on labelled text before trust. (d) No golden cases exist yet for these types, and the corpora don't label them, so none of these recognizers is measured on labelled data.
 - [ ] **Phone pattern matches ID-number digit runs (nemotron).** Of the 419
       nemotron PHONE false positives, 408 sit on spans the corpus labels as

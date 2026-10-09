@@ -67,7 +67,7 @@
   },
   {
     "id": "pos-url-http",
-    "note": "Plain http URL. Expects the recognizer to stop before the sentence period.",
+    "note": "Plain https URL with a path, followed by a space and prose. Tests that the span covers the whole URL and nothing after it.",
     "text": "See https://acme.example.com/status for the current incident summary.",
     "entities": [
       {
@@ -144,7 +144,7 @@
   },
   {
     "id": "neg-luhn-failing-card",
-    "note": "16 digits that FAIL the Luhn checksum (verified: 4111111111111112 sums to a non-multiple of 10), so this is correctly a negative case. The detector currently REPORTS it, because NewScrubber never registers checksum.LuhnValidator and the regex card recognizer only checks length 13-19. Recorded as a known false positive rather than relabelled, because the label is right and the detector is wrong. See TODO.md.",
+    "note": "16 digits that FAIL the Luhn checksum (verified: 4111111111111112 sums to a non-multiple of 10), so this is correctly a negative case. NewScrubber wires checksum.LuhnValidator and not the shape-only regex card recognizer, so the card is not reported. Guards against re-enabling the shape-only path.",
     "text": "Test fixture 4111 1111 1111 1112 is used by the payment sandbox and is not a real card.",
     "entities": []
   },
