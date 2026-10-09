@@ -157,6 +157,16 @@ func TestMYPassportRecognizeWithKeyword(t *testing.T) {
 		{"quoted json key", "\"passport\": \"A12345678\"", "A12345678"},
 		{"line break after label", "Passport No:\nA12345678", "A12345678"},
 		{"malay keyword run together", "nomborpasport A12345678", "A12345678"},
+		{"dash separator", "Passport No - A12345678", "A12345678"},
+		{"en dash separator", "Passport No – A12345678", "A12345678"},
+		{"non-breaking space", "Passport No: A12345678", "A12345678"},
+		{"fullwidth colon", "Passport No：A12345678", "A12345678"},
+		{"markdown table cell", "| Passport No | A12345678 |", "A12345678"},
+		{"query string equals", "passport=A12345678", "A12345678"},
+		{"underscored query key", "passport_no=A12345678", "A12345678"},
+		{"xml tag", "<passport>A12345678</passport>", "A12345678"},
+		{"hyphen in label", "Passport-No: A12345678", "A12345678"},
+		{"prefixed word", "ePassport No: A12345678", "A12345678"},
 	}
 	r := NewMYPassportRecognizer()
 	for _, tt := range tests {
@@ -188,6 +198,65 @@ func TestMYPassportRecognizeRejectsWithoutKeywordOrShape(t *testing.T) {
 		"passportA12345678",
 	}
 	r := NewMYPassportRecognizer()
+	for _, text := range texts {
+		got, err := r.Recognize(context.Background(), text)
+		if err != nil {
+			t.Fatalf("Recognize(%q): %v", text, err)
+		}
+		if len(got) != 0 {
+			t.Errorf("Recognize(%q) = %+v, want none", text, got)
+		}
+	}
+}
+
+func TestSGNRICRecognizeGluedPrefix(t *testing.T) {
+	r := NewSGNRICRecognizer()
+	got, err := r.Recognize(context.Background(), "NRICS1234567D on file")
+	if err != nil {
+		t.Fatalf("Recognize: %v", err)
+	}
+	if len(got) != 1 || got[0].Text != "S1234567D" {
+		t.Fatalf("got %+v, want one SG_NRIC S1234567D", got)
+	}
+}
+
+func TestMYICRecognizeBareWithKeyword(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want string
+	}{
+		{"mykad label", "MyKad 900515103421 on file", "900515103421"},
+		{"ic no label", "IC no: 630916123456", "630916123456"},
+		{"kp label", "KP 000229081234 checked", "000229081234"},
+	}
+	r := NewMYICRecognizer()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := r.Recognize(context.Background(), tt.text)
+			if err != nil {
+				t.Fatalf("Recognize: %v", err)
+			}
+			if len(got) != 1 || got[0].Text != tt.want || got[0].Type != recognizers.EntityMYIC {
+				t.Fatalf("got %+v, want one MY_IC %q", got, tt.want)
+			}
+			if tt.text[got[0].Start:got[0].End] != tt.want {
+				t.Errorf("span [%d:%d] does not cover the digits %q", got[0].Start, got[0].End, tt.want)
+			}
+		})
+	}
+}
+
+func TestMYICRecognizeBareRejected(t *testing.T) {
+	// No keyword, a keyword inside a word, a bad date under a keyword, and a
+	// 13-digit run are all out.
+	texts := []string{
+		"ref 900515103421 on the form",
+		"tic 900515103421 on the form",
+		"MyKad 900231103421 on file",
+		"MyKad 9005151034211 on file",
+	}
+	r := NewMYICRecognizer()
 	for _, text := range texts {
 		got, err := r.Recognize(context.Background(), text)
 		if err != nil {

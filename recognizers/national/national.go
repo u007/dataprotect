@@ -66,7 +66,7 @@ type SGNRICRecognizer struct {
 // NewSGNRICRecognizer creates a Singapore NRIC/FIN recognizer.
 func NewSGNRICRecognizer() *SGNRICRecognizer {
 	return &SGNRICRecognizer{
-		pattern:   regexp.MustCompile(`\b[STFG]\d{7}[A-Z]\b`),
+		pattern:   regexp.MustCompile(`[STFG]\d{7}[A-Z]\b`),
 		validator: NewSGNRICValidator(),
 	}
 }
@@ -131,16 +131,26 @@ func daysIn(mm, yy int) int {
 	}
 }
 
-// MYICRecognizer finds Malaysia MyKad numbers in their printed hyphenated form.
+// MYICRecognizer finds Malaysia MyKad numbers in two forms. The printed
+// hyphenated form is matched on its own. Twelve bare digits are matched only
+// after an identity-card keyword, because a bare 12-digit run has no shape that
+// separates it from any other number.
 type MYICRecognizer struct {
 	pattern   *regexp.Regexp
+	keyed     *regexp.Regexp
 	validator *MYICValidator
 }
 
 // NewMYICRecognizer creates a Malaysia MyKad recognizer.
+//
+// The keyed pattern takes Purview's identity-card keywords (MyKad, IC, KP,
+// NRIC and so on), one bounded separator, then twelve digits. Only the digits
+// are captured. The boundary before the keyword stops "ic" matching inside a
+// word, and the mandatory separator keeps the keyword to a whole token.
 func NewMYICRecognizer() *MYICRecognizer {
 	return &MYICRecognizer{
 		pattern:   regexp.MustCompile(`\b\d{6}-\d{2}-\d{4}\b`),
+		keyed:     regexp.MustCompile(`(?i)\b(?:digital application card|i/c no|i/c|ic no|ic|id card|identification card|identity card|k/p no|k/p|kad akuan diri|kad aplikasi digital|kad pengenalan malaysia|kp no|kp|mykad|mykas|mykid|mypr|mytentera|malaysia identity card|malaysian identity card|nric|personal identification card)[^A-Za-z0-9]{1,8}(\d{12})\b`),
 		validator: NewMYICValidator(),
 	}
 }
@@ -148,7 +158,7 @@ func NewMYICRecognizer() *MYICRecognizer {
 // Name returns the recognizer name.
 func (r *MYICRecognizer) Name() string { return "national_my_ic" }
 
-// Recognize detects valid Malaysia MyKad numbers.
+// Recognize detects valid Malaysia MyKad numbers, hyphenated or keyed bare.
 func (r *MYICRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	var entities []recognizers.Entity
 	for _, m := range r.pattern.FindAllStringIndex(text, -1) {
@@ -161,6 +171,21 @@ func (r *MYICRecognizer) Recognize(ctx context.Context, text string) ([]recogniz
 			Start:      m[0],
 			End:        m[1],
 			Text:       ic,
+			Confidence: 0.85,
+		})
+	}
+	for _, m := range r.keyed.FindAllStringSubmatchIndex(text, -1) {
+		digits := text[m[2]:m[3]]
+		// Normalise to the printed form so the same date check applies.
+		ic := digits[0:6] + "-" + digits[6:8] + "-" + digits[8:12]
+		if !r.validator.Validate(ic) {
+			continue
+		}
+		entities = append(entities, recognizers.Entity{
+			Type:       recognizers.EntityMYIC,
+			Start:      m[2],
+			End:        m[3],
+			Text:       digits,
 			Confidence: 0.85,
 		})
 	}
@@ -230,14 +255,15 @@ func (r *THIDRecognizer) Recognize(ctx context.Context, text string) ([]recogniz
 // passport keyword. The keyword is the only gate: the number has no checksum and
 // is too short for its shape to be reported alone.
 //
-// The pattern takes "passport", "pasport" or "nombor pasport", then any label
-// words Purview lists (number, no, nombor, #), then one or more separators, then
-// the number. Separators include space, colon, #, dot, underscore, quotes and
-// line breaks, so CSV-style "passport_number: A..." and JSON-style
-// "\"passport\": \"A...\"" both match. Only the number is captured, so a
-// detection spans the number and not the keyword. The separator must be at least
-// one character, so a keyword run straight into a letter does not match. The
-// space before "no" is optional, which covers "passportno" and "passportnumber".
+// The pattern takes "passport" or "pasport" (no leading word boundary, so
+// "ePassport" matches), then optional label words from Purview's list (number,
+// no, nombor), then a bounded run of 1 to 8 non-alphanumeric characters, then
+// the number. Any punctuation or space counts as a separator, including dashes,
+// en dashes, non-breaking spaces, fullwidth colons, pipes, quotes, equals signs
+// and angle brackets. The run must be non-empty, so a keyword glued to a letter
+// ("passportA12345678") does not match, and the bounded run keeps a long
+// punctuation run from reaching across a sentence. Only the number is captured,
+// so a detection spans the number and not the keyword.
 //
 // The type name says Malaysia, but the rule checks the keyword and the A/H/K
 // shape only, not nationality. Other countries use one letter and eight digits
@@ -249,7 +275,7 @@ type MYPassportRecognizer struct {
 // NewMYPassportRecognizer creates a Malaysia passport recognizer.
 func NewMYPassportRecognizer() *MYPassportRecognizer {
 	return &MYPassportRecognizer{
-		pattern: regexp.MustCompile(`(?i)\b(?:nombor)?pas{1,2}port(?:[ \t_]*(?:numbers?|no\.?|nombor|#))*[ \t:#._"'\r\n]+([AHK]\d{8})\b`),
+		pattern: regexp.MustCompile(`(?i)pas{1,2}port(?:[^A-Za-z0-9]{0,8}(?:numbers?|nombor|no))*[^A-Za-z0-9]{1,8}([AHK]\d{8})\b`),
 	}
 }
 

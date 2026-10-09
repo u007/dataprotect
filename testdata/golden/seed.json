@@ -625,5 +625,39 @@
     "note": "Keyword present, but the letter B is not one of the A, H or K prefixes Purview lists.",
     "text": "Passport Number: B12345678 was typed on the form.",
     "entities": []
+  },
+  {
+    "id": "pos-sg-nric-glued",
+    "note": "Singapore NRIC run straight after a word with no space (NRICS1234567D). Valid check letter, so the glued prefix is the only thing tested.",
+    "text": "Applicant record NRICS1234567D was on file.",
+    "entities": [
+      {
+        "type": "SG_NRIC",
+        "value": "S1234567D"
+      }
+    ]
+  },
+  {
+    "id": "pos-my-ic-bare-keyword",
+    "note": "Malaysia MyKad as twelve bare digits after the keyword MyKad. Date of birth 15 May 1990. Bare form is reported only with a keyword.",
+    "text": "MyKad 900515103421 was on the form.",
+    "entities": [
+      {
+        "type": "MY_IC",
+        "value": "900515103421"
+      }
+    ]
+  },
+  {
+    "id": "neg-my-ic-bare-no-keyword",
+    "note": "Twelve digits with a valid MyKad date but no identity-card keyword. Must not be reported, because a bare 12-digit run is not a MyKad without the keyword.",
+    "text": "Reference 900515103421 was logged for the order.",
+    "entities": []
+  },
+  {
+    "id": "neg-my-ic-bare-bad-date",
+    "note": "Keyword present, but the twelve digits have day 31 in February. Fails the date check.",
+    "text": "MyKad 900231103421 was typed on the form.",
+    "entities": []
   }
 ]
