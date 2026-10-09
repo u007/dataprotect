@@ -20,6 +20,8 @@ type Anonymizer struct {
 type Option func(*Anonymizer)
 
 // WithDefaultOperator sets the default operator for unconfigured entity types.
+// Without one, Anonymize returns an error for an entity whose type has no
+// operator of its own.
 func WithDefaultOperator(op operators.Operator) Option {
 	return func(a *Anonymizer) {
 		a.defaultOp = op
@@ -60,6 +62,9 @@ func (a *Anonymizer) SetOperator(entityType recognizers.EntityType, op operators
 // returns an error. On any error the returned string is empty: a partially
 // spliced document would be worse than none, so a caller can never mistake a
 // failure for a usable result.
+//
+// An entity whose type has no operator and no default is an error, so it is
+// never returned unredacted. This is checked before any splice.
 func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []recognizers.Entity) (string, error) {
 	if len(entities) == 0 {
 		return text, nil
@@ -86,12 +91,18 @@ func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []reco
 		}
 	}
 
+	// Check every type before splicing anything, so an unconfigured type fails
+	// the call rather than leaving its span in the output.
+	for _, e := range ordered {
+		if a.operatorFor(e.Type) == nil {
+			return "", fmt.Errorf("no operator or default for entity type %s [%d:%d)",
+				e.Type, e.Start, e.End)
+		}
+	}
+
 	result := text
 	for _, e := range ordered {
 		op := a.operatorFor(e.Type)
-		if op == nil {
-			continue
-		}
 		replacement, err := op.Replace(ctx, e.Text)
 		if err != nil {
 			return "", fmt.Errorf("operator %q on %s: %w", op.Name(), e.Type, err)
@@ -109,7 +120,7 @@ func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []reco
 
 // operatorFor returns the operator configured for an entity type, or the
 // default operator when the type has none. It returns nil when the type is
-// unconfigured and there is no default, which leaves the entity untouched.
+// unconfigured and there is no default; Anonymize turns that into an error.
 func (a *Anonymizer) operatorFor(t recognizers.EntityType) operators.Operator {
 	if op, ok := a.operators[t]; ok {
 		return op

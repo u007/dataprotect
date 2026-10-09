@@ -264,7 +264,7 @@ func TestScrubberTypesLuhnValidThaiIDAsTHID(t *testing.T) {
 
 func TestScrubberEveryEntityTypeHasOperator(t *testing.T) {
 	// An entity of each type must come out changed. A type with no operator
-	// passes through untouched, which is the fail-open case this test guards.
+	// makes Anonymize fail, so a missing operator cannot slip past unredacted.
 	s := NewScrubber()
 	for _, typ := range recognizers.AllEntityTypes {
 		out, err := s.anonymizer.Anonymize(context.Background(), "x", []recognizers.Entity{
@@ -274,7 +274,7 @@ func TestScrubberEveryEntityTypeHasOperator(t *testing.T) {
 			t.Fatalf("type %s: unexpected error: %v", typ, err)
 		}
 		if out == "x" {
-			t.Errorf("type %s has no operator in NewScrubber; its spans would pass through", typ)
+			t.Errorf("type %s has no operator in NewScrubber; its spans would be left unredacted", typ)
 		}
 	}
 }

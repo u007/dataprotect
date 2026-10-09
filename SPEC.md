@@ -191,6 +191,11 @@ string is empty — never a partially spliced document. The `Analyzer` already
 resolves overlaps before returning, so the normal pipeline never triggers this;
 the check guards direct callers.
 
+An entity whose type has neither its own operator (`SetOperator`) nor a default
+(`WithDefaultOperator`) is also an error, checked before any splice. It is never
+returned unredacted. This is a breaking change for partial operator maps: a
+caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
+
 ---
 
 ## Recognizers (MVP)

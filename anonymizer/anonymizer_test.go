@@ -58,25 +58,29 @@ func TestAnonymizePerType(t *testing.T) {
 	}
 }
 
-// An entity type with no configured operator and no default must pass through
-// untouched rather than being dropped or silently blanked.
-func TestAnonymizeUnconfiguredTypePassesThrough(t *testing.T) {
+// An entity type with no configured operator and no default must fail the call,
+// never pass through unredacted. The IP here is the leftmost entity, so the
+// configured email to its right would be spliced first; the result must still
+// be empty, not a partial document with the IP left in.
+func TestAnonymizeUnconfiguredTypeIsAnError(t *testing.T) {
 	a := New()
 	a.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
 
-	text := "mail a@b.com ip 8.8.8.8"
+	text := "ip 8.8.8.8 mail a@b.com"
 	entities := []recognizers.Entity{
-		span(text, "a@b.com", recognizers.EntityEmail),
 		span(text, "8.8.8.8", recognizers.EntityIP),
+		span(text, "a@b.com", recognizers.EntityEmail),
 	}
 
 	got, err := a.Anonymize(context.Background(), text, entities)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if err == nil {
+		t.Fatalf("expected an error for an unconfigured type, got %q", got)
 	}
-	want := "mail <EMAIL> ip 8.8.8.8"
-	if got != want {
-		t.Errorf("got %q, want %q", got, want)
+	if !strings.Contains(err.Error(), "IP_ADDRESS") {
+		t.Errorf("error %q does not name the unconfigured type", err)
+	}
+	if got != "" {
+		t.Errorf("error path returned a partial result %q", got)
 	}
 }
 
@@ -158,22 +162,22 @@ func TestAnonymizeIsOrderIndependent(t *testing.T) {
 func TestAnonymizeGrowthReplacement(t *testing.T) {
 	a := New()
 	a.SetOperator(recognizers.EntityIP, operators.NewReplaceOperator("<A-VERY-LONG-IP-PLACEHOLDER>"))
+	a.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
 
 	text := "ip 8.8.8.8 and email a@b.com"
 	entities := []recognizers.Entity{
 		span(text, "8.8.8.8", recognizers.EntityIP),
 		span(text, "a@b.com", recognizers.EntityEmail),
 	}
-	// Email is unconfigured, so it must survive intact after the IP grows.
+	// The email sits to the right of the IP, so it is spliced first. The IP
+	// replacement then grows the string, and the email must stay intact.
 	got, err := a.Anonymize(context.Background(), text, entities)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(got, "a@b.com") {
-		t.Errorf("later entity was corrupted by the earlier replacement: %q", got)
-	}
-	if !strings.HasPrefix(got, "ip <A-VERY-LONG-IP-PLACEHOLDER> and email ") {
-		t.Errorf("got %q, wrong prefix", got)
+	want := "ip <A-VERY-LONG-IP-PLACEHOLDER> and email <EMAIL>"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 

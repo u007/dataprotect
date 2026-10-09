@@ -226,8 +226,7 @@ func TestAnonymizeInvariantsOnCorpus(t *testing.T) {
 
 // TestAnonymizePerTypeRoutingOracle covers the two paths the single-default
 // corpus loop never reaches: per-type operators set with SetOperator, and a
-// type with neither an operator nor a default, which must pass through
-// untouched.
+// type with neither an operator nor a default, which must be an error.
 func TestAnonymizePerTypeRoutingOracle(t *testing.T) {
 	ctx := context.Background()
 	text := "mail a@b.com call 5551234567"
@@ -261,14 +260,15 @@ func TestAnonymizePerTypeRoutingOracle(t *testing.T) {
 		t.Errorf("per-type routing:\n got  %q\n want %q", got, want)
 	}
 
-	// No operator for either type and no default: both pass through untouched.
-	untouched := New()
-	got, err = untouched.Anonymize(ctx, text, entities)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	// No operator for either type and no default: the call fails, and the
+	// unconfigured entities are never passed through.
+	unconfigured := New()
+	got, err = unconfigured.Anonymize(ctx, text, entities)
+	if err == nil {
+		t.Fatalf("expected an error for unconfigured types, got %q", got)
 	}
-	if got != text {
-		t.Errorf("unconfigured entities were altered: got %q, want %q", got, text)
+	if got != "" {
+		t.Errorf("error path returned a partial result %q", got)
 	}
 }
 
