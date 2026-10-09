@@ -209,6 +209,63 @@ func TestMYPassportRecognizeRejectsWithoutKeywordOrShape(t *testing.T) {
 	}
 }
 
+func TestSGPassportRecognizeWithKeyword(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want string
+	}{
+		{"passport number label", "Passport Number: E1234567A on file.", "E1234567A"},
+		{"passport no label", "passport no K7654321B renewed", "K7654321B"},
+		{"run-together no label", "PASSPORTNO: E1234567Z", "E1234567Z"},
+		{"lowercase letters", "No. Pasport: e1234567a", "e1234567a"},
+		{"line break after label", "Passport No:\nE1234567A", "E1234567A"},
+		{"prefixed word", "ePassport No: E1234567A", "E1234567A"},
+		{"markdown table cell", "| Passport No | E1234567A |", "E1234567A"},
+	}
+	r := NewSGPassportRecognizer()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := r.Recognize(context.Background(), tt.text)
+			if err != nil {
+				t.Fatalf("Recognize: %v", err)
+			}
+			if len(got) != 1 || got[0].Text != tt.want || got[0].Type != recognizers.EntitySGPassport {
+				t.Fatalf("got %+v, want one SG_PASSPORT %q", got, tt.want)
+			}
+			if tt.text[got[0].Start:got[0].End] != tt.want {
+				t.Errorf("span [%d:%d] does not cover the number %q", got[0].Start, got[0].End, tt.want)
+			}
+		})
+	}
+}
+
+func TestSGPassportRecognizeRejectsWithoutKeywordOrShape(t *testing.T) {
+	// A bare number has no keyword. Wrong first letter, wrong digit count, a
+	// missing final letter, a trailing letter run, and a letter run into the
+	// number all fail the shape or the boundaries.
+	texts := []string{
+		"ref E1234567A on the form",
+		"Passport Number: B1234567A",
+		"Passport Number: E123456A",
+		"Passport Number: E12345678",
+		"Passport Number: E1234567AB",
+		"Passport Number: XE1234567A",
+		"passports E1234567A were checked",
+		"passportE1234567A",
+	}
+	r := NewSGPassportRecognizer()
+	for _, text := range texts {
+		got, err := r.Recognize(context.Background(), text)
+		if err != nil {
+			t.Fatalf("Recognize(%q): %v", text, err)
+		}
+		if len(got) != 0 {
+			t.Errorf("Recognize(%q) = %+v, want none", text, got)
+		}
+	}
+}
+
 func TestSGNRICRecognizeGluedPrefix(t *testing.T) {
 	r := NewSGNRICRecognizer()
 	got, err := r.Recognize(context.Background(), "NRICS1234567D on file")

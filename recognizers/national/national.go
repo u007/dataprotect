@@ -257,6 +257,49 @@ func (r *THIDRecognizer) Recognize(ctx context.Context, text string) ([]recogniz
 	return entities, nil
 }
 
+// passportLead is the keyword gate shared by the passport recognizers: "passport"
+// or "pasport", optional label words from Purview's list, then a bounded run of
+// separators. Each recognizer appends its own number shape and one capture group.
+const passportLead = `(?i)pas{1,2}port(?:[^A-Za-z0-9]{0,8}(?:numbers?|nombor|no))*[^A-Za-z0-9]{1,8}`
+
+// SGPassportRecognizer finds Singapore passport numbers that sit next to a
+// passport keyword. The same keyword gate as MYPassportRecognizer applies, and
+// the number has no checksum to fall back on.
+//
+// The shape is E or K, seven digits, then one letter. Purview's definition
+// gives this shape, and the older ICA BioPass description matches the E form.
+// The K prefix and the seven-digit count are not confirmed by a primary source:
+// PRADO (the EU register) is unreachable, so this is recorded as unverified.
+type SGPassportRecognizer struct {
+	pattern *regexp.Regexp
+}
+
+// NewSGPassportRecognizer creates a Singapore passport recognizer.
+func NewSGPassportRecognizer() *SGPassportRecognizer {
+	return &SGPassportRecognizer{
+		pattern: regexp.MustCompile(passportLead + `([EK]\d{7}[A-Z])\b`),
+	}
+}
+
+// Name returns the recognizer name.
+func (r *SGPassportRecognizer) Name() string { return "national_sg_passport" }
+
+// Recognize detects Singapore passport numbers that follow a passport keyword.
+// The confidence matches the Malaysia keyword-backed level.
+func (r *SGPassportRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
+	var entities []recognizers.Entity
+	for _, m := range r.pattern.FindAllStringSubmatchIndex(text, -1) {
+		entities = append(entities, recognizers.Entity{
+			Type:       recognizers.EntitySGPassport,
+			Start:      m[2],
+			End:        m[3],
+			Text:       text[m[2]:m[3]],
+			Confidence: 0.85,
+		})
+	}
+	return entities, nil
+}
+
 // MYPassportRecognizer finds Malaysia passport numbers that sit next to a
 // passport keyword. The keyword is the only gate: the number has no checksum and
 // is too short for its shape to be reported alone.
@@ -281,7 +324,7 @@ type MYPassportRecognizer struct {
 // NewMYPassportRecognizer creates a Malaysia passport recognizer.
 func NewMYPassportRecognizer() *MYPassportRecognizer {
 	return &MYPassportRecognizer{
-		pattern: regexp.MustCompile(`(?i)pas{1,2}port(?:[^A-Za-z0-9]{0,8}(?:numbers?|nombor|no))*[^A-Za-z0-9]{1,8}([AHK]\d{8})\b`),
+		pattern: regexp.MustCompile(passportLead + `([AHK]\d{8})\b`),
 	}
 }
 

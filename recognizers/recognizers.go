@@ -22,6 +22,7 @@ const (
 	EntityMYIC       EntityType = "MY_IC"
 	EntityTHID       EntityType = "TH_ID"
 	EntityMYPassport EntityType = "MY_PASSPORT"
+	EntitySGPassport EntityType = "SG_PASSPORT"
 )
 
 // AllEntityTypes lists every EntityType constant. A test checks that each one
@@ -40,6 +41,7 @@ var AllEntityTypes = []EntityType{
 	EntityMYIC,
 	EntityTHID,
 	EntityMYPassport,
+	EntitySGPassport,
 }
 
 // Entity represents a detected PII entity in text.
@@ -84,6 +86,8 @@ func EntityTypeFromString(s string) (EntityType, error) {
 		return EntityTHID, nil
 	case "MY_PASSPORT":
 		return EntityMYPassport, nil
+	case "SG_PASSPORT":
+		return EntitySGPassport, nil
 	default:
 		return "", fmt.Errorf("unknown entity type: %s", s)
 	}

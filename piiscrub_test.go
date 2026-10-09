@@ -205,6 +205,22 @@ func TestScrubberFindsMYPassportWithKeyword(t *testing.T) {
 	}
 }
 
+func TestScrubberFindsSGPassportWithKeyword(t *testing.T) {
+	s := NewScrubber()
+	text := "Passport Number: E1234567A was copied; 1234567A is a different record."
+
+	entities, err := s.Analyze(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 || entities[0].Type != recognizers.EntitySGPassport {
+		t.Fatalf("want one SG_PASSPORT and nothing else, got %+v", entities)
+	}
+	if got := text[entities[0].Start:entities[0].End]; got != "E1234567A" {
+		t.Errorf("SG_PASSPORT span = %q, want %q", got, "E1234567A")
+	}
+}
+
 func TestScrubberBitcoinSpanNotDisplacedByEmbeddedNRIC(t *testing.T) {
 	// The bitcoin span is shape-only at 0.95. An NRIC-shaped run at its end must
 	// not win the overlap and leave the address prefix visible.

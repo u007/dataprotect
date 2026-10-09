@@ -627,6 +627,34 @@
     "entities": []
   },
   {
+    "id": "pos-sg-passport-label",
+    "note": "Singapore passport number after 'Passport Number:', prefix E, seven digits, one letter. Keyword-backed; the shape is Purview's E form, not a primary source.",
+    "text": "Visa form: Passport Number: E1234567A was copied from the booklet.",
+    "entities": [
+      {
+        "type": "SG_PASSPORT",
+        "value": "E1234567A"
+      }
+    ]
+  },
+  {
+    "id": "pos-sg-passport-k-prefix",
+    "note": "Singapore passport number after 'Passport No:', prefix K. Purview's newer definition allows K; no primary source confirms it, so this case records the choice.",
+    "text": "Applicant record: Passport No: K7654321B expires in 2031.",
+    "entities": [
+      {
+        "type": "SG_PASSPORT",
+        "value": "K7654321B"
+      }
+    ]
+  },
+  {
+    "id": "neg-sg-passport-no-keyword",
+    "note": "A letter, seven digits and a letter with the right shape but no passport keyword. Must not be reported, because the keyword is the gate.",
+    "text": "Courier reference E1234567A was logged for the parcel.",
+    "entities": []
+  },
+  {
     "id": "pos-sg-nric-glued",
     "note": "Singapore NRIC run straight after its NRIC label with no space (NRICS1234567D). Valid check letter. Found only because the label is present; an unlabelled glued run is not reported.",
     "text": "Applicant record NRICS1234567D was on file.",
