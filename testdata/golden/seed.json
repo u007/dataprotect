@@ -559,8 +559,8 @@
   },
   {
     "id": "neg-my-invalid-month",
-    "note": "MyKad-shaped number with month 13. Fails the date check, so it is not reported.",
-    "text": "Month typo: MyKad 901340-10-3421 was typed on the form.",
+    "note": "MyKad-shaped number with month 13 and a valid day (15). Only the month check rejects it.",
+    "text": "Month typo: MyKad 901315-10-3421 was typed on the form.",
     "entities": []
   },
   {
