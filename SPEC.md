@@ -32,13 +32,14 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
 - **Checksum recognizers** — Luhn (credit cards), IBAN mod-97
 - **National ID recognizers** — Singapore NRIC/FIN (check letter, prefixes S/T/F/G),
   Malaysia MyKad (hyphenated form, real date of birth; no checksum exists),
-  Thailand citizen ID (mod-11 check digit). Passports and the M prefix are not
-  covered yet; see TODO.md.
+  Thailand citizen ID (mod-11 check digit). Malaysia passports (one letter A/H/K
+  and eight digits, matched only next to a passport keyword). Singapore and
+  Thailand passports and the M prefix are not covered yet; see TODO.md.
 - **Operators** — replace, mask, hash, redact
 - **Context-aware confidence boosting** — opt-in via `analyzer.WithContextBoost()`, applied
   before the confidence filter and before overlap resolution
 - **Structured data** — CSV batch processing
-- **Golden dataset** — 63-case hand-labelled seed set for CI, plus an
+- **Golden dataset** — 68-case hand-labelled seed set for CI, plus an
   on-demand corpus measurement over the fetched corpora (`make corpus`)
 
 ### Later (v2+):
@@ -194,7 +195,7 @@ the check guards direct callers.
 
 ## Recognizers (MVP)
 
-| Recognizer | Entity Type | Method | Target | Measured (63-case seed) |
+| Recognizer | Entity Type | Method | Target | Measured (68-case seed) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
 | Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=1.0000 R=1.0000 |
@@ -207,14 +208,15 @@ the check guards direct callers.
 | SG NRIC/FIN | `SG_NRIC` | Regex + check letter (S, T, F, G) | >99% P&R | P=1.0000 R=1.0000 (M prefix unsupported) |
 | Malaysia MyKad | `MY_IC` | Regex (hyphenated) + date check | >99% P&R | P=1.0000 R=1.0000 (no checksum exists) |
 | Thailand citizen ID | `TH_ID` | Regex + mod-11 check digit | >99% P&R | P=1.0000 R=1.0000 (Luhn-passing IDs collide with CREDIT_CARD, see TODO.md) |
+| Malaysia passport | `MY_PASSPORT` | Regex (A/H/K + 8 digits) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Wikipedia and Purview, not PRADO) |
 
 **"Target" is a goal for a ~500-case dataset; "Measured" is what
-`scripts/benchmark.sh` reports today over the 63-case seed set.** The measured
+`scripts/benchmark.sh` reports today over the 68-case seed set.** The measured
 cells are 1.0 except IP_ADDRESS, whose batch-2 defect is in TODO.md. None of
 these cells is evidence that the targets are met: the shortfall is the dataset
 and that one defect. The Luhn and mod-97 validators are wired into the default
 pipeline.
-The measured column covers all eleven types; the three national-ID rows rest on synthetic cases only. BITCOIN is shape-only: its three
+The measured column covers all twelve types; the four national-ID and passport rows rest on synthetic cases only. BITCOIN is shape-only: its three
 cases pass, but the recognizer has no checksum validator, so any base58-looking
 string of the right shape is reported.
 
@@ -225,7 +227,7 @@ the measured column is evidence.
 Note the aggregate is not an average of this table, and the per-type cells are
 coarse: `PHONE`, `SSN` and `EMAIL` rest on four cases each, so a single flipped case
 moves any of them a long way. Aggregate exact precision/recall over the whole seed set
-is P=0.9762 R=1.0000 (tp=41 fp=1 fn=0), and overlap matching — which tolerates
+is P=0.9778 R=1.0000 (tp=44 fp=1 fn=0), and overlap matching — which tolerates
 mis-sized spans — gives the same. Before the parenthesised-phone
 fix the exact aggregate was P=0.9231 R=0.9231 while overlap stayed at 1.0000; the
 gap between the two granularities is exactly what localised the mis-sized span,
@@ -248,7 +250,7 @@ order, recorded in each `schema.json`).
 | **Exact** | P=0.8340 R=0.8699 F1=0.8516 (tp=2367 fp=471 fn=354) | P=0.3557 R=0.7673 F1=0.4861 (tp=610 fp=1105 fn=185) |
 | **Overlap** | P=0.8365 R=0.8725 F1=0.8541 (tp=2374 fp=464 fn=347) | P=0.3743 R=0.8075 F1=0.5116 (tp=642 fp=1073 fn=153) |
 | negatives clean | 474 of 600 | 1296 of 1497 |
-| out-of-schema (not scored) | IBAN=1 | BITCOIN=44, URL=817 |
+| out-of-schema (not scored) | IBAN=1 | BITCOIN=44, URL=817, MY_PASSPORT=1 |
 
 Per type (exact):
 
@@ -372,10 +374,10 @@ func (bp *BatchProcessor) ProcessCSV(ctx context.Context, r io.Reader, w io.Writ
 ## Testing Strategy
 
 ### Golden Dataset
-- ~500 hand-labeled samples — **63 exist** in `testdata/golden/seed.json`; the
+- ~500 hand-labeled samples — **68 exist** in `testdata/golden/seed.json`; the
   remaining ~450 do not
 - CI regression testing on every commit: `golden/accuracy_test.go` gates on
-  precision/recall thresholds and fails if the dataset drops below 63 cases (ratcheted with each batch)
+  precision/recall thresholds and fails if the dataset drops below 68 cases (ratcheted with each batch)
 - Precision/recall/F1 per entity type, plus aggregate, under two matching
   policies (exact span and byte overlap)
 
@@ -408,7 +410,7 @@ proves nothing.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 63-case seed (not ~500); the corpora are measured on demand instead |
+| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 68-case seed (not ~500); the corpora are measured on demand instead |
 | 2 | NLP recognizer (prose) | Later |
 | 3 | Secret recognizers (patterns + entropy) | Later |
 | 4 | FPE operator | Later |
@@ -420,7 +422,7 @@ proves nothing.
 ## Success Criteria (MVP)
 
 - [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT
-      MET, now measured.** The seed set reads P=0.9762 R=1.0000 over 63
+      MET, now measured.** The seed set reads P=0.9778 R=1.0000 over 68
       cases, which cannot support a >99% claim. The corpora are now measurable
       and do not come close: exact aggregate P=0.8340 R=0.8699 (nemotron) and
       P=0.3557 R=0.7673 (gretel) over 2000 records each — see "Corpus

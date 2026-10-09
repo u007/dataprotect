@@ -19,11 +19,11 @@ const datasetDir = "../testdata/golden"
 // moves recall by a large fraction — so a shrinking dataset would silently
 // weaken the gate rather than fail it. Ratcheted with each batch: it tracks the
 // current seed count, so any drop below it fails.
-const minCases = 63
+const minCases = 68
 
 // Gate thresholds.
 //
-// These are the MEASURED baseline, not a target. The seed set is 63 cases, far
+// These are the MEASURED baseline, not a target. The seed set is 68 cases, far
 // too small to claim SPEC.md's ">99% precision/recall"; claiming it here would
 // make the gate a rubber stamp. Each constant is the EXACT measured value, so
 // any regression fails immediately and any improvement is a deliberate
@@ -35,14 +35,16 @@ const minCases = 63
 //
 // Batch 3 added the national IDs (SG NRIC/FIN, MY MyKad, TH citizen ID). All
 // eight positives were detected and the five invalid-checksum negatives stayed
-// clean. The one defect above is still the only false positive.
+// clean. Batch 4 added Malaysia passports (keyword-backed): three positives were
+// detected and the two negatives stayed clean. The one defect above is still the
+// only false positive.
 //
-// The measured baseline is exact P=0.9762 R=1.0000 (tp=41 fp=1 fn=0), overlap
-// P=0.9762 R=1.0000 (tp=41 fp=1 fn=0), and 22 of 23 negative cases clean. These
+// The measured baseline is exact P=0.9778 R=1.0000 (tp=44 fp=1 fn=0), overlap
+// P=0.9778 R=1.0000 (tp=44 fp=1 fn=0), and 24 of 25 negative cases clean. These
 // numbers describe this hand-labelled seed set, NOT the detector in general —
 // SPEC.md's ">99%" needs a ~500-case hand-labelled set. The corpora in
 // testdata/external are scored by `make corpus` but are not that set (see
-// TODO.md). With 42 predictions one flipped case moves precision by ~2%, so
+// TODO.md). With 45 predictions one flipped case moves precision by ~2%, so
 // the number is coarse; it is kept exact so a regression fails immediately.
 //
 // An earlier baseline (exact P=0.8571 R=0.9231, tp=12 fp=2 fn=1) preceded the
@@ -59,9 +61,9 @@ const minCases = 63
 // draws an "identical expressions" lint warning, so a sitting-at-1.0 constant
 // stays a literal with its counts in the trailing comment.
 const (
-	minExactPrecision = 41.0 / 42.0 // tp=41 fp=1   -> 41/42
-	minExactRecall    = 1.0         // tp=41 fn=0   -> 41/41
-	minOverlapRecall  = 1.0         // tp=41 fn=0   -> 41/41
+	minExactPrecision = 44.0 / 45.0 // tp=44 fp=1   -> 44/45
+	minExactRecall    = 1.0         // tp=44 fn=0   -> 44/44
+	minOverlapRecall  = 1.0         // tp=44 fn=0   -> 44/44
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled

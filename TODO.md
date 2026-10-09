@@ -60,16 +60,16 @@
       scrubber over every negative case: the only detection left is
       `neg-ip-version-four-part`. `pos-url-http` now describes a https URL with
       a path followed by prose, not a sentence period it never had.
-- [ ] **Golden dataset is a 63-case seed set, not the ~500 SPEC.md calls for.**
+- [ ] **Golden dataset is a 68-case seed set, not the ~500 SPEC.md calls for.**
       `testdata/golden/seed.json` and the `golden` runner now exist and are
       tested, so the ">99% precision/recall" claim is at last measurable, but
       the seed set is far too small to support that number. Batch 2 (13 cases)
       took the baseline off 1.0 on purpose. Batch 3 (13 cases) added the national
-      IDs. Current: exact P=0.9762 R=1.0000
-      (tp=41 fp=1 fn=0), overlap the same, 22 of 23 negatives clean. One of
+      IDs. Batch 4 (5 cases) added Malaysia passports. Current: exact P=0.9778
+      R=1.0000 (tp=44 fp=1 fn=0), overlap the same, 24 of 25 negatives clean. One of
       the two defects behind it is fixed (URL, now trimmed); the IP
       version-string defect remains and is its own entry above. Thresholds:
-      `41.0 / 42.0` for exact precision, and a literal `1.0` for recall.
+      `44.0 / 45.0` for exact precision, and a literal `1.0` for recall.
       Earlier history:
       the parenthesised-phone fix moved 12/13 to 13/13 on the 18-case seed, and
       wiring the checksum validators lifted exact P from 0.8571 and cleared all
@@ -393,11 +393,13 @@ them as gaps.
 These findings were invisible to the seed set. Numbers and evidence are in
 SPEC.md § "Corpus measurement (2026-10-09)"; reproduce with `make corpus`.
 
-- [ ] **Passports are not covered (Malaysia, Singapore, Thailand, and other Asian countries).** Old and new formats need primary-source confirmation before any rule is written. Passport numbers are short alphanumerics, so a shape-only rule would over-match; they likely need a context word such as "passport" or a dedicated checksum. Status after a source check: no rule written.
-      - **Malaysia:** Wikipedia gives one letter then eight digits, prefixes A/H/K, example `A00000000`, with no date split for old versus the 30 June 2026 booklet. Microsoft Purview gives the same shape, with a context keyword and no checksum. Both are secondary. The EU PRADO specimen record (`mys`) is the primary source, but PRADO returned HTTP 403 to every fetch.
-      - **Singapore:** Purview gives E/K, seven digits, one letter. The Sumsub sample `E93874729W` has eight digits, so it contradicts Purview. Wikipedia gives no format. PRADO (`sgp`) returned 403.
-      - **Thailand:** no source states the format. Wikipedia lists the field without a format. PRADO (`THA-AO-06001`) returned 403. The 2-letter and 1-letter candidates from search are unresolved.
-      - **Decision needed:** accept Wikipedia and Purview as the basis for Malaysia, or fetch PRADO from a browser session. No rule is written until that is settled.
+- [ ] **Passports: Malaysia done, Singapore and Thailand blocked.** Other Asian countries are not started.
+      - **Malaysia (done, 2026-10-09; user accepted the secondary sources):** `MY_PASSPORT` matches `[AHK]\d{8}` only after a keyword from Purview's list (passport, pasport, nombor pasport, passport no, passport number, and so on). The shape is never reported alone, because it is too short to be safe. Sources: Wikipedia and Microsoft Purview. The EU PRADO record (`mys`) is the primary source and is unverified: PRADO returned 403. The old and 30 June 2026 booklets are not split.
+      - **Singapore (blocked):** Purview gives E or K, seven digits, one letter. A National Archives of Singapore 2006 record, per a search summary (the page fetch came back empty, so unverified), says the biometric passport number begins with E, has seven digits, and ends in a letter. If confirmed, it is the only government source, and it is about 20 years old. The Sumsub sample `E93874729W` has eight digits and conflicts. The ICA 2025 reply does not state the format. PRADO (`sgp`) is unreachable. Decision needed: pick the format and accept its source, or supply the PRADO field text.
+      - **Thailand (blocked):** no source states the passport-number format. The ICAO Doc 9303 field is nine characters, but that is the machine-readable zone, not a number written in prose. The one sample (`B100990`, one letter then six digits) comes from a data-extraction tool, so it is not evidence. PRADO (`THA-AO-06001`) is a document-type code, not a number. Decision needed: a specimen or a primary source.
+      - **No checksum route for prose.** The ICAO check digit exists only in the MRZ line. A passport number written in a sentence has no checksum, so the keyword gate is the only defence, as in Malaysia.
+      - **Known limits of the Malaysia rule (2026-10-09):** (1) Words between the keyword and the number are not allowed, so `Passport Number of the Primary Driver: H26965339` in gretel is missed (the Purview proximity is 300 characters; we use none). (2) `structured/` analyzes each CSV cell alone, so a `passport_number` column header never reaches the analyzer; a passport column is detected only when its cell carries the keyword. (3) The type name says Malaysia, but the rule checks keyword and A/H/K shape only. Other countries use one letter and eight digits too, so a hit is a passport-like number, not a verified Malaysian one. (4) Real-text signal: gretel has one hit, `Passport number: K13198743`, out of schema (gretel has no passport label), so it is not scored either way; nemotron has none.
+      - **PRADO attempts (2026-10-09):** WebFetch returned 403. The htrcli browser route failed (content-script injection error), `--cdp` fetch is unsupported, and the claude-in-chrome extension was not connected. Retry from a browser session the user opens.
 - [ ] **National ID coverage gaps.** (a) Singapore M-prefix is unsupported: its check-letter table is unconfirmed. (b) Malaysia MyKad place-of-birth codes are not validated: the code list is unconfirmed, and the MyKad check-style digit is not validated either. (c) Thailand bare 13-digit form has about a 1-in-10 false-match rate on random digits, so it needs a measured FP rate on labelled text before trust. (d) Batch 3 added synthetic golden cases for them (4 SG, 2 MY, 2 TH positives; 5 negatives). The corpora don't label these types, so no recognizer is measured on real text.
 - [ ] **Valid Thai citizen ID that passes Luhn is reported as CREDIT_CARD.** `1000000000009` has a valid mod-11 check digit and also passes Luhn. The card recognizer (0.99) beats TH_ID (0.95), so the number is typed as CREDIT_CARD and masked as payment data. Probed: both `1000000000009` and `1-0000-00000-00-9` give CREDIT_CARD. Decision needed: which type should win when a valid Thai ID also passes Luhn. No golden case is written for it, because labelling it TH_ID would settle that decision.
 - [ ] **Phone pattern matches ID-number digit runs (nemotron).** Of the 419

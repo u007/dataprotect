@@ -52,6 +52,7 @@ func NewScrubber() *Scrubber {
 	a.AddRecognizer(national.NewSGNRICRecognizer())
 	a.AddRecognizer(national.NewMYICRecognizer())
 	a.AddRecognizer(national.NewTHIDRecognizer())
+	a.AddRecognizer(national.NewMYPassportRecognizer())
 
 	an := anonymizer.New()
 	an.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
@@ -65,6 +66,7 @@ func NewScrubber() *Scrubber {
 	an.SetOperator(recognizers.EntitySGNRIC, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntityMYIC, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntityTHID, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityMYPassport, operators.NewRedactOperator())
 
 	return &Scrubber{
 		analyzer:   a,

@@ -7,7 +7,9 @@
 // table is unconfirmed. Malaysia MyKad has no checksum, so only the hyphenated
 // printed form is matched and its date of birth must be a real date. Thailand's
 // citizen ID is checked by its mod-11 check digit, in both the hyphenated and
-// the bare 13-digit form. Passports are not covered yet.
+// the bare 13-digit form. Malaysia passports are matched only next to a passport
+// keyword, because one letter and eight digits is too short to report on shape
+// alone. Singapore and Thailand passports are not covered yet.
 package national
 
 import (
@@ -219,6 +221,52 @@ func (r *THIDRecognizer) Recognize(ctx context.Context, text string) ([]recogniz
 			End:        m[1],
 			Text:       id,
 			Confidence: 0.95,
+		})
+	}
+	return entities, nil
+}
+
+// MYPassportRecognizer finds Malaysia passport numbers that sit next to a
+// passport keyword. The keyword is the only gate: the number has no checksum and
+// is too short for its shape to be reported alone.
+//
+// The pattern takes "passport", "pasport" or "nombor pasport", then any label
+// words Purview lists (number, no, nombor, #), then one or more separators, then
+// the number. Separators include space, colon, #, dot, underscore, quotes and
+// line breaks, so CSV-style "passport_number: A..." and JSON-style
+// "\"passport\": \"A...\"" both match. Only the number is captured, so a
+// detection spans the number and not the keyword. The separator must be at least
+// one character, so a keyword run straight into a letter does not match. The
+// space before "no" is optional, which covers "passportno" and "passportnumber".
+//
+// The type name says Malaysia, but the rule checks the keyword and the A/H/K
+// shape only, not nationality. Other countries use one letter and eight digits
+// too, so a hit is a passport-like number under a passport keyword.
+type MYPassportRecognizer struct {
+	pattern *regexp.Regexp
+}
+
+// NewMYPassportRecognizer creates a Malaysia passport recognizer.
+func NewMYPassportRecognizer() *MYPassportRecognizer {
+	return &MYPassportRecognizer{
+		pattern: regexp.MustCompile(`(?i)\b(?:nombor)?pas{1,2}port(?:[ \t_]*(?:numbers?|no\.?|nombor|#))*[ \t:#._"'\r\n]+([AHK]\d{8})\b`),
+	}
+}
+
+// Name returns the recognizer name.
+func (r *MYPassportRecognizer) Name() string { return "national_my_passport" }
+
+// Recognize detects Malaysia passport numbers that follow a passport keyword.
+// The confidence matches the keyword-backed level of the Purview definition.
+func (r *MYPassportRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
+	var entities []recognizers.Entity
+	for _, m := range r.pattern.FindAllStringSubmatchIndex(text, -1) {
+		entities = append(entities, recognizers.Entity{
+			Type:       recognizers.EntityMYPassport,
+			Start:      m[2],
+			End:        m[3],
+			Text:       text[m[2]:m[3]],
+			Confidence: 0.85,
 		})
 	}
 	return entities, nil

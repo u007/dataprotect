@@ -21,6 +21,7 @@ const (
 	EntitySGNRIC     EntityType = "SG_NRIC"
 	EntityMYIC       EntityType = "MY_IC"
 	EntityTHID       EntityType = "TH_ID"
+	EntityMYPassport EntityType = "MY_PASSPORT"
 )
 
 // Entity represents a detected PII entity in text.
@@ -63,6 +64,8 @@ func EntityTypeFromString(s string) (EntityType, error) {
 		return EntityMYIC, nil
 	case "TH_ID":
 		return EntityTHID, nil
+	case "MY_PASSPORT":
+		return EntityMYPassport, nil
 	default:
 		return "", fmt.Errorf("unknown entity type: %s", s)
 	}

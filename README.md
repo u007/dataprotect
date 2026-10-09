@@ -6,8 +6,8 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 
 - **8 regex recognizers** — email, phone, SSN, IP, URL, IBAN, bitcoin, plus a
   shape-only credit-card recognizer
-- **3 national ID recognizers** — Singapore NRIC/FIN, Malaysia MyKad and
-  Thailand citizen ID, each validated by its own rule. Passports are not covered yet
+- **4 national ID and passport recognizers** — Singapore NRIC/FIN, Malaysia MyKad and
+  Thailand citizen ID, each validated by its own rule. Malaysia passports need a passport keyword; Singapore and Thailand passports are not covered yet
 - **2 checksum validators, wired into the default pipeline** — Luhn (credit
   cards), mod-97 (IBAN). Cards are detected by Luhn rather than by digit shape,
   so a long number that fails the checksum is not redacted as payment data.
@@ -16,8 +16,8 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 - **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`)
 - **Measured, not claimed** — a hand-labelled seed dataset, an on-demand corpus
   measurement over the fetched corpora, and a scoring runner
-  gate accuracy in CI. Current baseline over 63 cases: exact-span
-  P=0.9762 R=1.0000, overlap P=0.9762 R=1.0000. Run `scripts/benchmark.sh`.
+  gate accuracy in CI. Current baseline over 68 cases: exact-span
+  P=0.9778 R=1.0000, overlap P=0.9778 R=1.0000. Run `scripts/benchmark.sh`.
   The seed set is far from the ~500 cases the accuracy targets assume, so treat
   the numbers as a floor rather than a result.
 - **Zero external dependencies** — stdlib only
@@ -102,8 +102,8 @@ func main() {
 
 ## Testing & dataset coverage
 
-Accuracy here is measured, not asserted. `testdata/golden/seed.json` holds 63
-hand-labelled cases (40 positive, 23 negative), and `golden/accuracy_test.go`
+Accuracy here is measured, not asserted. `testdata/golden/seed.json` holds 68
+hand-labelled cases (43 positive, 25 negative), and `golden/accuracy_test.go`
 gates on the exact measured baseline, so a regression fails the build instead of
 drifting silently. Labels are written from the text, never copied from detector
 output — a dataset derived from the detector's own predictions cannot fail and
@@ -111,8 +111,8 @@ proves nothing. Run `scripts/benchmark.sh` for the full report.
 
 | Match policy | Precision | Recall | F1 | tp/fp/fn |
 |---|---|---|---|---|
-| exact span | 0.9762 | 1.0000 | 0.9880 | 41/1/0 |
-| byte overlap | 0.9762 | 1.0000 | 0.9880 | 41/1/0 |
+| exact span | 0.9778 | 1.0000 | 0.9888 | 44/1/0 |
+| byte overlap | 0.9778 | 1.0000 | 0.9888 | 44/1/0 |
 
 Coverage by entity type, counting the cases that carry each type:
 
@@ -129,12 +129,13 @@ Coverage by entity type, counting the cases that carry each type:
 | SG_NRIC | 4 |
 | MY_IC | 2 |
 | TH_ID | 2 |
+| MY_PASSPORT | 3 |
 
 The numbers are not perfect. Batch 2 exposed two detector defects. The URL one,
 a sentence-final period kept, is fixed. The other, a four-part version string
 read as an IP, is still open; that case stays labelled as written and is in
 TODO.md. The seed set
-is 63 cases, far from the ~500 the accuracy targets assume, so read every
+is 68 cases, far from the ~500 the accuracy targets assume, so read every
 number above as a floor rather than a result. This baseline was
 reached by fixing the phone recognizer's dropped leading `(` on parenthesised
 area codes — until that fix it was the single false positive and the single

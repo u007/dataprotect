@@ -580,5 +580,50 @@
     "note": "Hyphenated Thai ID shape with the wrong check digit (correct last digit is 5).",
     "text": "Hyphen typo: Thai ID 3-1006-00445-63-6 was typed on the form.",
     "entities": []
+  },
+  {
+    "id": "pos-my-passport-label",
+    "note": "Malaysia passport number after the English keyword 'Passport Number:', prefix A. Keyword-backed, so the shape alone is not the gate.",
+    "text": "Visa form: Passport Number: A12345678 was copied from the booklet.",
+    "entities": [
+      {
+        "type": "MY_PASSPORT",
+        "value": "A12345678"
+      }
+    ]
+  },
+  {
+    "id": "pos-my-passport-malay",
+    "note": "Malaysia passport number after the Malay keyword 'Nombor pasport', prefix H. Purview lists this keyword.",
+    "text": "Nombor pasport H22334455 disahkan oleh pejabat imigresen.",
+    "entities": [
+      {
+        "type": "MY_PASSPORT",
+        "value": "H22334455"
+      }
+    ]
+  },
+  {
+    "id": "pos-my-passport-no-label",
+    "note": "Malaysia passport number after 'Passport No:', prefix K. Covers the short 'No:' label form, with a colon and a space before the number.",
+    "text": "Applicant record: Passport No: K99887766 expires in 2030.",
+    "entities": [
+      {
+        "type": "MY_PASSPORT",
+        "value": "K99887766"
+      }
+    ]
+  },
+  {
+    "id": "neg-my-passport-no-keyword",
+    "note": "A letter-and-eight-digit run with the right shape but no passport keyword. Must not be reported, because the keyword is the gate.",
+    "text": "Courier reference A12345678 was logged for the parcel.",
+    "entities": []
+  },
+  {
+    "id": "neg-my-passport-wrong-prefix",
+    "note": "Keyword present, but the letter B is not one of the A, H or K prefixes Purview lists.",
+    "text": "Passport Number: B12345678 was typed on the form.",
+    "entities": []
   }
 ]

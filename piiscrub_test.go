@@ -186,3 +186,19 @@ func TestScrubberFindsSpacedIBAN(t *testing.T) {
 		t.Errorf("a valid spaced IBAN was not detected: %+v", entities)
 	}
 }
+
+func TestScrubberFindsMYPassportWithKeyword(t *testing.T) {
+	s := NewScrubber()
+	text := "Passport Number: A12345678 was copied; 322996077 is a different record."
+
+	entities, err := s.Analyze(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 || entities[0].Type != recognizers.EntityMYPassport {
+		t.Fatalf("want one MY_PASSPORT and nothing else, got %+v", entities)
+	}
+	if got := text[entities[0].Start:entities[0].End]; got != "A12345678" {
+		t.Errorf("MY_PASSPORT span = %q, want %q", got, "A12345678")
+	}
+}

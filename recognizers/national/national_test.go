@@ -140,3 +140,61 @@ func TestTHIDRecognize(t *testing.T) {
 		t.Fatalf("got %+v, want one TH_ID 3-1006-00445-63-5", got)
 	}
 }
+
+func TestMYPassportRecognizeWithKeyword(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want string
+	}{
+		{"passport number label", "Passport Number: A12345678 on file.", "A12345678"},
+		{"passport no label", "passport no A12345678 renewed", "A12345678"},
+		{"run-together no label", "PASSPORTNO: H87654321", "H87654321"},
+		{"malay label", "Nombor pasport K11223344 disahkan.", "K11223344"},
+		{"lowercase letter", "No. Pasport: a12345678", "a12345678"},
+		{"hash separator", "passport #A12345678", "A12345678"},
+		{"underscore from a column name", "passport_number: A12345678", "A12345678"},
+		{"quoted json key", "\"passport\": \"A12345678\"", "A12345678"},
+		{"line break after label", "Passport No:\nA12345678", "A12345678"},
+		{"malay keyword run together", "nomborpasport A12345678", "A12345678"},
+	}
+	r := NewMYPassportRecognizer()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := r.Recognize(context.Background(), tt.text)
+			if err != nil {
+				t.Fatalf("Recognize: %v", err)
+			}
+			if len(got) != 1 || got[0].Text != tt.want || got[0].Type != recognizers.EntityMYPassport {
+				t.Fatalf("got %+v, want one MY_PASSPORT %q", got, tt.want)
+			}
+			if tt.text[got[0].Start:got[0].End] != tt.want {
+				t.Errorf("span [%d:%d] does not cover the number %q", got[0].Start, got[0].End, tt.want)
+			}
+		})
+	}
+}
+
+func TestMYPassportRecognizeRejectsWithoutKeywordOrShape(t *testing.T) {
+	// A bare number has no keyword. Wrong letter, wrong digit count, a letter run
+	// into the number, and a longer word all fail the shape or the boundaries.
+	texts := []string{
+		"ref A12345678 on the form",
+		"Passport Number: B12345678",
+		"Passport Number: A1234567",
+		"Passport Number: A123456789",
+		"Passport Number: XA12345678",
+		"passports A12345678 were checked",
+		"passportA12345678",
+	}
+	r := NewMYPassportRecognizer()
+	for _, text := range texts {
+		got, err := r.Recognize(context.Background(), text)
+		if err != nil {
+			t.Fatalf("Recognize(%q): %v", text, err)
+		}
+		if len(got) != 0 {
+			t.Errorf("Recognize(%q) = %+v, want none", text, got)
+		}
+	}
+}
