@@ -16,7 +16,7 @@ changes.
 | Corpus revisions and provenance | `scripts/fetch-dataset.sh list` shows the pinned revision per corpus. `fetch <name>` writes `PROVENANCE.txt` beside the data. |
 | Re-score the corpora | `make corpus` (about 6 seconds, needs the fetched data). |
 | Re-score the golden seed | `scripts/benchmark.sh` |
-| Read PRADO record pages | Use the `htrcli` extension transport in a tab you choose. Do not navigate a tab the user has open. PRADO returns 403 to `WebFetch`. |
+| Read PRADO record pages | Open the page with `htrcli tabs new` on the `/prado/NL/` or `/prado/fr/` path first. The `EN` and lowercase paths were blank in htrcli Chrome on 2026-10-14. Leave the tab open. Do not navigate a tab the user has open. PRADO returns 403 to `WebFetch`. |
 | Read a page without a browser | `WebFetch` works for Wikipedia and python-stdnum. It does not work for PRADO. |
 
 Pins are commit SHAs (corpora) or dated page reads (web sources). Pin a new
@@ -82,7 +82,7 @@ Each rule's source is listed with what it supports and what it does not.
 | Rule | Source | Supports | Does not support | Checked |
 |------|--------|----------|------------------|---------|
 | MyKad keyword list and date check | Microsoft Purview entity definitions (Malaysia identity card). URL not recorded here. | Keyword gate for bare 12-digit numbers. | Nationality. | Add URL on next review. |
-| Passport shape `[AHK]\d{8}` | Wikipedia (Malaysian passport article; URL to confirm) and Purview. PRADO `mys` record is unverified (403). | Letter and eight digits, keyword-gated. | PRADO confirmation. | 2026-10-09 |
+| Passport shape `[AHK]\d{8}` | Wikipedia (Malaysian passport article; URL to confirm) and Purview. PRADO `MYS-AO-03001` (2017, NL path) has no numbering composition. PRADO `MYS-AO-02001` (2010, NL path) has no numbering entry. | Letter and eight digits, keyword-gated. | PRADO confirmation of the eight-digit shape. | 2026-10-14 |
 
 ### Thailand
 
@@ -92,7 +92,8 @@ Each rule's source is listed with what it supports and what it does not.
 | Citizen ID shape | Same as above. Vendor docs: https://docs.frankieone.com/docs/tha-national-id | Thirteen digits, hyphenated 1-4-5-2-1. | Glued-ID scope (a product decision). | 2026-10-09 |
 | Passport number format | None found. | Nothing. | Everything. Thailand passports are not covered. | See below. |
 | Passport data-page label | Wikipedia (Thai passport): https://en.wikipedia.org/wiki/Thai_passport | Thai label `หนังสือเดินทางเลขที่` for the number field. A keyword candidate only. | Format. | 2026-10-10 |
-| PRADO `THA-AO-06001` | https://www.consilium.europa.eu/prado/EN/THA-AO-06001/index.html | Booklet details. "Numbering" appears only as a security-feature label. | Number format. | 2026-10-12 (htrcli) |
+| PRADO `THA-AO-06001` (2020, current) | https://www.consilium.europa.eu/prado/NL/THA-AO-06001/index.html and the `fr` path | Booklet details. The NL and fr pages both have "Numbering" as a security-feature label with no composition. "serienummer" is a print method. | Number format. | 2026-10-14 (htrcli, NL and fr). The EN path read on 2026-10-12 showed the same label. |
+| PRADO `THA-AO-02002` (2012, superseded) | https://www.consilium.europa.eu/prado/NL/THA-AO-02002/index.html | `Samenstelling: AANNNNNNN`, two letters then seven digits, top-right corner. | Current passport. Only the 2012 booklet. | 2026-10-14 (htrcli, NL) |
 | PRADO `THA-AS-06001`, `THA-AD-06001`, `THA-AP-06001` | Same PRADO site | Official, diplomatic and emergency booklets. | Not read. | Open. |
 | HL7 passport namespace | https://build.fhir.org/ig/HL7/UTG/en/NamingSystem-passportNumNS-THA.xml.html | Namespace exists. | No format. | 2026-10-10 |
 | Thai MFA e-passport page: https://mfa.go.th/en/page/electronic-passport?menu=5e2013adaff2fd00c8267234 | Biometric features. | No number format. Only the citizen ID's 13 digits. | 2026-10-14 |
@@ -116,7 +117,7 @@ Each rule's source is listed with what it supports and what it does not.
 
 | Source | Problem | Route to unblock |
 |--------|---------|------------------|
-| PRADO record pages | HTTP 403 to `WebFetch`. htrcli managed Chrome reads some pages. The extension transport cannot open a tab that is not the user's. | The user opens the URL and pastes the text, or names a tab htrcli may navigate. |
+| PRADO record pages (EN and lowercase paths) | HTTP 403 to `WebFetch`. In htrcli Chrome the `EN`, `en`, `En` paths load blank. The `NL` and `fr` paths load (2026-10-14). | Use the `NL` or `fr` path with `htrcli tabs new`. If it is blank too, the user pastes the text from their own browser. |
 | PRADO `SGP-AO-05001` EN and lowercase paths | Blank body on two attempts (2026-10-12). On 2026-10-14 the `EN`, `en`, `En` and `EN` paths were blank in htrcli Chrome, and the user reported a 404 for the link they had. Listing link does not navigate on click. | Use the `NL` or `fr` path (see Singapore table). Those load. |
 | PRADO `SGP-AS-05001` | Blank on 2026-10-14. | Same as above. |
 | ICAO Doc 9303 | Searched only, not fetched. Nine-character document-number field in the MRZ. | Fetch Part 3 if a length rule is ever needed. |
@@ -126,6 +127,6 @@ Each rule's source is listed with what it supports and what it does not.
 ## Open questions
 
 - Singapore passport: E vs K. The PRADO `ANNNNNNNA` shape (ordinary 2017 and official passports) is letter, seven digits, letter. It does not say whether the first letter is E or K. Ordinary 2003 and 2006 records have no numbering entry.
-- Thailand passport: no format from any source checked (Wikipedia, MFA, US State Department, PRADO `THA-AO-06001`, HL7, IDnow Annex 2). Needs a specimen or PRADO `THA-AO-06001` numbering text read by someone with browser access. It is not confirmed that the PRADO "Numbering" entries carry a format anywhere. Standing decision: Thai passports stay uncovered until a source gives the format. A nine-character alphanumeric rule would match non-passport strings and is not added.
-- Malaysia passport: the PRADO `mys` record is unverified.
+- Thailand passport: no format for the 2020 booklet from any source checked (Wikipedia, MFA, US State Department, PRADO `THA-AO-06001` NL and fr, HL7, IDnow Annex 2). The 2012 booklet (`THA-AO-02002`) has `AANNNNNNN`, which covers only that booklet. Standing decision: Thai passports stay uncovered until a source gives the 2020 format. A nine-character alphanumeric rule would match non-passport strings and is not added.
+- Malaysia passport: the eight-digit shape `[AHK]\d{8}` has no PRADO composition. `MYS-AO-03001` (2017, NL) has none; `MYS-AO-02001` (2010, NL) has no numbering entry.
 - Three sources have no URL recorded here (NRIC check tables, MyKad Purview page, OpenNER). Add them when next checked.
