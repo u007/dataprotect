@@ -66,7 +66,7 @@ Each rule's source is listed with what it supports and what it does not.
 | Passport shape `[EK]\d{7}[A-Z]` | Microsoft Purview, "Singapore passport number": https://learn.microsoft.com/sr-latn-rs/purview/sit-defn-singapore-passport-number | E or K, seven digits, one letter. Keyword-gated. | Says nothing on E vs K in a primary source. A second Purview copy (older) allows E only. | 2026-10-09 |
 | Passport shape, legacy | ICA BioPass announcement, 2006, via NAS: https://nas.gov.sg/archivesonline/data/pdfdoc/20060725983.htm | Passport number is unique now, where it was once the NRIC number. | Digit count and K prefix. The fetched page gives no format. | 2026-10-10 |
 | Passport shape, official | PRADO `SGP-AS-03001`, read through htrcli in a managed Chrome: https://www.consilium.europa.eu/prado/EN/SGP-AS-03001/index.html | "lion's head / passport number (format ANNNNNNNA)" for the official passport. | Ordinary passports. E vs K. | 2026-10-12 |
-| Passport shape, ordinary 2017 | PRADO `SGP-AO-05001`: https://www.consilium.europa.eu/prado/EN/SGP-AO-05001/index.html | Not read. Four search-result URL variants load blank in htrcli Chrome; the user reported a 404 for the link they had. See Blocked sources. | Everything. | Blocked, 2026-10-14. |
+| Passport shape, ordinary 2017 | PRADO `SGP-AO-05001`, read in the NL and FR language paths: https://www.consilium.europa.eu/prado/NL/SGP-AO-05001/index.html and https://www.consilium.europa.eu/prado/fr/SGP-AO-05001/index.html | "Numbering", composition `ANNNNNNNA` (letter, seven digits, letter). External ref N14833, 64 pages, max validity 5 years. The EN and lowercase paths were blank. | E vs K. The `A` class covers both. | 2026-10-14 (htrcli) |
 | Passport shape, ordinary 2006 | PRADO `SGP-AO-04001`: https://www.consilium.europa.eu/prado/en/SGP-AO-04001/index.html | Loads. No numbering entry (64 pages, e-passport 2006 model). | Number format. | 2026-10-14 (htrcli) |
 | Passport shape, ordinary 2003 | PRADO `SGP-AO-03001`: https://www.consilium.europa.eu/prado/en/SGP-AO-03001/index.html | Loads. No numbering entry (96 pages). | Number format. | 2026-10-14 (htrcli) |
 | Passport shape, official 2017 | PRADO `SGP-AS-05001`: https://www.consilium.europa.eu/prado/en/SGP-AS-05001/index.html | Blank in htrcli Chrome. | Everything. | 2026-10-14, blocked |
@@ -117,7 +117,7 @@ Each rule's source is listed with what it supports and what it does not.
 | Source | Problem | Route to unblock |
 |--------|---------|------------------|
 | PRADO record pages | HTTP 403 to `WebFetch`. htrcli managed Chrome reads some pages. The extension transport cannot open a tab that is not the user's. | The user opens the URL and pastes the text, or names a tab htrcli may navigate. |
-| PRADO `SGP-AO-05001` | Blank body on two attempts (2026-10-12). On 2026-10-14 four search-result URL variants were blank in htrcli Chrome, and the user reported a 404 for the link they had. Listing link does not navigate on click. | Ask the user for the numbering text from their own browser. |
+| PRADO `SGP-AO-05001` EN and lowercase paths | Blank body on two attempts (2026-10-12). On 2026-10-14 the `EN`, `en`, `En` and `EN` paths were blank in htrcli Chrome, and the user reported a 404 for the link they had. Listing link does not navigate on click. | Use the `NL` or `fr` path (see Singapore table). Those load. |
 | PRADO `SGP-AS-05001` | Blank on 2026-10-14. | Same as above. |
 | ICAO Doc 9303 | Searched only, not fetched. Nine-character document-number field in the MRZ. | Fetch Part 3 if a length rule is ever needed. |
 | Regula reference database | Subscription. | Paid access. Not planned. |
@@ -125,7 +125,7 @@ Each rule's source is listed with what it supports and what it does not.
 
 ## Open questions
 
-- Singapore passport: E vs K, and digit count. The official `ANNNNNNNA` confirms the shape for AS passports only. The ordinary 2017 record (`SGP-AO-05001`) is unread. Ordinary 2003 and 2006 records have no numbering entry.
+- Singapore passport: E vs K. The PRADO `ANNNNNNNA` shape (ordinary 2017 and official passports) is letter, seven digits, letter. It does not say whether the first letter is E or K. Ordinary 2003 and 2006 records have no numbering entry.
 - Thailand passport: no format from any source checked (Wikipedia, MFA, US State Department, PRADO `THA-AO-06001`, HL7, IDnow Annex 2). Needs a specimen or PRADO `THA-AO-06001` numbering text read by someone with browser access. It is not confirmed that the PRADO "Numbering" entries carry a format anywhere. Standing decision: Thai passports stay uncovered until a source gives the format. A nine-character alphanumeric rule would match non-passport strings and is not added.
 - Malaysia passport: the PRADO `mys` record is unverified.
 - Three sources have no URL recorded here (NRIC check tables, MyKad Purview page, OpenNER). Add them when next checked.
