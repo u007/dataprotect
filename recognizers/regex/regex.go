@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"dataprotect/recognizers"
+	"dataprotect/recognizers/checksum"
 )
 
 // EmailRecognizer detects email addresses.
@@ -343,26 +344,32 @@ func (r *IBANRecognizer) Recognize(ctx context.Context, text string) ([]recogniz
 	return entities, nil
 }
 
-// BitcoinRecognizer detects bitcoin addresses.
+// BitcoinRecognizer detects bitcoin addresses whose checksum verifies.
 type BitcoinRecognizer struct {
-	pattern *regexp.Regexp
+	pattern   *regexp.Regexp
+	validator *checksum.BitcoinValidator
 }
 
 // NewBitcoinRecognizer creates a new bitcoin recognizer.
 func NewBitcoinRecognizer() *BitcoinRecognizer {
 	return &BitcoinRecognizer{
-		pattern: regexp.MustCompile(`\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b|\bbc1[a-zA-HJ-NP-Z0-9]{25,39}\b`),
+		pattern:   regexp.MustCompile(`\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b|\bbc1[a-zA-HJ-NP-Z0-9]{25,87}\b`),
+		validator: checksum.NewBitcoinValidator(),
 	}
 }
 
 // Name returns the recognizer name.
 func (r *BitcoinRecognizer) Name() string { return "regex_bitcoin" }
 
-// Recognize detects bitcoin addresses in text.
+// Recognize detects bitcoin addresses in text. A shape match whose checksum
+// fails is not an address, so it is not reported.
 func (r *BitcoinRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	matches := r.pattern.FindAllStringIndex(text, -1)
 	entities := make([]recognizers.Entity, 0, len(matches))
 	for _, m := range matches {
+		if !r.validator.Validate(text[m[0]:m[1]]) {
+			continue
+		}
 		entities = append(entities, recognizers.Entity{
 			Type:       recognizers.EntityBitcoin,
 			Start:      m[0],

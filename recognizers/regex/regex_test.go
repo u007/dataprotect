@@ -280,6 +280,8 @@ func TestBitcoinRecognizer(t *testing.T) {
 	}{
 		{"p2pkh", "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", 1},
 		{"bech32", "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq", 1},
+		{"taproot", "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0", 1},
+		{"taproot-bad-checksum", "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj1", 0},
 		{"random", "not a bitcoin address", 0},
 	}
 

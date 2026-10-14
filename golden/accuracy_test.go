@@ -19,7 +19,7 @@ const datasetDir = "../testdata/golden"
 // moves recall by a large fraction — so a shrinking dataset would silently
 // weaken the gate rather than fail it. Ratcheted with each batch: it tracks the
 // current seed count, so any drop below it fails.
-const minCases = 77
+const minCases = 81
 
 // Gate thresholds.
 //
@@ -40,15 +40,16 @@ const minCases = 77
 // typed TH_ID by decision (d). Batch 5 added a label-glued SG NRIC and
 // a keyword-gated bare MyKad: two positives were detected and the two negatives
 // stayed clean. Batch 7 added Singapore passports (keyword-backed, E or K prefix):
-// two positives were detected and the one negative stayed clean. The one defect
-// above is still the only false positive.
+// two positives were detected and the one negative stayed clean. Batch 8 added
+// bitcoin (taproot and P2SH positives, two bad-checksum negatives): all four
+// behaved as expected. The one defect above is still the only false positive.
 //
-// The measured baseline is exact P=0.9804 R=1.0000 (tp=50 fp=1 fn=0), overlap
-// P=0.9804 R=1.0000 (tp=50 fp=1 fn=0), and 27 of 28 negative cases clean. These
+// The measured baseline is exact P=0.9811 R=1.0000 (tp=52 fp=1 fn=0), overlap
+// P=0.9811 R=1.0000 (tp=52 fp=1 fn=0), and 29 of 30 negative cases clean. These
 // numbers describe this hand-labelled seed set, NOT the detector in general —
 // SPEC.md's ">99%" needs a ~500-case hand-labelled set. The corpora in
 // testdata/external are scored by `make corpus` but are not that set (see
-// TODO.md). With 51 predictions one flipped case moves precision by ~2%, so
+// TODO.md). With 53 predictions one flipped case moves precision by ~2%, so
 // the number is coarse; it is kept exact so a regression fails immediately.
 //
 // An earlier baseline (exact P=0.8571 R=0.9231, tp=12 fp=2 fn=1) preceded the
@@ -65,9 +66,9 @@ const minCases = 77
 // draws an "identical expressions" lint warning, so a sitting-at-1.0 constant
 // stays a literal with its counts in the trailing comment.
 const (
-	minExactPrecision = 50.0 / 51.0 // tp=50 fp=1   -> 50/51
-	minExactRecall    = 1.0         // tp=50 fn=0   -> 50/50
-	minOverlapRecall  = 1.0         // tp=50 fn=0   -> 50/50
+	minExactPrecision = 52.0 / 53.0 // tp=52 fp=1   -> 52/53
+	minExactRecall    = 1.0         // tp=52 fn=0   -> 52/52
+	minOverlapRecall  = 1.0         // tp=52 fn=0   -> 52/52
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled

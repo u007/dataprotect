@@ -25,7 +25,7 @@ DATA_ROOT := $(abspath $(or $(DATAPROTECT_DATA_DIR),testdata/external))
 LIMIT ?= 2000
 
 .PHONY: help download list info dry-run benchmark test test-tools build vet fmt \
-        corpus corpus-convert corpus-clean clean-data
+        corpus corpus-convert corpus-anonymize corpus-clean clean-data
 
 help:
 	@echo "piiscrub targets:"
@@ -36,6 +36,7 @@ help:
 	@echo "  make benchmark       score the golden seed set and print the report"
 	@echo "  make corpus-convert  convert both corpora to golden datasets (LIMIT=$(LIMIT))"
 	@echo "  make corpus          convert, then score each corpus and print the report"
+	@echo "  make corpus-anonymize run Scrubber.Anonymize over every converted case (contract check)"
 	@echo "  make corpus-clean    delete the converted datasets (data is gitignored)"
 	@echo "  make test            run the library test suite"
 	@echo "  make test-tools      run the corpusbench tool test suite"
@@ -83,6 +84,9 @@ corpus-convert:
 corpus: corpus-convert
 	./scripts/benchmark.sh "$(DATA_ROOT)/nemotron-pii/converted"
 	./scripts/benchmark.sh "$(DATA_ROOT)/gretel-pii-finance/converted"
+
+corpus-anonymize:
+	$(GO) run ./cmd/corpusanon "$(DATA_ROOT)/nemotron-pii/converted" "$(DATA_ROOT)/gretel-pii-finance/converted"
 
 corpus-clean:
 	rm -rf "$(DATA_ROOT)/nemotron-pii/converted" "$(DATA_ROOT)/gretel-pii-finance/converted"

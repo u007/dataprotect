@@ -222,19 +222,41 @@ func TestScrubberFindsSGPassportWithKeyword(t *testing.T) {
 }
 
 func TestScrubberBitcoinSpanNotDisplacedByEmbeddedNRIC(t *testing.T) {
-	// The bitcoin span is shape-only at 0.95. An NRIC-shaped run at its end must
-	// not win the overlap and leave the address prefix visible.
+	// A valid address followed by an NRIC-shaped run. The bitcoin span must stay
+	// whole and the NRIC must still be found, so neither wins the overlap over
+	// the other's text.
 	s := NewScrubber()
-	text := "send 1Ab3CdEf5Gh7Jk9Mn2Pq4RsS1234567D now"
+	text := "send 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa and S1234567D now"
 	entities, err := s.Analyze(context.Background(), text)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(entities) != 1 || entities[0].Type != recognizers.EntityBitcoin {
-		t.Fatalf("want one BITCOIN and nothing else, got %+v", entities)
+	if len(entities) != 2 {
+		t.Fatalf("want one BITCOIN and one SG_NRIC, got %+v", entities)
 	}
-	if got := text[entities[0].Start:entities[0].End]; got != "1Ab3CdEf5Gh7Jk9Mn2Pq4RsS1234567D" {
-		t.Errorf("BITCOIN span = %q, want the whole token", got)
+	byType := map[recognizers.EntityType]string{}
+	for _, e := range entities {
+		byType[e.Type] = text[e.Start:e.End]
+	}
+	if got := byType[recognizers.EntityBitcoin]; got != "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa" {
+		t.Errorf("BITCOIN span = %q, want the whole address", got)
+	}
+	if got := byType[recognizers.EntitySGNRIC]; got != "S1234567D" {
+		t.Errorf("SG_NRIC span = %q, want %q", got, "S1234567D")
+	}
+}
+
+func TestScrubberBadChecksumTokenIsNotBitcoin(t *testing.T) {
+	// The shape of a bitcoin address with a failing checksum is not an address,
+	// so it is not reported. The NRIC-shaped tail is glued to letters, which the
+	// NRIC rule does not match without its label (see TODO.md).
+	s := NewScrubber()
+	entities, err := s.Analyze(context.Background(), "send 1Ab3CdEf5Gh7Jk9Mn2Pq4RsS1234567D now")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 0 {
+		t.Fatalf("want no entities for a bad-checksum token, got %+v", entities)
 	}
 }
 

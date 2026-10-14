@@ -40,7 +40,13 @@ type Scrubber struct {
 // the card masks it. That is why TestPhoneRecognizerDoesNotClaimCardDigits
 // asserts at the recognizer level rather than through Analyze.
 func NewScrubber() *Scrubber {
-	a := analyzer.New(analyzer.WithMinConfidence(0.7))
+	return newScrubber()
+}
+
+// newScrubber builds the default scrubber with extra analyzer options. Only
+// tests reach it, to score the same pipeline with context boosting on.
+func newScrubber(opts ...analyzer.Option) *Scrubber {
+	a := analyzer.New(append([]analyzer.Option{analyzer.WithMinConfidence(0.7)}, opts...)...)
 	a.AddRecognizer(regex.NewEmailRecognizer())
 	a.AddRecognizer(regex.NewPhoneRecognizer())
 	a.AddRecognizer(regex.NewSSNRecognizer())
