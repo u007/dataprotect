@@ -16,8 +16,8 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 - **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`)
 - **Measured, not claimed** — a hand-labelled seed dataset, an on-demand corpus
   measurement over the fetched corpora, and a scoring runner
-  gate accuracy in CI. Current baseline over 77 cases: exact-span
-  P=0.9804 R=1.0000, overlap P=0.9804 R=1.0000. Run `scripts/benchmark.sh`.
+  gate accuracy in CI. Current baseline over 81 cases: exact-span
+  P=0.9811 R=1.0000, overlap P=0.9811 R=1.0000. Run `scripts/benchmark.sh`.
   The seed set is far from the ~500 cases the accuracy targets assume, so treat
   the numbers as a floor rather than a result.
 - **Zero external dependencies** — stdlib only
@@ -102,8 +102,8 @@ func main() {
 
 ## Testing & dataset coverage
 
-Accuracy here is measured, not asserted. `testdata/golden/seed.json` holds 77
-hand-labelled cases (49 positive, 28 negative), and `golden/accuracy_test.go`
+Accuracy here is measured, not asserted. `testdata/golden/seed.json` holds 81
+hand-labelled cases (51 positive, 30 negative), and `golden/accuracy_test.go`
 gates on the exact measured baseline, so a regression fails the build instead of
 drifting silently. Labels are written from the text, never copied from detector
 output — a dataset derived from the detector's own predictions cannot fail and
@@ -125,7 +125,7 @@ Coverage by entity type, counting the cases that carry each type:
 | IP_ADDRESS | 3 |
 | URL | 4 |
 | IBAN | 5 |
-| BITCOIN | 3 (shape-only, no checksum) |
+| BITCOIN | 3 (Base58Check / bech32 checksum) |
 | SG_NRIC | 5 |
 | MY_IC | 3 |
 | TH_ID | 4 |
@@ -136,7 +136,7 @@ The numbers are not perfect. Batch 2 exposed two detector defects. The URL one,
 a sentence-final period kept, is fixed. The other, a four-part version string
 read as an IP, is still open; that case stays labelled as written and is in
 TODO.md. The seed set
-is 77 cases, far from the ~500 the accuracy targets assume, so read every
+is 81 cases, far from the ~500 the accuracy targets assume, so read every
 number above as a floor rather than a result. This baseline was
 reached by fixing the phone recognizer's dropped leading `(` on parenthesised
 area codes — until that fix it was the single false positive and the single

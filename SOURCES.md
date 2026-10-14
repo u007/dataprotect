@@ -48,7 +48,7 @@ numbers.
 
 | Name | Source | Status |
 |------|--------|--------|
-| OpenNER 1.0 | Named in DATASET_LICENSES.md | No URL recorded in this repo. Add one before any fetch. |
+| OpenNER 1.0 | Named in DATASET_LICENSES.md. Repository: https://github.com/bltlab/open-ner (loads, 2026-10-14). | Not fetched or used. Listed for licence review only. | Not used in any measurement. | 2026-10-14 |
 | Kaggle PII Detection | Kaggle competition | Per-competition terms. Not fetched. |
 | Financial PII (Mendeley) | Named in SPEC.md | Unverified. No URL recorded. |
 | SecretBench | Named in SPEC.md | Unverified. No URL recorded. |
@@ -62,7 +62,7 @@ Each rule's source is listed with what it supports and what it does not.
 
 | Rule | Source | Supports | Does not support | Checked |
 |------|--------|----------|------------------|---------|
-| NRIC/FIN check letter tables | Recorded only in code and tests (`recognizers/national`). The external algorithm source is not recorded here. | Check letter for S/T/F/G. | Not a primary government source in this repo. | Add a source link on next review. |
+| NRIC/FIN check letter tables | Recorded in code and tests (`recognizers/national`). Secondary source: https://www.ngiam.net/NRIC/NRIC_numbers.pdf (loads, 2026-10-14). It gives weights (2, 7, 6, 5, 4, 3, 2), mod 11, the S/T and F/G letter tables, and an offset of 4 for T and G prefixes (d0 = 0 for S or F). | Check letter for S/T/F/G. The official ICA algorithm is not published. This PDF is a third-party write-up. | Not a primary government source. The PDF's values were read on 2026-10-14; the code was not re-compared against them in this pass. | 2026-10-14 |
 | Passport shape `[EK]\d{7}[A-Z]` | Microsoft Purview, "Singapore passport number": https://learn.microsoft.com/sr-latn-rs/purview/sit-defn-singapore-passport-number | E or K, seven digits, one letter. Keyword-gated. | Says nothing on E vs K in a primary source. A second Purview copy (older) allows E only. | 2026-10-09 |
 | Passport shape, legacy | ICA BioPass announcement, 2006, via NAS: https://nas.gov.sg/archivesonline/data/pdfdoc/20060725983.htm | Passport number is unique now, where it was once the NRIC number. | Digit count and K prefix. The fetched page gives no format. | 2026-10-10 |
 | Passport shape, official | PRADO `SGP-AS-03001`, read through htrcli in a managed Chrome: https://www.consilium.europa.eu/prado/EN/SGP-AS-03001/index.html | "lion's head / passport number (format ANNNNNNNA)" for the official passport. | Ordinary passports. E vs K. | 2026-10-12 |
@@ -81,7 +81,7 @@ Each rule's source is listed with what it supports and what it does not.
 
 | Rule | Source | Supports | Does not support | Checked |
 |------|--------|----------|------------------|---------|
-| MyKad keyword list and date check | Microsoft Purview entity definitions (Malaysia identity card). URL not recorded here. | Keyword gate for bare 12-digit numbers. | Nationality. | Add URL on next review. |
+| MyKad keyword list and date check | Microsoft Purview entity definitions (Malaysia identity card). No definition page URL found: a guessed `sit-defn-malaysia-identity-card-number` returned 404 on 2026-10-14, and a search found only the Malaysia passport page. | Keyword gate for bare 12-digit numbers. | Nationality. | Open: URL still to find. |
 | Passport shape `[AHK]\d{8}` | Wikipedia (Malaysian passport article; URL to confirm) and Purview. PRADO `MYS-AO-03001` (2017, NL path) has no numbering composition. PRADO `MYS-AO-02001` (2010, NL path) has no numbering entry. | Letter and eight digits, keyword-gated. | PRADO confirmation of the eight-digit shape. | 2026-10-14 |
 
 ### Thailand
@@ -130,4 +130,4 @@ Each rule's source is listed with what it supports and what it does not.
 - Singapore passport: E vs K is accepted on Purview (E or K), and the regex takes both behind the keyword gate. The PRADO `ANNNNNNNA` shape (ordinary 2017 and official passports) confirms the digit count. Ordinary 2003 and 2006 records have no numbering entry.
 - Thailand passport: no format for the 2020 booklet from any source checked (Wikipedia, MFA, US State Department, PRADO `THA-AO-06001` NL and fr, HL7, IDnow Annex 2). The 2012 booklet (`THA-AO-02002`) has two entries that disagree on digit count (7 and 8), and its shape `AANNNNNNN` matches Japan's Purview pattern. Thai passports stay uncovered. A rule for the 2012 booklet alone is a user decision (see TODO). A nine-character alphanumeric rule would match non-passport strings and is not added.
 - Malaysia passport: the eight-digit shape `[AHK]\d{8}` has no PRADO composition. `MYS-AO-03001` (2017, NL) has none; `MYS-AO-02001` (2010, NL) has no numbering entry.
-- Three sources have no URL recorded here (NRIC check tables, MyKad Purview page, OpenNER). Add them when next checked.
+- Two of three URL gaps closed 2026-10-14 (OpenNER, NRIC check tables). The MyKad Purview page is still unlocated (guessed URL 404).

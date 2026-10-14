@@ -12,6 +12,7 @@ tags:
   - pii
 timestamp: 2026-10-05T06:52:38Z
 ---
+
 # AGENTS.md — piiscrub Project
 
 ## Project Overview
@@ -30,7 +31,7 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 
 - `analyzer/` — orchestrates recognizers, returns detected entities
 - `recognizers/regex/` — regex-based PII detection (email, phone, credit card, SSN, IP, URL, IBAN, bitcoin)
-- `recognizers/checksum/` — checksum validation (Luhn for credit cards, mod-97 for IBAN)
+- `recognizers/checksum/` — checksum validation (Luhn for credit cards, mod-97 for IBAN, Base58Check and bech32/bech32m for bitcoin addresses; the regex BITCOIN recognizer calls the bitcoin validator)
 - `anonymizer/` — orchestrates operators, transforms detected entities
 - `operators/` — anonymization operators (replace, mask, hash, redact)
 - `structured/` — batch processing for CSV/JSON
@@ -64,8 +65,25 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 - Go 1.24+ idioms only
 - All exported types/functions must have doc comments
 - Tests live alongside source files (`*_test.go`)
-- No external dependencies in MVP (stdlib only)
+- No external dependencies in MVP (stdlib only) — **this applies to the root
+  module**. `tools/corpusbench` is a separate Go module with its own `go.mod`
+  that holds the Parquet reader (parquet-go); it imports the root module through
+  `replace dataprotect => ../..`, never the other way round. The root module's
+  `go.mod` must never gain a `require` block.
 - Deterministic output — same input always produces same output
+- Conversion and other corpus tools fail fast: a record that cannot be read is
+  an error naming corpus/file/row, never a silent skip
+
+## Corpus measurement
+
+- `make corpus` converts both corpora and scores them; `make corpus-convert`
+  converts only. Both are on-demand — the corpora are gitignored, so CI cannot
+  see them and the committed gate stays the seed set in `testdata/golden/`.
+- `make test` runs the library suite; `make test-tools` runs the tool module's.
+- A converted dataset carries `schema.json` declaring its in-schema types.
+  `scripts/benchmark.sh` applies it automatically when present, so a detection
+  of a type the corpus never labels is reported as out-of-schema instead of
+  counted as a false positive.
 
 ## Secrets & Credentials
 

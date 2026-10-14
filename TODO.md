@@ -51,7 +51,7 @@
       scrubber over every negative case: the only detection left is
       `neg-ip-version-four-part`. `pos-url-http` now describes a https URL with
       a path followed by prose, not a sentence period it never had.
-- [ ] **Golden dataset is a 77-case seed set, not the ~500 SPEC.md calls for.**
+- [ ] **Golden dataset is an 81-case seed set, not the ~500 SPEC.md calls for.**
       `testdata/golden/seed.json` and the `golden` runner now exist and are
       tested, so the ">99% precision/recall" claim is at last measurable, but
       the seed set is far too small to support that number. Batch 2 (13 cases)
@@ -83,11 +83,7 @@
       below (`tools/corpusbench`, `make corpus`); the FP-inflation trap that
       lived in Open Questions was resolved by the schema sidecar, not worked
       around.
-- [ ] **Context boosting accuracy still unmeasured.** The golden gate runs
-      `NewScrubber`, which does NOT enable `WithContextBoost()`. Boosting is
-      wired and tested for wiring only, and the gate above would not notice if
-      boosting were enabled by default and degraded results. Needs a second gate
-      scored with boosting on, compared against this one.
+- [ ] **Context boosting: measured, and it is worse on nemotron. Boosting stays off by default.** `piiscrub_test.go` `TestContextBoostIsNoWorseOnSeed` (`boost_gate_test.go`) scores the seed set both ways: identical (exact P=0.9811 R=1.0000, tp=52 fp=1). The corpora, scored the same way with the corpus schema (`make corpus` headline numbers match "off"): **nemotron exact P 0.8340→0.8320 and R 0.8699→0.8681** (tp 2367→2362, fp 471→477); **gretel unchanged**. The cause, from a per-span diff over all 2000 nemotron cases: 7 URLs (0.99) lost their whole span, each a URL that contains an IP (`http://192.168.1.100:8080/...`) or a card number in its query string. Boosting raised the inner IP_ADDRESS (1.00) or CREDIT_CARD (1.00) above the enclosing URL on overlap, so the URL is replaced by the inner span and its path and query stay visible. **Flow Context (not applied):** *How it currently works:* `Analyze` boosts every entity whose type has a matching context word, then resolves overlaps by confidence, so a boosted inner entity can beat a wider one. *Where it breaks:* the inner entity's boost crosses the boundary of a URL that contains it. *Proposed fix:* either cap the boost so it cannot lift a span above a containing URL, or let URL win any overlap it encloses. **Decision needed:** this is a policy choice about what boosting may override. Until it is made, `WithContextBoost` should not be enabled for URL-bearing text.
 - [x] **`removeOverlapping`'s equal-confidence tie-break: intent vs test.** The
       behaviour is that on an exact tie in confidence the EARLIER span wins, and
       it is now pinned by `analyzer.TestEqualConfidenceTieIsDeterministic` at
@@ -99,12 +95,6 @@
       already stale when this line was first written, because AGENTS.md
       documented the policy and a later test pinned it.
 
-- [ ] **BITCOIN recognizer has no checksum validator — shape-only.** Any
-      base58-looking string matching P2PKH/P2SH or Bech32 shape is reported.
-      Measured only on the 3 seed BITCOIN cases (P=1.0000); neither corpus
-      labels BITCOIN, and gretel's 44 BITCOIN detections are excluded as
-      out-of-schema rather than scored. Fix: add Base58Check and Bech32 checksum
-      validators, then re-measure. Required by the no-silent-gap rule.
 - [ ] **CREDIT_CARD recall is bounded by Luhn against synthetic data.** On
       nemotron, R=0.0945 with 230 FNs — and all 230 fail the Luhn check while
       exactly the 24 Luhn-valid ones are the true positives. The validator is
@@ -144,6 +134,7 @@ them as gaps.
 
 ## Fixed (kept as regression notes)
 
+- [x] **BITCOIN was shape-only: any base58 or bech32 string of the right shape was reported. Fixed 2026-10-14.** `recognizers/checksum/bitcoin.go` adds `BitcoinValidator`: Base58Check (double SHA-256, 25-byte payload) for `1`/`3` addresses, and bech32 (BIP-173, version 0) or bech32m (BIP-350, version 1 and later) for `bc1`, with the program-length rules. `regex.BitcoinRecognizer` reports a shape match only when its checksum verifies. The confidence stays 0.95, so overlap outcomes are unchanged. The shape also widens to 87 characters after `bc1`, so the taproot `bc1p` form is matched and checked by bech32m. Tests: `checksum/bitcoin_test.go` (BIP and wiki vectors, plus flipped-checksum negatives), `regex_test.go` (taproot), golden batch 8 (taproot and P2SH positives, two bad-checksum negatives). Golden gate: exact P=0.9811 (tp=52 fp=1), recall 1.0, 29 of 30 negatives clean; `minCases` 81. Corpora: `make corpus` headlines unchanged. gretel's 44 shape matches are now 21 validated; the 23 dropped are all BITCOIN and no new detection appeared (diffed over the seed and all 4000 corpus texts). **Trade-off, recorded:** a token that is not a valid address is no longer redacted, so a shape-only string that a document uses as an ID is visible. `piiscrub_test.go` `TestScrubberBitcoinSpanNotDisplacedByEmbeddedNRIC` was rewritten: the bad-checksum token `1Ab3CdEf5Gh7Jk9Mn2Pq4RsS1234567D` now yields no entity, and its tail `S1234567D` stays visible because a glued SG NRIC is only found after its label (see the national-ID entry). A valid address next to an NRIC is pinned by the new test.
 - [x] **`Anonymizer.Anonymize` did not validate rune boundaries. Fixed.** The bounds
       check ran per splice against the shrinking working string. Now every span is
       checked against the original text before any splice: out of bounds, or a start or
@@ -468,17 +459,14 @@ SPEC.md § "Corpus measurement (2026-10-09)"; reproduce with `make corpus`.
         figure is mostly a scope artefact, which SPEC does not yet say.
       Option (c) moves every corpus number, so it is not applied. Until one of
       (a)-(c) is chosen, record no SSN precision target.
-- [ ] **BITCOIN coverage.** Neither corpus labels it, so it stays unmeasured.
-      Needs a third corpus or a hand-authored seed extension.
-- [ ] **Per-language scoring of gretel.** One conversion uses `combined_test`;
-      scoring `English_test`, `German_test` etc. separately would show whether
-      the recognizers are English-shaped.
+- [ ] **BITCOIN coverage.** Neither corpus labels it, so it stays unmeasured
+      on real text. The seed set now has five BITCOIN cases (batch 8). Closing
+      this needs a third labelled corpus, which is data, not code.
+- [x] **Per-language scoring of gretel. Measured 2026-10-14; answer: recall is lower in every other language.** The per-language `*_test` parquet files are already local, so the seven were converted with `convertParquet` (all rows, no limit), scored with `WithInSchema` and the default scrubber. Exact P / R, and the share of negatives clean, were: English (2891 cases) 0.3652 / 0.7709, 1850 of 2140; French 0.2039 / 0.4205, 295 of 338; German 0.2926 / 0.5154, 299 of 353; Italian 0.3680 / 0.6346, 298 of 346; Spanish 0.4475 / 0.6864, 285 of 324; Swedish 0.1912 / 0.4906, 276 of 345; Dutch 0.2974 / 0.5141, 299 of 339. Recall falls by 8 to 35 points against English in every other language, so the recognizers do worse on non-English text. The cause per type is not diagnosed here. Precision is low everywhere, which the corpus-label caveats above already explain. This was a one-off scratch run, not committed; the converter still reads `combined_test` only (`tools/corpusbench/convert/gretel.go`). Making it a repeatable target would mean a language parameter on the converter, which is a CLI change and is not done.
 - [ ] **Corpus results as a CI gate.** Blocked by design: the corpora and their
       converted output are gitignored, so CI cannot see them. The committed gate
       remains the seed set.
-- [ ] **An end-to-end anonymize check over corpus cases.** Would require
-      resolving gold overlaps first, and `Anonymize` rejects overlapping
-      entities by contract (SPEC.md §Operators).
+- [x] **An end-to-end anonymize check over corpus cases. Done 2026-10-14, narrow reading.** `cmd/corpusanon` (`make corpus-anonymize`) runs `Scrubber.Anonymize` over every converted case in both corpora and fails on the first error or invalid UTF-8 output. It does not compare the output with the gold spans, so it does not need overlaps resolved first. Result: 2000 + 2000 cases, no errors, all output valid UTF-8. It is a developer target, not CI, because the corpora are gitignored.
 
 ## Docs bundle follow-ups
 
@@ -506,7 +494,11 @@ Recorded here so a later reader does not re-raise these as gaps.
   (`make download`, commit 3541169) but carries no docs-sync target, so the
   detector would still never execute; the removal stands.
 - [ ] **Re-syncing is now a manual obligation.** When `SPEC.md`, `README.md` or
-      `AGENTS.md` changes, re-copy the body into the matching `docs/` file and
-      re-run `doc_write`. Re-apply all four link rewrites above when syncing
-      `docs/concepts/piiscrub-usage.md`, or its links dangle again. Nothing
-      enforces this, which is the accepted cost of keeping the copies.
+      `AGENTS.md` changes, re-copy the body into the matching `docs/` file. Keep
+      the file's frontmatter, and re-apply the four link rewrites when syncing
+      `docs/concepts/piiscrub-usage.md`, or its links dangle again. **Synced
+      2026-10-14:** all three bodies, the four rewrites, the two stale seed
+      counts in the frontmatter and `docs/index.md`, and a `docs/log.md` entry.
+      The `doc_write` tool named in earlier notes is not in this repo or this
+      session, so the copy was done by hand. Nothing enforces the sync, which
+      is the accepted cost of keeping the copies.

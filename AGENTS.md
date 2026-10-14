@@ -16,7 +16,7 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 
 - `analyzer/` — orchestrates recognizers, returns detected entities
 - `recognizers/regex/` — regex-based PII detection (email, phone, credit card, SSN, IP, URL, IBAN, bitcoin)
-- `recognizers/checksum/` — checksum validation (Luhn for credit cards, mod-97 for IBAN)
+- `recognizers/checksum/` — checksum validation (Luhn for credit cards, mod-97 for IBAN, Base58Check and bech32/bech32m for bitcoin addresses; the regex BITCOIN recognizer calls the bitcoin validator)
 - `anonymizer/` — orchestrates operators, transforms detected entities
 - `operators/` — anonymization operators (replace, mask, hash, redact)
 - `structured/` — batch processing for CSV/JSON
