@@ -414,13 +414,36 @@ SPEC.md § "Corpus measurement (2026-10-09)"; reproduce with `make corpus`.
       nemotron PHONE false positives, 408 sit on spans the corpus labels as
       ID fields: `biometric_identifier` 117, `customer_id` 83,
       `account_number` 79, `medical_record_number` 76,
-      `health_plan_beneficiary_number` 34, and smaller counts. Likely cause:
-      the bare 10-digit branch of the phone pattern matches any 10-digit run.
-      Not yet confirmed by hand. CREDIT_CARD has a similar pattern: 18 FPs,
-      9 `device_identifier` and 9 `account_number`. Next step: hand-check a
-      sample of the phone FPs, then decide whether the phone branch needs
-      context or a stronger shape rule. This is a detector fix, not a scope
-      question.
+      `health_plan_beneficiary_number` 34, and smaller counts. Checked
+      2026-10-14 by a scratch scan of all 2000 nemotron cases (not the hand
+      check of individual spans): 975 PHONE predictions, 419 false positives
+      (matches the count above). Of the 419: 406 sit on ID-type labels
+      (`account_number`, `biometric_identifier`, `customer_id`,
+      `medical_record_number`, `health_plan_beneficiary_number`,
+      `certificate_license_number`, `unique_id`, `http_cookie`), 2 on
+      `coordinate` or `street_address`, and 11 on no label. 377 are exactly
+      10 digits with no separators; 42 are longer runs (10–11 digits with
+      separators or a leading 1). **Cause, confirmed in code:** the bare
+      branch of `NewPhoneRecognizer` (`recognizers/regex/regex.go`)
+      `\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}\b` matches any
+      10-digit run. It has no keyword or context check and reports at 0.98.
+      The golden seed has no bare 10-digit PHONE positive (checked), so the
+      seed does not measure this branch.
+      **Proposed fix (not applied; Flow Context):**
+      *How it currently works:* every 10-digit run (with or without separators)
+      that is not inside a longer run is reported as PHONE at 0.98.
+      *Where it breaks:* ID numbers that are 10 digits are reported as PHONE
+      at 0.98. The scan output (419 spans) shows they reach `Analyze`.
+      *Proposed fix:* gate the bare branch on a phone keyword within a short
+      window (`phone`, `tel`, `mobile`, `cell`, `call`, `contact`), the same
+      way passports are gated. Alternatives: require separators on the bare
+      branch (keeps `555-123-4567`, drops `5551234567`), or drop the bare
+      branch. Recommendation: the keyword gate, because the separator-only
+      option still reports an unseparated phone in a sentence and the seed
+      has no evidence either way. Verify: re-run the golden gate (add
+      bare-with-keyword and bare-without-keyword cases first) and
+      `make corpus`. CREDIT_CARD has a similar pattern (18 FPs: 9
+      `device_identifier`, 9 `account_number`); not changed in this pass.
 - [x] **SSN residual false positives are a label-scope decision, not a regex defect. Decided 2026-10-09: (a), keep as FPs, shown in the headline.**
 - [x] **`credit_debit_card` stays in NemotronLabels. Decided 2026-10-09: (c), no removal.** The label keeps the 18 CREDIT_CARD false positives on `device_identifier` and `account_number` counted against precision. Removing the label would hide them, so it was rejected.
       Hand-checked by bucket over the same 2000-row samples `make corpus` scores
