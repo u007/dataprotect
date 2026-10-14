@@ -36,6 +36,10 @@ func WithMinConfidence(confidence float64) Option {
 // type appear in the surrounding text (e.g. the word "email" next to an address).
 // It is off by default because boosting changes overlap-resolution outcomes, so
 // it is an explicit opt-in rather than a silent behaviour change.
+//
+// Caution: on nemotron a boosted IP or card inside a URL can outrank the URL on
+// overlap, so the URL is lost and its path stays visible. Keep boosting off for
+// URL-bearing text until that policy is decided (see TODO.md).
 func WithContextBoost() Option {
 	return func(a *Analyzer) {
 		a.contextBoost = true
