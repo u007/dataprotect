@@ -68,7 +68,7 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 - No external dependencies in MVP (stdlib only) — **this applies to the root
   module**. `tools/corpusbench` is a separate Go module with its own `go.mod`
   that holds the Parquet reader (parquet-go); it imports the root module through
-  `replace dataprotect => ../..`, never the other way round. The root module's
+  `replace github.com/u007/dataprotect => ../..`, never the other way round. The root module's
   `go.mod` must never gain a `require` block.
 - Deterministic output — same input always produces same output
 - Conversion and other corpus tools fail fast: a record that cannot be read is

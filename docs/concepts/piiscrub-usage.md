@@ -40,7 +40,7 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 ## Installation
 
 ```bash
-go get dataprotect
+go get github.com/u007/dataprotect
 ```
 
 ## Quick Start
@@ -53,12 +53,12 @@ import (
     "fmt"
     "log"
 
-    "dataprotect/analyzer"
-    "dataprotect/anonymizer"
-    "dataprotect/operators"
-    "dataprotect/recognizers"
-    "dataprotect/recognizers/checksum"
-    "dataprotect/recognizers/regex"
+    "github.com/u007/dataprotect/analyzer"
+    "github.com/u007/dataprotect/anonymizer"
+    "github.com/u007/dataprotect/operators"
+    "github.com/u007/dataprotect/recognizers"
+    "github.com/u007/dataprotect/recognizers/checksum"
+    "github.com/u007/dataprotect/recognizers/regex"
 )
 
 func main() {
@@ -98,7 +98,7 @@ import (
 	"context"
 	"fmt"
 
-	"dataprotect"
+	"github.com/u007/dataprotect"
 )
 
 func main() {

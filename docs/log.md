@@ -4,6 +4,12 @@
 
 
 
+## 2026-10-15
+
+* **Update**: piiscrub v1 Spec — Scope, Architecture & Non-Goals ([decisions/spec-v1.md](/decisions/spec-v1.md))
+* **Update**: piiscrub — Usage & Quick Start ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md))
+* **Update**: piiscrub — Development Conventions & Confidence Semantics ([concepts/development-conventions.md](/concepts/development-conventions.md))
+
 ## 2026-10-14
 
 * **Update**: piiscrub v1 Spec — Scope, Architecture & Non-Goals ([decisions/spec-v1.md](/decisions/spec-v1.md))

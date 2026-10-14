@@ -343,9 +343,7 @@ them as gaps.
 
 - [ ] FPE library evaluation (capitalone/fpe vs alternatives)
 - [ ] go-face model bundling strategy (download on first use vs bundle)
-- [ ] Module path is `dataprotect`, which is not a valid import path for
-      third-party consumers (`go get dataprotect` cannot resolve it). Rename to a
-      domain-qualified path before publishing.
+- [x] **Module path renamed to `github.com/u007/dataprotect`. Done 2026-10-15.** The bare `dataprotect` path could not be imported by consumers. Every Go import, the root `go.mod`, the corpusbench tool module (`github.com/u007/dataprotect/tools/corpusbench`, with `replace github.com/u007/dataprotect => ../..`), `scripts/benchmark.sh` and the README and usage examples now use the new path. Verified: `go test ./...` and `make test-tools` pass. The dated `docs/superpowers/` specs and plans keep the old name; they are historical records and are not edited.
 - [x] **LICENSE: MIT.** `LICENSE` exists with `Copyright (c) 2026 Mercstudio`.
       Chosen over Apache-2.0 because the module has zero dependencies, so
       Apache's patent grant buys less here, and MIT is the most common licence in
