@@ -196,6 +196,43 @@ func TestAnonymizeRejectsOutOfBoundsSpan(t *testing.T) {
 	}
 }
 
+// TestAnonymizeRejectsSpanInsideRune pins the rune-boundary guard. A span whose
+// start or end lands inside a multi-byte rune would splice invalid UTF-8 whatever
+// the operator does, so it must fail before any splice. A span that lands on rune
+// edges is still accepted.
+func TestAnonymizeRejectsSpanInsideRune(t *testing.T) {
+	a := New(WithDefaultOperator(operators.NewReplaceOperator("<X>")))
+
+	// "€" is three bytes (offsets 1..4): start 2 is inside it.
+	_, err := a.Anonymize(context.Background(), "a€b", []recognizers.Entity{
+		{Type: recognizers.EntityType("T"), Start: 2, End: 4, Text: "\x82\xac", Confidence: 0.99},
+	})
+	if err == nil {
+		t.Fatal("expected an error for a span starting inside a rune, got nil")
+	}
+	if !strings.Contains(err.Error(), "rune boundary") {
+		t.Errorf("error %q does not explain the rune-boundary span", err)
+	}
+
+	// End 3 is inside "€" as well.
+	_, err = a.Anonymize(context.Background(), "a€b", []recognizers.Entity{
+		{Type: recognizers.EntityType("T"), Start: 1, End: 3, Text: "\xe2\x82", Confidence: 0.99},
+	})
+	if err == nil {
+		t.Fatal("expected an error for a span ending inside a rune, got nil")
+	}
+
+	out, err := a.Anonymize(context.Background(), "a€b", []recognizers.Entity{
+		{Type: recognizers.EntityType("T"), Start: 1, End: 4, Text: "€", Confidence: 0.99},
+	})
+	if err != nil {
+		t.Fatalf("span on rune edges rejected: %v", err)
+	}
+	if out != "a<X>b" {
+		t.Errorf("got %q, want %q", out, "a<X>b")
+	}
+}
+
 // TestAnonymizeRejectsOverlappingSpans pins the overlap guard. Overlapping spans
 // cannot be spliced independently — replacing the rightward one leaves the
 // leftward one's offsets stale — and before this guard the result was silently

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"unicode/utf8"
 
 	"dataprotect/operators"
 	"dataprotect/recognizers"
@@ -58,8 +59,8 @@ func (a *Anonymizer) SetOperator(entityType recognizers.EntityType, op operators
 // guarantees this, and both are validated. Overlapping spans are rejected with
 // an error because they cannot be spliced independently — replacing one leaves
 // the other's offsets stale — and a silently corrupt document in a PII scrubber
-// is worse than a failure. A span out of bounds for the working string also
-// returns an error. On any error the returned string is empty: a partially
+// is worse than a failure. A span out of bounds for the text, or whose start or
+// end falls inside a multi-byte UTF-8 rune, also returns an error. On any error the returned string is empty: a partially
 // spliced document would be worse than none, so a caller can never mistake a
 // failure for a usable result.
 //
@@ -79,6 +80,20 @@ func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []reco
 		}
 		return ordered[i].End > ordered[j].End
 	})
+
+	// Check every span against the original text before splicing anything. A
+	// span that starts or ends inside a multi-byte rune would splice invalid
+	// UTF-8 whatever the operator does, so it is rejected here.
+	for _, e := range ordered {
+		if e.Start < 0 || e.End > len(text) || e.Start > e.End {
+			return "", fmt.Errorf("entity %s span [%d:%d] out of bounds for length %d",
+				e.Type, e.Start, e.End, len(text))
+		}
+		if !isRuneBoundary(text, e.Start) || !isRuneBoundary(text, e.End) {
+			return "", fmt.Errorf("entity %s span [%d:%d] is not on a UTF-8 rune boundary",
+				e.Type, e.Start, e.End)
+		}
+	}
 
 	// Reject overlaps before splicing anything. In this descending order the
 	// next entity starts at or before the previous one, so it overlaps iff it
@@ -107,15 +122,16 @@ func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []reco
 		if err != nil {
 			return "", fmt.Errorf("operator %q on %s: %w", op.Name(), e.Type, err)
 		}
-		if e.Start < 0 || e.End > len(result) || e.Start > e.End {
-			// A span outside the working string cannot be applied safely.
-			return "", fmt.Errorf("operator %q: entity %s span [%d:%d] out of bounds for length %d",
-				op.Name(), e.Type, e.Start, e.End, len(result))
-		}
 		result = result[:e.Start] + replacement + result[e.End:]
 	}
 
 	return result, nil
+}
+
+// isRuneBoundary reports whether byte offset i of s falls between two runes.
+// Offsets 0 and len(s) are always boundaries. The caller guarantees 0 <= i <= len(s).
+func isRuneBoundary(s string, i int) bool {
+	return i == 0 || i == len(s) || utf8.RuneStart(s[i])
 }
 
 // operatorFor returns the operator configured for an entity type, or the

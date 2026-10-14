@@ -19,15 +19,6 @@
       the whole string matches. Left UNASSERTED in `TestPhoneRecognizer`: it is
       not clearly a false positive, and pinning it would be deciding a policy
       nobody has. Revisit if a seed case makes it matter.
-- [ ] **`Anonymizer.Anonymize` does not validate rune boundaries.** Its bounds
-      check is byte-based (`e.Start`/`e.End` within `len(result)`), so an entity
-      whose offsets fall INSIDE a multi-byte rune would splice at a non-rune
-      boundary and yield invalid UTF-8 — whatever the operator does. Unreachable
-      today: every recognizer matches ASCII, so spans land on rune boundaries and
-      the `Analyzer` only returns such spans. Recorded because the rune-aware
-      `MaskOperator` (Fixed below) makes it tempting to assume the whole pipeline
-      is rune-safe. A guard would reject a span whose start or end is not a UTF-8
-      boundary.
 - [x] **Overlap resolution property coverage — CLOSED.** `analyzer/overlap_test.go`
       exercises real recognizers over card-vs-phone, IBAN-vs-digit-patterns,
       bare-digits-vs-card and same-span collapse, and the `\b` regression is
@@ -153,6 +144,14 @@ them as gaps.
 
 ## Fixed (kept as regression notes)
 
+- [x] **`Anonymizer.Anonymize` did not validate rune boundaries. Fixed.** The bounds
+      check ran per splice against the shrinking working string. Now every span is
+      checked against the original text before any splice: out of bounds, or a start or
+      end inside a multi-byte UTF-8 rune, is an error naming the type and span, and
+      the result is empty (fail closed, as in the operator-default change). Tests:
+      `TestAnonymizeRejectsSpanInsideRune` (inside-rune start and end are rejected;
+      an entity on rune edges is still accepted); `TestAnonymizeRejectsOutOfBoundsSpan`
+      still passes. Contract in SPEC.md §Anonymizer.
 - [x] **Scorer counted detections on unlabelled spans as wrong, with no way to tell.** Fixed: the converter keeps the spans a corpus labels outside our type map (`Case.Unlabelled`, byte offsets, validated like labels). The scorer sets aside a false positive that lands on one and touches no mapped gold, and reports it as a bucket by "TYPE on source label". The headline is unchanged. Precedence: a true positive; any touch of mapped gold stays FP; an unlabelled span goes to the bucket; anything else is FP. Both matching policies use the same rule. The upper-bound precision is labelled as a bound, not accuracy. A corpus schema without `unlabelled_recorded` is refused, so a stale dataset can't report an empty bucket. Tests: `golden/unlabelled_test.go` (6 cases, including the precedence and stale-schema refusal, and a mutation that drops the touches-gold check fails two of them); `TestBuildUnlabelledKeepsOnlyUnmappedSpansInBytes` covers the multibyte byte-offset case. Evidence: `make corpus` re-run; headline numbers identical to before.
 - [x] **URL regex kept a trailing sentence period.** Fixed in
       `recognizers/regex/regex.go`. `trimURL` drops trailing `.,;:!?*'` and

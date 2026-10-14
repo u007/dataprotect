@@ -186,9 +186,10 @@ func (a *Anonymizer) SetOperator(entityType recognizers.EntityType, op operators
 func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []recognizers.Entity) (string, error)
 ```
 
-`Anonymize` requires non-overlapping, in-bounds entities. An overlapping or
-out-of-bounds span is rejected with an error, and on any error the returned
-string is empty — never a partially spliced document. The `Analyzer` already
+`Anonymize` requires non-overlapping, in-bounds entities whose start and end fall
+on UTF-8 rune boundaries. An overlapping, out-of-bounds, or mid-rune span is
+rejected with an error, and on any error the returned string is empty — never a
+partially spliced document. The `Analyzer` already
 resolves overlaps before returning, so the normal pipeline never triggers this;
 the check guards direct callers.
 
