@@ -52,6 +52,12 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
   and eight digits, matched only next to a passport keyword). Singapore passports
   (E or K, seven digits, one letter, same keyword gate; shape not confirmed by PRADO).
   Thailand passports and the M prefix are not covered yet; see TODO.md.
+  Thailand passports stay uncovered by decision (2026-10-15): the only sourced shape
+  is the expired 2012 booklet's, which overlaps Japan's. National IDs need a word
+  boundary before them, so an ID glued to a letter is not redacted (for example
+  `ID3100600445635` or `xS1234567D`). The exception is an SG NRIC glued directly to
+  its label (`NRICS1234567D`), which is found. This is documented scope (decided
+  2026-10-15): a looser boundary would also redact order and reference numbers.
 - **Operators** — replace, mask, hash, redact
 - **Context-aware confidence boosting** — opt-in via `analyzer.WithContextBoost()`, applied
   before the confidence filter and before overlap resolution. Measured: no change on the
