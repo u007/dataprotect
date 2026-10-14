@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"dataprotect/recognizers"
-	"dataprotect/recognizers/regex"
+	"github.com/u007/dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers/regex"
 )
 
 // Property tests for the invariants Analyzer.Analyze must hold for ANY input and

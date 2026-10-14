@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"dataprotect/recognizers"
-	"dataprotect/recognizers/checksum"
+	"github.com/u007/dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers/checksum"
 )
 
 // EmailRecognizer detects email addresses.

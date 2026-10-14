@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // sp/ep build the pointers an offset label carries. Label.Start/End are *int so

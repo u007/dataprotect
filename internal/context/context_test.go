@@ -3,7 +3,7 @@ package context
 import (
 	"testing"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 func TestBoostConfidence(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	piiscrub "dataprotect"
-	"dataprotect/golden"
+	piiscrub "github.com/u007/dataprotect"
+	"github.com/u007/dataprotect/golden"
 )
 
 // datasetDir is the checked-in hand-labelled seed set. It is relative to this

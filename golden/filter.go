@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // Option configures Score. Options are additive and leave the default behaviour

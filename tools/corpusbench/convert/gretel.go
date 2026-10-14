@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"dataprotect/golden"
+	"github.com/u007/dataprotect/golden"
 )
 
 // gretelSpan is the decoded shape of one pii_spans element. Fields are pointers

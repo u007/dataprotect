@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // stubRecognizer returns a fixed entity list, for wiring tests.

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 var errFakePredictor = errors.New("detector exploded")

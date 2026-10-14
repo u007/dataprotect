@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // writeSchemaFixture writes one case file plus a schema sidecar into a fresh

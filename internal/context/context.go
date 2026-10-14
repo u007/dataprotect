@@ -4,7 +4,7 @@ package context
 import (
 	"strings"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // BoostContext contains words that boost confidence when found near an entity.

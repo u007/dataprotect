@@ -11,9 +11,9 @@ import (
 	"sort"
 	"strings"
 
-	"dataprotect/golden"
-	"dataprotect/recognizers"
 	"github.com/parquet-go/parquet-go"
+	"github.com/u007/dataprotect/golden"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // casesPerFile is the chunk size for the emitted case sequence. A single file

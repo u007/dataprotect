@@ -5,8 +5,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"dataprotect/golden"
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/golden"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // The gretel worked example: "café 4111 1111 1111 1111" — é is two bytes, so

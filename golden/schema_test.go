@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // TestLoadSkipsSchemaSidecar is the regression that makes the reserved name

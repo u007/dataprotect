@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"strings"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // sgWeights are the NRIC check-digit weights for the seven digits.

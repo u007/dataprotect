@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // SchemaFilename is the reserved sidecar name carrying a dataset's label

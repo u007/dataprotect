@@ -17,8 +17,8 @@ import (
 	"os"
 	"unicode/utf8"
 
-	piiscrub "dataprotect"
-	"dataprotect/golden"
+	piiscrub "github.com/u007/dataprotect"
+	"github.com/u007/dataprotect/golden"
 )
 
 func main() {

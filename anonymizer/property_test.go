@@ -7,8 +7,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"dataprotect/operators"
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/operators"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // Property tests for Anonymizer.Anonymize.

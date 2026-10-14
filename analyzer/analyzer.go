@@ -6,8 +6,8 @@ import (
 	"math"
 	"sort"
 
-	ctxconf "dataprotect/internal/context"
-	"dataprotect/recognizers"
+	ctxconf "github.com/u007/dataprotect/internal/context"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // Analyzer orchestrates multiple recognizers to detect PII in text.

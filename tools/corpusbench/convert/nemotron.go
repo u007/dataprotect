@@ -1,7 +1,7 @@
 package convert
 
 import (
-	"dataprotect/golden"
+	"github.com/u007/dataprotect/golden"
 )
 
 // corpusNemotron is the directory name fetch-dataset.sh creates for this corpus

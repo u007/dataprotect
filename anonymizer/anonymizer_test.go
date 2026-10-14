@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"dataprotect/operators"
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/operators"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // span builds an entity for the first occurrence of value in text. Hand-counting

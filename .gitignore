@@ -78,6 +78,5 @@ Thumbs.db
 # and must be committed. It is authored here from synthetic example text, not
 # derived from any corpus, so it carries no third-party terms.
 
-# NOTE: `go get dataprotect` cannot resolve the bare module path. Rename the
-# module to a domain-qualified path (e.g. github.com/mercstudio/piiscrub) before
-# publishing — see TODO.md.
+# NOTE: the module path is github.com/u007/dataprotect (renamed 2026-10-15 from the
+# bare `dataprotect`, which consumers could not import). See TODO.md.

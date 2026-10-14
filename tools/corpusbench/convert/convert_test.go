@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"dataprotect/golden"
 	"github.com/parquet-go/parquet-go"
+	"github.com/u007/dataprotect/golden"
 )
 
 // writeProvenance mirrors what scripts/fetch-dataset.sh records. The converter

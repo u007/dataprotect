@@ -7,8 +7,8 @@ import (
 	"sort"
 	"unicode/utf8"
 
-	"dataprotect/operators"
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/operators"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // Anonymizer orchestrates operators to transform detected PII entities.

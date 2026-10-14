@@ -6,9 +6,9 @@ import (
 	"encoding/csv"
 	"io"
 
-	"dataprotect/analyzer"
-	"dataprotect/anonymizer"
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/analyzer"
+	"github.com/u007/dataprotect/anonymizer"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // BatchProcessor handles tabular data anonymization.

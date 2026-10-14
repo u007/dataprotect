@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"dataprotect/recognizers"
-	"dataprotect/recognizers/checksum"
-	"dataprotect/recognizers/regex"
+	"github.com/u007/dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers/checksum"
+	"github.com/u007/dataprotect/recognizers/regex"
 )
 
 // newRealAnalyzer wires the actual recognizers, so overlap resolution is

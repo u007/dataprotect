@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"dataprotect/analyzer"
-	"dataprotect/recognizers"
-	"dataprotect/recognizers/checksum"
+	"github.com/u007/dataprotect/analyzer"
+	"github.com/u007/dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers/checksum"
 )
 
 func TestScrubberAnonymize(t *testing.T) {

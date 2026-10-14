@@ -36,7 +36,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // isRuneBoundary reports whether byte offset i begins a rune in s.

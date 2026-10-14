@@ -1,8 +1,8 @@
-module dataprotect/tools/corpusbench
+module github.com/u007/dataprotect/tools/corpusbench
 
 go 1.24.9
 
-require dataprotect v0.0.0
+require github.com/u007/dataprotect v0.0.0
 
 require github.com/parquet-go/parquet-go v0.32.0
 
@@ -18,4 +18,4 @@ require (
 	google.golang.org/protobuf v1.34.2 // indirect
 )
 
-replace dataprotect => ../..
+replace github.com/u007/dataprotect => ../..

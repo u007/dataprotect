@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // writeCorpus writes one case file, and a schema sidecar when recorded is not

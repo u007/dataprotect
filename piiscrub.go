@@ -4,13 +4,13 @@ package piiscrub
 import (
 	"context"
 
-	"dataprotect/analyzer"
-	"dataprotect/anonymizer"
-	"dataprotect/operators"
-	"dataprotect/recognizers"
-	"dataprotect/recognizers/checksum"
-	"dataprotect/recognizers/national"
-	"dataprotect/recognizers/regex"
+	"github.com/u007/dataprotect/analyzer"
+	"github.com/u007/dataprotect/anonymizer"
+	"github.com/u007/dataprotect/operators"
+	"github.com/u007/dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers/checksum"
+	"github.com/u007/dataprotect/recognizers/national"
+	"github.com/u007/dataprotect/recognizers/regex"
 )
 
 // Scrubber provides a high-level API for PII detection and anonymization.

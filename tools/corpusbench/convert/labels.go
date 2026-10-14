@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"dataprotect/golden"
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/golden"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // NemotronLabels maps nemotron's corpus labels onto the detector's entity

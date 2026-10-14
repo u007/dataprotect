@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // LuhnValidator validates credit card numbers using the Luhn algorithm.

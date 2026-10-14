@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"dataprotect/analyzer"
-	"dataprotect/golden"
+	"github.com/u007/dataprotect/analyzer"
+	"github.com/u007/dataprotect/golden"
 )
 
 // TestContextBoostIsNoWorseOnSeed scores the seed set twice, once with the

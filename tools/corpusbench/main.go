@@ -20,8 +20,8 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"dataprotect/golden"
-	"dataprotect/tools/corpusbench/convert"
+	"github.com/u007/dataprotect/golden"
+	"github.com/u007/dataprotect/tools/corpusbench/convert"
 )
 
 const usage = `usage: corpusbench convert <corpus> <data-root> <limit>

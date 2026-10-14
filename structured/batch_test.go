@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"dataprotect/analyzer"
-	"dataprotect/anonymizer"
-	"dataprotect/operators"
-	"dataprotect/recognizers"
-	"dataprotect/recognizers/regex"
+	"github.com/u007/dataprotect/analyzer"
+	"github.com/u007/dataprotect/anonymizer"
+	"github.com/u007/dataprotect/operators"
+	"github.com/u007/dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers/regex"
 )
 
 func newProcessor() *BatchProcessor {
