@@ -103,6 +103,7 @@
       "card numbers" a fair recall target for a Luhn-gated detector? If not, the
       conversion should either exclude those gold labels or the metric should
       report them separately.
+      **Conclusion (advisor 2026-10-14): keep the headline; no change.** A separate bucket for non-Luhn gold is optional later work, not a user question.
 - [ ] **Corpus-side label quality depresses measured precision.** gretel EMAIL
       reads P=0.3281, but spot-checking shows the corpus labels the local part
       (`user_name 90..96 = 'lowe73'`) rather than the full address, markdown
@@ -134,7 +135,7 @@ them as gaps.
 
 ## Fixed (kept as regression notes)
 
-- [x] **BITCOIN was shape-only: any base58 or bech32 string of the right shape was reported. Fixed 2026-10-14.** `recognizers/checksum/bitcoin.go` adds `BitcoinValidator`: Base58Check (double SHA-256, 25-byte payload) for `1`/`3` addresses, and bech32 (BIP-173, version 0) or bech32m (BIP-350, version 1 and later) for `bc1`, with the program-length rules. `regex.BitcoinRecognizer` reports a shape match only when its checksum verifies. The confidence stays 0.95, so overlap outcomes are unchanged. The shape also widens to 87 characters after `bc1`, so the taproot `bc1p` form is matched and checked by bech32m. Tests: `checksum/bitcoin_test.go` (BIP and wiki vectors, plus flipped-checksum negatives), `regex_test.go` (taproot), golden batch 8 (taproot and P2SH positives, two bad-checksum negatives). Golden gate: exact P=0.9811 (tp=52 fp=1), recall 1.0, 29 of 30 negatives clean; `minCases` 81. Corpora: `make corpus` headlines unchanged. gretel's 44 shape matches are now 21 validated; the 23 dropped are all BITCOIN and no new detection appeared (diffed over the seed and all 4000 corpus texts). **Trade-off, recorded:** a token that is not a valid address is no longer redacted, so a shape-only string that a document uses as an ID is visible. `piiscrub_test.go` `TestScrubberBitcoinSpanNotDisplacedByEmbeddedNRIC` was rewritten: the bad-checksum token `1Ab3CdEf5Gh7Jk9Mn2Pq4RsS1234567D` now yields no entity, and its tail `S1234567D` stays visible because a glued SG NRIC is only found after its label (see the national-ID entry). A valid address next to an NRIC is pinned by the new test.
+- [x] **BITCOIN was shape-only: any base58 or bech32 string of the right shape was reported. Fixed 2026-10-14.** `recognizers/checksum/bitcoin.go` adds `BitcoinValidator`: Base58Check (double SHA-256, 25-byte payload) for `1`/`3` addresses, and bech32 (BIP-173, version 0) or bech32m (BIP-350, version 1 and later) for `bc1`, with the program-length rules. `regex.BitcoinRecognizer` reports a shape match only when its checksum verifies. The confidence stays 0.95, so overlap outcomes are unchanged. The shape also widens to 87 characters after `bc1`, so the taproot `bc1p` form is matched and checked by bech32m. Tests: `checksum/bitcoin_test.go` (BIP and wiki vectors, plus flipped-checksum negatives), `regex_test.go` (taproot), golden batch 8 (taproot and P2SH positives, two bad-checksum negatives). Golden gate: exact P=0.9811 (tp=52 fp=1), recall 1.0, 29 of 30 negatives clean; `minCases` 81. Corpora: `make corpus` headlines unchanged. gretel's 44 shape matches are now 21 validated; the 23 dropped are all BITCOIN and no new detection appeared (diffed over the seed and all 4000 corpus texts). **Trade-off, recorded:** a token that is not a valid address is no longer redacted, so a shape-only string that a document uses as an ID is visible. `piiscrub_test.go` `TestScrubberBitcoinSpanNotDisplacedByEmbeddedNRIC` was rewritten: the bad-checksum token `1Ab3CdEf5Gh7Jk9Mn2Pq4RsS1234567D` now yields no entity, and its tail `S1234567D` stays visible because a glued SG NRIC is only found after its label (see the national-ID entry). A valid address next to an NRIC is pinned by the new test. **Review response (2026-10-14, advisor):** a background review flagged `regex.go` as fail-open. The gate stays: a real address always passes its checksum, so a failing shape match is not a usable address. **Disclosed:** `TestScrubberBitcoinSpanNotDisplacedByEmbeddedNRIC` was pinned by the 9594065 security review, and the rewrite changes what it asserts. The tail `S1234567D` of `1Ab3CdEf5Gh7Jk9Mn2Pq4RsS1234567D` is now visible, because a glued SG NRIC is found only after its label. That is the same open glued-ID question as Thai (see the national-ID entry). **Dropped-span check:** of the 23 gretel shape matches that no longer validate, 3 sit on spans the corpus labels with an out-of-map type (`street_address` 2, `api_key` 1), and 20 on no label. The 3 were already outside the headline, but the corpus does label them as PII, so their loss is real coverage loss. **Deviation:** `regex.NewBitcoinRecognizer` is now checksum-gated, so no shape-only bitcoin recognizer remains exported. Cards still have `regex.NewCreditCardRecognizer` as a shape-only option.
 - [x] **`Anonymizer.Anonymize` did not validate rune boundaries. Fixed.** The bounds
       check ran per splice against the shrinking working string. Now every span is
       checked against the original text before any splice: out of bounds, or a start or
@@ -419,7 +420,8 @@ SPEC.md § "Corpus measurement (2026-10-09)"; reproduce with `make corpus`.
       10-digit run. It has no keyword or context check and reports at 0.98.
       The golden seed has no bare 10-digit PHONE positive (checked), so the
       seed does not measure this branch.
-      **Proposed fix (not applied; Flow Context):**
+      **Recommendation changed 2026-10-14 (advisor): no change.** The 406 ID-type spans are PII in the corpus's own labels (account numbers, medical record numbers, customer IDs, biometric IDs). No other recognizer catches them: SSN needs separators and Luhn needs 13 to 19 digits. A keyword gate would leave about 406 such spans per 2000 nemotron records fully visible. The precision figure is a scope artefact (see the SSN entry, option c). The proposal below is withdrawn and kept for the record.
+      **Proposed fix (withdrawn):**
       *How it currently works:* every 10-digit run (with or without separators)
       that is not inside a longer run is reported as PHONE at 0.98.
       *Where it breaks:* ID numbers that are 10 digits are reported as PHONE
@@ -428,11 +430,7 @@ SPEC.md § "Corpus measurement (2026-10-09)"; reproduce with `make corpus`.
       window (`phone`, `tel`, `mobile`, `cell`, `call`, `contact`), the same
       way passports are gated. Alternatives: require separators on the bare
       branch (keeps `555-123-4567`, drops `5551234567`), or drop the bare
-      branch. Recommendation: the keyword gate, because the separator-only
-      option still reports an unseparated phone in a sentence and the seed
-      has no evidence either way. Verify: re-run the golden gate (add
-      bare-with-keyword and bare-without-keyword cases first) and
-      `make corpus`. CREDIT_CARD has a similar pattern (18 FPs: 9
+      branch. Withdrawn as above; if a keyword gate is ever wanted, it needs a labelled policy decision first, and the golden gate would need bare-with-keyword and bare-without-keyword cases. CREDIT_CARD has a similar pattern (18 FPs: 9
       `device_identifier`, 9 `account_number`); not changed in this pass.
 - [x] **SSN residual false positives are a label-scope decision, not a regex defect. Decided 2026-10-09: (a), keep as FPs, shown in the headline.**
 - [x] **`credit_debit_card` stays in NemotronLabels. Decided 2026-10-09: (c), no removal.** The label keeps the 18 CREDIT_CARD false positives on `device_identifier` and `account_number` counted against precision. Removing the label would hide them, so it was rejected.
