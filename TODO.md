@@ -15,7 +15,7 @@ A background security review of commit `ff3c08b` reported two findings in `recog
   - **Cost, accepted:** the merge can widen a card span by a neighbouring group when a chance-passing window overlaps it. The seed case `pos-card-then-year` now reports `4111 1111 1111 1111 2024`. Exact precision and recall on the seed moved to 60/62 and 60/61. Overlap recall stays 1.0. Gate bounds were re-measured and recorded in `golden/accuracy_test.go`. This is a decision: an extra redaction is preferred to a visible card. Reverting the merge restores exact 1.0 but reintroduces the bypass.
   - **Cost, measured:** nemotron exact false positives 471 to 475, all card windows on account-number spans the corpus labels as unlabelled. Gretel unchanged. Presidio card module exact tp 14, fp 2, fn 2 (overlap 15, 1, 1), because a merged span covers two adjacent gold cards.
 - Residuals from the fix are unchanged: a dash-joined CVV (`4111111111111111-123`) and a spaced IBAN followed by two or more uppercase blocks.
-- **Decision needed:** keep the merge (current), or restore exact spans and accept the bypass. The user has not decided. Recorded in SPEC.md, so the choice is visible.
+- **Decided 2026-10-15 (user): keep the merge.** Restoring exact spans would reintroduce the bypass above. Recorded in SPEC.md.
 
 ## Presidio test cases: open findings (2026-10-15)
 
