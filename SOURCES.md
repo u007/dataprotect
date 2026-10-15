@@ -5,7 +5,7 @@ how to get the current version again, and what was checked, when, and with what
 result. Licence terms are in [DATASET_LICENSES.md](DATASET_LICENSES.md); this
 file is about provenance and refresh.
 
-**Last full review: 2026-10-12.** Update the "Checked" column whenever a source
+**Last full review: 2026-10-15.** Update the "Checked" column whenever a source
 is re-read, and add a row rather than overwriting an old result when a finding
 changes.
 
@@ -16,7 +16,7 @@ changes.
 | Corpus revisions and provenance | `scripts/fetch-dataset.sh list` shows the pinned revision per corpus. `fetch <name>` writes `PROVENANCE.txt` beside the data. |
 | Re-score the corpora | `make corpus` (about 6 seconds, needs the fetched data). |
 | Re-score the golden seed | `scripts/benchmark.sh` |
-| Read PRADO record pages | Open the page with `htrcli tabs new` on the `/prado/NL/` or `/prado/fr/` path first. The `EN` and lowercase paths were blank in htrcli Chrome on 2026-10-14. Leave the tab open. Do not navigate a tab the user has open. PRADO returns 403 to `WebFetch`. |
+| Read PRADO record pages | Use this URL template, which worked for every Thai and Singapore record read: `https://www.consilium.europa.eu/prado/NL/<CODE>/index.html`. Use the `www` host, uppercase `NL`, uppercase code, and the `/index.html` suffix. The `prado.consilium.europa.eu` host redirects to the PRADO home page, and lowercase paths or paths without `index.html` return 404. The `EN` path was blank in htrcli Chrome on 2026-10-14. A Cloudflare "Just a moment..." challenge clears on its own in about 10 to 15 seconds. Do not interact with it, and do not bypass it. Open the page in a tab you opened with `htrcli tabs new` (or in the tab you already own), and leave it open. Do not navigate a tab the user has open. PRADO returns 403 to `WebFetch`. |
 | Read a page without a browser | `WebFetch` works for Wikipedia and python-stdnum. It does not work for PRADO. |
 
 Pins are commit SHAs (corpora) or dated page reads (web sources). Pin a new
@@ -24,6 +24,54 @@ revision only after re-running `make corpus` and recording the change in
 SPEC.md.
 
 ## Datasets
+
+### Final set (decided 2026-10-15)
+
+Use this block before looking for any dataset. Nothing else is fetched or measured.
+
+**Measured (the only corpora behind published numbers):**
+
+| Corpus | Pinned revision | Input file (split) | Source rows | Converted | Local path |
+|--------|-----------------|--------------------|-------------|-----------|------------|
+| `nemotron-pii` (nvidia/Nemotron-PII, CC-BY-4.0) | `b70ffaf5ff39e079776134c5bf4381f00a9fd1ed` | `nemotron-pii/data/test-00000-of-00001.parquet` (test split), sha256 `1a4b0512ecb5370f0992d29d0f9c07351e6de13f0d7ea33bb18cecb984780247` | 100000 | first 2000 rows, file order | `testdata/external/nemotron-pii/` |
+| `gretel-pii-finance` (gretelai/synthetic_pii_finance_multilingual, Apache-2.0 + NOTICE) | `7b844d16738527a04264f50214cb426a4cea0897` | `gretel-pii-finance/data/combined_test-00000-of-00001.parquet` (combined_test split only), sha256 `3cd956d9955170af36ddf48a81b35d87141c306ee208f842ce62c9c3a150c0eb` | 5596 | first 2000 rows, file order | `testdata/external/gretel-pii-finance/` |
+
+Each local directory holds `PROVENANCE.txt` (repo, revision, fetch time, licence),
+`converted/` (`cases-*.json` plus `schema.json`, with the input's SHA-256 and the
+row bound), and the raw `data/`. The converter reads only the splits named above.
+Gretel's other language splits and nemotron's other splits are not read, so every
+figure is for that split only.
+
+Reproduce:
+
+```
+scripts/fetch-dataset.sh list                 # pinned revisions
+scripts/fetch-dataset.sh fetch nemotron-pii   # or: make download (fetches the commercially usable corpora)
+scripts/fetch-dataset.sh fetch gretel-pii-finance
+make corpus                                   # converts (LIMIT=2000 default; LIMIT=0 means every row) and scores
+make corpus-anonymize                         # Anonymize contract over all converted cases
+```
+
+**Authored in this repository:** `testdata/golden/seed.json`, 81 cases (51 positive,
+30 negative), written from synthetic text. It is the CI gate, and it carries no
+third-party terms (see DATASET_LICENSES.md, "Provenance").
+
+**Every other candidate: status, reason, and the trigger for looking again.** Re-search
+for a candidate only when its trigger fires.
+
+| Candidate | Status | Reason | Re-search trigger |
+|-----------|--------|--------|-------------------|
+| CoNLL-2003 (`eriktks/conll2003`) | Not fetched | Reuters RCV1 derived, restricted, evaluation only | Only if evaluation-only use is approved |
+| ai4privacy `pii-masking-43k` | Not fetched | Custom dual-tier licence, staff-count limit | Only if the organisation's licence changes |
+| PIIBench (`Pritesh-2711/pii-bench`) | Not fetched | Declared apache-2.0, but constituents govern (includes CoNLL-2003 and ai4privacy) | Only after an audit of its ten constituents |
+| ai4privacy `openpii-1m` | Not fetched | Licence tag and declared name disagree; the LICENCE file has not been read | Before any use: read the LICENCE file |
+| OpenNER 1.0 | Not fetched or used | CC-BY compilation over constituents with their own licences. Repository loads (2026-10-14) | v2 benchmark suite starts (TODO, benchmark suite) |
+| Microsoft Presidio and presidio-research | Not a corpus; not fetched | Both are MIT licensed (README and project page, 2026-10-15). Presidio ships recognizers and anonymizers, not a dataset. presidio-research's README names CoNLL-2003 (no licence stated), a synthetic generator (no licence stated), and Fake Name Generator identities (CC BY-SA 3.0 US). Its README lists no complete dataset set | v2 benchmark suite starts |
+| Kaggle PII Detection | Not located; not fetched | Per-competition terms | v2 benchmark suite starts |
+| Financial PII (Mendeley) | Not located; no URL recorded | Named in SPEC.md by source only | v2 benchmark suite starts |
+| SecretBench | Not located; no URL recorded | Named in SPEC.md; no licence recorded | v2 benchmark suite starts |
+| secrets-patterns-db | Not located; no URL recorded | Named in SPEC.md (v2+ list); absent from this file until 2026-10-15 | v2 benchmark suite starts |
+| CoNLL 2025 NER | Open question | SPEC.md (v2+ list) names it; the registry pins `conll2003` instead | Decide which the v2 suite uses |
 
 ### Fetched and scored
 
@@ -48,7 +96,7 @@ numbers.
 
 | Name | Source | Status |
 |------|--------|--------|
-| OpenNER 1.0 | Named in DATASET_LICENSES.md. Repository: https://github.com/bltlab/open-ner (loads, 2026-10-14). | Not fetched or used. Listed for licence review only. | Not used in any measurement. | 2026-10-14 |
+| OpenNER 1.0 | Repository: https://github.com/bltlab/open-ner (loads, 2026-10-14). Named in DATASET_LICENSES.md. | Not fetched or used. Listed for licence review only. |
 | Kaggle PII Detection | Kaggle competition | Per-competition terms. Not fetched. |
 | Financial PII (Mendeley) | Named in SPEC.md | Unverified. No URL recorded. |
 | SecretBench | Named in SPEC.md | Unverified. No URL recorded. |
@@ -89,16 +137,19 @@ Each rule's source is listed with what it supports and what it does not.
 | Rule | Source | Supports | Does not support | Checked |
 |------|--------|----------|------------------|---------|
 | Citizen ID check digit (mod-11) | python-stdnum, Thai PIN: https://arthurdejong.org/python-stdnum/doc/stdnum.th.pin and source https://arthurdejong.org/git/python-stdnum/tree/stdnum/th/pin.py | Check digit and the `3100600445635` doctest. | Not an official government document. | 2026-10-09 |
-| Citizen ID shape | Same as above. Vendor docs: https://docs.frankieone.com/docs/tha-national-id | Thirteen digits, hyphenated 1-4-5-2-1. | Glued-ID scope (a product decision). | 2026-10-09 |
+| Citizen ID shape | Same as above. Vendor docs: https://docs.frankieone.com/docs/tha-national-id | Thirteen digits, hyphenated 1-4-5-2-1. | Glued IDs are documented scope (decided 2026-10-15, see SPEC.md national ID bullet). | 2026-10-09 |
 | Passport number format | None found. | Nothing. | Everything. Thailand passports are not covered. | See below. |
 | Passport data-page label | Wikipedia (Thai passport): https://en.wikipedia.org/wiki/Thai_passport | Thai label `หนังสือเดินทางเลขที่` for the number field. A keyword candidate only. | Format. | 2026-10-10 |
 | PRADO `THA-AO-06001` (2020, current) | https://www.consilium.europa.eu/prado/NL/THA-AO-06001/index.html and the `fr` path | Booklet details. The NL and fr pages both have "Numbering" as a security-feature label with no composition. "serienummer" is a print method. | Number format. | 2026-10-14 (htrcli, NL and fr). The EN path read on 2026-10-12 showed the same label. |
 | PRADO `THA-AO-02002` (2012, superseded) | https://www.consilium.europa.eu/prado/NL/THA-AO-02002/index.html | Two Numbering entries that disagree on digit count: `Samenstelling: AANNNNNNN` (data page, top-right corner, 7 digits) and `Samenstelling: AAN NNNNNNN` (serial on page 3, 8 digits, "serienummer" print method). Maximum validity 5 years; first issued 23/11/2012. | Current passport. Only the 2012 booklet. | 2026-10-14 (htrcli, NL) |
 | Microsoft Purview, Japan passport number: https://learn.microsoft.com/en-us/purview/sit-defn-japan-passport-number | Two letters then seven digits, keyword-gated. | Japanese passports. | Same shape as the 2012 Thai booklet (`AANNNNNNN`). A two-letter, seven-digit rule would match Japanese passports too. | 2026-10-14 |
-| PRADO `THA-AS-06001`, `THA-AD-06001`, `THA-AP-06001` | Same PRADO site | Official, diplomatic and emergency booklets. | Not read. | Open. |
+| PRADO `THA-AS-06001` (official, 2020) | https://www.consilium.europa.eu/prado/NL/THA-AS-06001/index.html | "Nummering" appears only as a security-feature label (laser engraving, letterpress, laser perforation). No `Samenstelling` composition. | Number format. | 2026-10-15 (htrcli, NL) |
+| PRADO `THA-AD-06001` (diplomatic, 2020) | https://www.consilium.europa.eu/prado/NL/THA-AD-06001/index.html | Titled DIPLOMATIC PASSPORT. "Nummering" appears as a label only. No `Samenstelling` composition. | Number format. | 2026-10-15 (htrcli, NL) |
+| PRADO `THA-AP-06001` (emergency, 2020) | https://www.consilium.europa.eu/prado/NL/THA-AP-06001/index.html | Titled EMERGENCY PASSPORT. "Nummering" appears as a label only. No `Samenstelling` composition. | Number format. | 2026-10-15 (htrcli, NL) |
+| Thai PRADO records: coverage | Official, ordinary, diplomatic and emergency 2020 booklets (`AS`, `AO`, `AD`, `AP`) | All four 2020 variants have been read. None gives a number format. The 2012 booklet (`THA-AO-02002`) is the only one with a composition, and it is superseded. | Format. | 2026-10-15 |
 | HL7 passport namespace | https://build.fhir.org/ig/HL7/UTG/en/NamingSystem-passportNumNS-THA.xml.html | Namespace exists. | No format. | 2026-10-10 |
-| Thai MFA e-passport page: https://mfa.go.th/en/page/electronic-passport?menu=5e2013adaff2fd00c8267234 | Biometric features. | No number format. Only the citizen ID's 13 digits. | 2026-10-14 |
-| US State Department, Thailand: https://travel.state.gov/content/travel/en/us-visas/Visa-Reciprocity-and-Civil-Documents-by-Country/Thailand.html | Civil documents overview. | No number format. | 2026-10-14 |
+| Thai MFA e-passport page | https://mfa.go.th/en/page/electronic-passport?menu=5e2013adaff2fd00c8267234 | Biometric features. | No number format. Only the citizen ID's 13 digits. | 2026-10-14 |
+| US State Department, Thailand | https://travel.state.gov/content/travel/en/us-visas/Visa-Reciprocity-and-Civil-Documents-by-Country/Thailand.html | Civil documents overview. | No number format. | 2026-10-14 |
 | IDnow RIVP v1.4 Annex 2 (see Singapore) | Maps `THA-AO-06001` to "Passport 2020". | Number format. | 2026-10-14 |
 | Vendor passport-validation page (secondary) | Says the Thai MRZ document number is nine alphanumeric characters. | Not verified against an official source or specimen. Used only as a length note. | 2026-10-14 |
 | Forum claim (no letter O) | https://ask.in.th/question/what-should-i-be-aware-of-regarding-visa-applications-and-passport-numbers-when-applying-for-a-thai-visa | Nothing reliable. | Anecdotal, disputed in the thread. | 2026-10-09 |
@@ -128,6 +179,6 @@ Each rule's source is listed with what it supports and what it does not.
 ## Open questions
 
 - Singapore passport: E vs K is accepted on Purview (E or K), and the regex takes both behind the keyword gate. The PRADO `ANNNNNNNA` shape (ordinary 2017 and official passports) confirms the digit count. Ordinary 2003 and 2006 records have no numbering entry.
-- Thailand passport: no format for the 2020 booklet from any source checked (Wikipedia, MFA, US State Department, PRADO `THA-AO-06001` NL and fr, HL7, IDnow Annex 2). The 2012 booklet (`THA-AO-02002`) has two entries that disagree on digit count (7 and 8), and its shape `AANNNNNNN` matches Japan's Purview pattern. Thai passports stay uncovered. A rule for the 2012 booklet alone is a user decision (see TODO). A nine-character alphanumeric rule would match non-passport strings and is not added.
+- Thailand passport: no format for the 2020 booklet from any source checked (Wikipedia, MFA, US State Department, PRADO `THA-AO-06001` NL and fr, HL7, IDnow Annex 2). The 2012 booklet (`THA-AO-02002`) has two entries that disagree on digit count (7 and 8), and its shape `AANNNNNNN` matches Japan's Purview pattern. Thai passports stay uncovered (decided 2026-10-15, user, on advisor's recommendation; all four 2020 booklets read with no composition). A nine-character alphanumeric rule would match non-passport strings and is not added.
 - Malaysia passport: the eight-digit shape `[AHK]\d{8}` has no PRADO composition. `MYS-AO-03001` (2017, NL) has none; `MYS-AO-02001` (2010, NL) has no numbering entry.
 - Two of three URL gaps closed 2026-10-14 (OpenNER, NRIC check tables). The MyKad Purview page is still unlocated (guessed URL 404).
