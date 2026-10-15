@@ -333,15 +333,15 @@ func (v *IBANValidator) Recognize(ctx context.Context, text string) ([]recognize
 }
 
 // ibanSpan returns the IBAN a candidate holds. The candidate can run on past
-// the IBAN into an uppercase word or a digit group, because a space continues
-// it when the next block is uppercase or numeric.
+// the IBAN into uppercase words, a BIC or a digit group, because a space
+// continues it when the next block is uppercase or numeric.
 //
-// Two shapes are tried, and nothing else, so a short prefix that passes mod-97
-// by chance is never reported:
-//   - An unspaced IBAN, whose first block holds 15 or more characters, ends at
-//     its first space.
-//   - A spaced IBAN is the whole candidate, or the candidate without its final
-//     block.
+// An unspaced IBAN, whose first block holds 15 or more characters, ends at its
+// first space. A spaced IBAN is the longest prefix cut at a space that has the
+// printed shape and passes mod-97. Cuts are tried from the right, so words
+// after the IBAN are dropped one block at a time. Each cut that passes the
+// shape check still has about a 1 in 97 chance of passing mod-97 by accident,
+// so the shape check is what keeps short accidental matches out.
 func (v *IBANValidator) ibanSpan(c ibanCandidate) (ibanCandidate, bool) {
 	if v.Validate(c.text) {
 		return c, true
@@ -350,11 +350,12 @@ func (v *IBANValidator) ibanSpan(c ibanCandidate) (ibanCandidate, bool) {
 	if first >= ibanUnspacedMinBlock {
 		return c.prefix(first, v)
 	}
-	last := strings.LastIndexByte(c.text, ' ')
-	if last <= 0 {
-		return ibanCandidate{}, false
+	for k := strings.LastIndexByte(c.text, ' '); k > 0; k = strings.LastIndexByte(c.text[:k], ' ') {
+		if iban, ok := c.prefix(k, v); ok {
+			return iban, true
+		}
 	}
-	return c.prefix(last, v)
+	return ibanCandidate{}, false
 }
 
 // ibanUnspacedMinBlock is the shortest first block that marks an unspaced IBAN.

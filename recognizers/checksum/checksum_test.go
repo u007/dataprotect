@@ -312,6 +312,8 @@ func TestIBANRecognizeIBANNextToCapitalisedWordOrDigits(t *testing.T) {
 		{"then digits", "AL47212110090000000235698741 12", "AL47212110090000000235698741"},
 		{"then single letter", "this is an iban VG96 VPVG 0000 0123 4567 8901 X in a sentence", "VG96 VPVG 0000 0123 4567 8901"},
 		{"then capitals, no prefix", "AL47212110090000000235698741 ALL CAPS", "AL47212110090000000235698741"},
+		{"then BIC, invoice line", "Pay DE89 3704 0044 0532 0130 00 BIC TESTDEFF today", "DE89 3704 0044 0532 0130 00"},
+		{"then two uppercase words", "GB82 WEST 1234 5698 7654 32 ALL FEES", "GB82 WEST 1234 5698 7654 32"},
 	}
 	v := NewIBANValidator()
 	for _, tt := range tests {
