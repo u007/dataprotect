@@ -22,6 +22,8 @@ func TestEmailRecognizer(t *testing.T) {
 		{"no email", "no email here", 0, ""},
 		{"with underscore", "first_last@test.com", 1, "first_last@test.com"},
 		{"with hyphen", "my-user@sub.domain.com", 1, "my-user@sub.domain.com"},
+		{"punycode tld", "a@xn--d1acufc.xn--p1ai", 1, "a@xn--d1acufc.xn--p1ai"},
+		{"punycode tld in prose", "mail a@b.xn--p1ai now", 1, "a@b.xn--p1ai"},
 	}
 
 	r := NewEmailRecognizer()
@@ -79,6 +81,7 @@ func TestPhoneRecognizer(t *testing.T) {
 		{"international", "call +1-555-123-4567", 1, "+1-555-123-4567"},
 		{"international at start", "+44 20 7946 0958", 1, "+44 20 7946 0958"},
 		{"international space separator", "+1 555 123 4567", 1, "+1 555 123 4567"},
+		{"international parenthesised area code", "+44 (20) 7123 4567", 1, "+44 (20) 7123 4567"},
 		{"not inside a digit run", "x555-123-4567", 0, ""},
 		{"+ prefix alone is not a phone", "+12345", 0, ""},
 		{"arithmetic is not a phone", "1+23456789", 0, ""},

@@ -19,9 +19,11 @@ type EmailRecognizer struct {
 
 // NewEmailRecognizer creates a new email recognizer.
 func NewEmailRecognizer() *EmailRecognizer {
-	// RFC 5322 simplified pattern
+	// RFC 5322 simplified pattern. The TLD is letters, or a punycode label
+	// (xn--...), which carries digits and a hyphen. Go's regexp is leftmost-first,
+	// so the punycode branch is listed first.
 	return &EmailRecognizer{
-		pattern: regexp.MustCompile(`[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}`),
+		pattern: regexp.MustCompile(`[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.(?:xn--[a-zA-Z0-9\-]+|[a-zA-Z]{2,})`),
 	}
 }
 
@@ -92,7 +94,7 @@ func NewPhoneRecognizer() *PhoneRecognizer {
 	// so the more specific paren branch wins a leftmost match such as
 	// "+1 (555) 867-5309".
 	return &PhoneRecognizer{
-		pattern: regexp.MustCompile(`(?:\+1[\s.\-]?|\b1[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}\b|\+\d{1,3}[\s.\-]\d{1,4}[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}\b|\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}\b`),
+		pattern: regexp.MustCompile(`(?:\+1[\s.\-]?|\b1[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}\b|\+\d{1,3}[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}\b|\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}\b`),
 	}
 }
 

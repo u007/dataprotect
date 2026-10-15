@@ -4,6 +4,10 @@
 
 
 
+## 2026-10-16
+
+* **Update**: piiscrub v1 Spec — email punycode TLD, phone parenthesised area code, phone numbers after the change ([decisions/spec-v1.md](/decisions/spec-v1.md))
+
 ## 2026-10-15
 
 * **Update**: piiscrub v1 Spec — IPv6 label fix, linear IP scan and containment check ([decisions/spec-v1.md](/decisions/spec-v1.md))

@@ -345,6 +345,31 @@ func TestScrubberRedactsCardNextToDigitGroup(t *testing.T) {
 	}
 }
 
+// A phone number next to a card or another digit group keeps both values
+// hidden. Overlap resolution keeps the higher-confidence span, so a phone span
+// that ran into a card would lose to it and leave the phone digits visible.
+func TestScrubberRedactsPhoneNextToCardOrDigitGroup(t *testing.T) {
+	s := NewScrubber()
+	for _, tc := range []struct {
+		text   string
+		hidden []string
+	}{
+		{"+55 11 98456 5666 4111 1111 1111 1111", []string{"98456", "5666", "4111111111111111"}},
+		{"+1 555 123 4567 4111 1111 1111 1111", []string{"555 123 4567", "4111 1111 1111 1111"}},
+		{"+44 20 7946 0958 123-45-6789", []string{"7946 0958", "123-45-6789"}},
+	} {
+		out, err := s.Anonymize(context.Background(), tc.text)
+		if err != nil {
+			t.Fatalf("Anonymize(%q): %v", tc.text, err)
+		}
+		for _, h := range tc.hidden {
+			if strings.Contains(out, h) {
+				t.Errorf("Anonymize(%q) = %q, %q is still visible", tc.text, out, h)
+			}
+		}
+	}
+}
+
 // An IPv6 address is redacted whole, including the IPv4 tail of a mapped address.
 // A clock time is not an address and stays visible.
 func TestScrubberRedactsIPv6Address(t *testing.T) {
