@@ -200,3 +200,28 @@ func TestPseudonymizeRoundTrip(t *testing.T) {
 		t.Errorf("restore(out) = %q, want %q", got, original)
 	}
 }
+
+// A placeholder-shaped token for an entity type the library does not define is
+// still a collision if an entity of that type is present: Pseudonymize emits
+// [T_1] for it, and restoring the map would also rewrite the literal token.
+func TestPseudonymizeCollisionForEntityTypeOutsideKnownList(t *testing.T) {
+	text := "see [T_1] and x"
+	entities := []recognizers.Entity{span(text, "x", recognizers.EntityType("T"))}
+	out, pseudonyms, err := New().Pseudonymize(text, entities)
+	if err == nil {
+		t.Fatalf("expected a collision error, got out=%q map=%v", out, pseudonyms)
+	}
+}
+
+// A span that starts inside a multi-byte rune is rejected, as in Anonymize.
+func TestPseudonymizeRejectsSpanInsideRune(t *testing.T) {
+	text := "é"
+	entities := []recognizers.Entity{{Type: recognizers.EntityEmail, Start: 1, End: 2, Text: "\xa9", Confidence: 0.99}}
+	out, pseudonyms, err := New().Pseudonymize(text, entities)
+	if err == nil {
+		t.Fatal("expected an error for a span inside a rune")
+	}
+	if out != "" || pseudonyms != nil {
+		t.Errorf("got out=%q map=%v, want empty and nil", out, pseudonyms)
+	}
+}

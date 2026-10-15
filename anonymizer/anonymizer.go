@@ -122,7 +122,7 @@ func (a *Anonymizer) Pseudonymize(text string, entities []recognizers.Entity) (s
 	if err != nil {
 		return "", nil, err
 	}
-	if token, ok := placeholderCollision(text); ok {
+	if token, ok := placeholderCollision(text, entities); ok {
 		return "", nil, fmt.Errorf("text already contains placeholder-shaped token %s, so the map would be ambiguous", token)
 	}
 
@@ -160,14 +160,18 @@ func (a *Anonymizer) Pseudonymize(text string, entities []recognizers.Entity) (s
 var placeholderShape = regexp.MustCompile(`\[([A-Z_]+)_[0-9]+\]`)
 
 // placeholderCollision reports the first placeholder-shaped token in text whose
-// type is a known entity type.
-func placeholderCollision(text string) (string, bool) {
-	known := make(map[string]bool, len(recognizers.AllEntityTypes))
+// type is one Pseudonymize could emit: a known entity type, or a type carried by
+// one of the entities. Any other bracketed token is ordinary text.
+func placeholderCollision(text string, entities []recognizers.Entity) (string, bool) {
+	emittable := make(map[string]bool, len(recognizers.AllEntityTypes)+len(entities))
 	for _, t := range recognizers.AllEntityTypes {
-		known[string(t)] = true
+		emittable[string(t)] = true
+	}
+	for _, e := range entities {
+		emittable[string(e.Type)] = true
 	}
 	for _, m := range placeholderShape.FindAllStringSubmatch(text, -1) {
-		if known[m[1]] {
+		if emittable[m[1]] {
 			return m[0], true
 		}
 	}
