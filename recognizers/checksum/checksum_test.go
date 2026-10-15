@@ -499,3 +499,36 @@ func TestIBANRecognizeDashSeparated(t *testing.T) {
 		}
 	}
 }
+
+// An IBAN is the length its country's registry entry gives. A prefix of a longer
+// IBAN can still pass mod-97 by chance; the country length rejects it.
+func TestIBANRecognizeRejectsWrongLengthForCountry(t *testing.T) {
+	v := NewIBANValidator()
+	ctx := context.Background()
+
+	for _, text := range []string{
+		"account MC58 A122 2000 0101 end",
+		"account JO94 CBJO 0010 0000 0000 0131 end",
+	} {
+		entities, err := v.Recognize(ctx, text)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entities) != 0 {
+			t.Errorf("Recognize(%q) = %+v, want no IBAN", text, entities)
+		}
+	}
+}
+
+func TestIBANValidateKnownLengths(t *testing.T) {
+	v := NewIBANValidator()
+	for _, iban := range []string{
+		"DE89370400440532013000", // 22
+		"GB82WEST12345698765432", // 22
+		"NO9386011117947",        // 15
+	} {
+		if !v.Validate(iban) {
+			t.Errorf("Validate(%q) = false, want true", iban)
+		}
+	}
+}

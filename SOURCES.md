@@ -159,6 +159,7 @@ Each rule's source is listed with what it supports and what it does not.
 | Source | Use | Note |
 |--------|-----|------|
 | ICAO Doc 9303 | MRZ and passport-number field rules | Standard. Not fetched in full. Part 3 covers the MRZ. |
+| SWIFT IBAN Registry, release v101 | Country IBAN lengths (`recognizers/checksum/iban_length.go`) | swift.com returned 403 to this client, so the registry was not read directly. Read instead from python-stdnum's `stdnum/iban.dat` (https://raw.githubusercontent.com/arthurdejong/python-stdnum/master/stdnum/iban.dat), which states it is generated from that release. Length is 4 plus the sum of the BBAN element lengths. 89 countries. |
 | Microsoft Purview sensitive info types | Keyword lists for Malaysia and Singapore passports | Secondary. Its keywords are the gate. |
 | `dotnet.territoriali.olinfo.it` | Mirror of Purview | Not an independent source. |
 | elysiatools.com | Sample generator | Not a source. |
