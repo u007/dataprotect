@@ -217,6 +217,55 @@ func TestIPRecognizer(t *testing.T) {
 	}
 }
 
+// IPv6 is reported only when the candidate parses as an address, so clock
+// times and MAC addresses, which have colons but are not addresses, stay out.
+func TestIPv6Recognizer(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{"compressed", "host 2001:db8::1 up", []string{"2001:db8::1"}},
+		{"loopback", "listen on ::1 now", []string{"::1"}},
+		{"link local", "fe80::1 is up", []string{"fe80::1"}},
+		{"full form", "addr 2001:0db8:85a3:0000:0000:8a2e:0370:7334 end", []string{"2001:0db8:85a3:0000:0000:8a2e:0370:7334"}},
+		{"mapped ipv4 is one span", "map ::ffff:192.0.2.1 end", []string{"::ffff:192.0.2.1"}},
+		{"sentence end", "see 2001:db8::1.", []string{"2001:db8::1"}},
+		{"bracketed in url", "http://[2001:db8::1]:8080/x", []string{"2001:db8::1"}},
+		{"clock time", "meet at 12:30:45 today", nil},
+		{"mac address", "mac 00:1A:2B:3C:4D:5E seen", nil},
+		{"three groups", "ratio 1:2:3 here", nil},
+		{"cpp scope", "call std::vector now", nil},
+		{"bare double colon", "a :: b", nil},
+		{"five hex digits", "value 12345::1 here", nil},
+		{"dotted tail not an address", "x 2001:db8::1.5 y", nil},
+	}
+
+	r := NewIPRecognizer()
+	ctx := context.Background()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entities, err := r.Recognize(ctx, tt.text)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			var got []string
+			for _, e := range entities {
+				got = append(got, e.Text)
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %q, want %q", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("entity %d = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
 func TestURLRecognizer(t *testing.T) {
 	tests := []struct {
 		name     string

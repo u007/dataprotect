@@ -345,6 +345,36 @@ func TestScrubberRedactsCardNextToDigitGroup(t *testing.T) {
 	}
 }
 
+// An IPv6 address is redacted whole, including the IPv4 tail of a mapped address.
+// A clock time is not an address and stays visible.
+func TestScrubberRedactsIPv6Address(t *testing.T) {
+	s := NewScrubber()
+	for _, tc := range []struct {
+		text    string
+		hidden  []string
+		visible []string
+	}{
+		{"host 2001:db8::1 up", []string{"2001:db8"}, nil},
+		{"map ::ffff:192.0.2.1 end", []string{"::ffff", "192.0.2.1"}, nil},
+		{"meet at 12:30:45 today", nil, []string{"12:30:45"}},
+	} {
+		out, err := s.Anonymize(context.Background(), tc.text)
+		if err != nil {
+			t.Fatalf("Anonymize(%q): %v", tc.text, err)
+		}
+		for _, h := range tc.hidden {
+			if strings.Contains(out, h) {
+				t.Errorf("Anonymize(%q) = %q, %q is still visible", tc.text, out, h)
+			}
+		}
+		for _, v := range tc.visible {
+			if !strings.Contains(out, v) {
+				t.Errorf("Anonymize(%q) = %q, %q was redacted", tc.text, out, v)
+			}
+		}
+	}
+}
+
 // Cards that the IBAN guard or a chance-passing window used to leave visible.
 func TestScrubberRedactsCardAfterLettersAndChancePrefix(t *testing.T) {
 	s := NewScrubber()

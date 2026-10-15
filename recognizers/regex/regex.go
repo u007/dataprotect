@@ -3,7 +3,9 @@ package regex
 
 import (
 	"context"
+	"net/netip"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/u007/dataprotect/recognizers"
@@ -215,10 +217,21 @@ func (r *SSNRecognizer) Recognize(ctx context.Context, text string) ([]recognize
 	return entities, nil
 }
 
-// IPRecognizer detects IP addresses.
+// IPRecognizer detects IPv4 and IPv6 addresses.
+//
+// IPv4 is matched by shape. An IPv6 candidate is a run of hex groups joined by
+// colons, reported only when netip parses it as an IPv6 address. That keeps
+// clock times (12:30:45) and MAC addresses out, since neither is an address. The
+// IPv4 tail of a mapped address (::ffff:192.0.2.1) is part of the IPv6 span, so
+// it is not reported again on its own.
 type IPRecognizer struct {
 	pattern *regexp.Regexp
 }
+
+// ipv6Candidate is at least two colons with hex groups between them, optionally
+// ending in a dotted IPv4 tail. The IPv4 tail is tried first, so a mapped
+// address is not cut short at its last hex group.
+var ipv6Candidate = regexp.MustCompile(`(?:[0-9A-Fa-f]{0,4}:){2,}(?:(?:[0-9]{1,3}\.){3}[0-9]{1,3}|[0-9A-Fa-f]{0,4})`)
 
 // NewIPRecognizer creates a new IP recognizer.
 func NewIPRecognizer() *IPRecognizer {
@@ -230,11 +243,33 @@ func NewIPRecognizer() *IPRecognizer {
 // Name returns the recognizer name.
 func (r *IPRecognizer) Name() string { return "regex_ip" }
 
-// Recognize detects IP addresses in text.
+// Recognize detects IPv4 and IPv6 addresses in text.
 func (r *IPRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
-	matches := r.pattern.FindAllStringIndex(text, -1)
-	entities := make([]recognizers.Entity, 0, len(matches))
-	for _, m := range matches {
+	var v6 []recognizers.Entity
+	for _, m := range ipv6Candidate.FindAllStringIndex(text, -1) {
+		if !ipv6Bounded(text, m[0], m[1]) {
+			continue
+		}
+		candidate := text[m[0]:m[1]]
+		addr, err := netip.ParseAddr(candidate)
+		// intentionally not logged: a candidate that is not an address is the normal negative case
+		if err != nil || !addr.Is6() || !strings.ContainsAny(candidate, "0123456789abcdefABCDEF") {
+			continue
+		}
+		v6 = append(v6, recognizers.Entity{
+			Type:       recognizers.EntityIP,
+			Start:      m[0],
+			End:        m[1],
+			Text:       candidate,
+			Confidence: 0.99,
+		})
+	}
+
+	entities := make([]recognizers.Entity, 0)
+	for _, m := range r.pattern.FindAllStringIndex(text, -1) {
+		if insideIPv6(v6, m[0], m[1]) {
+			continue
+		}
 		entities = append(entities, recognizers.Entity{
 			Type:       recognizers.EntityIP,
 			Start:      m[0],
@@ -243,7 +278,43 @@ func (r *IPRecognizer) Recognize(ctx context.Context, text string) ([]recognizer
 			Confidence: 0.99,
 		})
 	}
+	entities = append(entities, v6...)
+	sort.Slice(entities, func(i, j int) bool { return entities[i].Start < entities[j].Start })
 	return entities, nil
+}
+
+// ipv6Bounded reports whether text[start:end] stands alone. A letter, digit or
+// colon touching it means it is part of a longer token (std::vector, 12345::1).
+// A dot followed by a digit continues it as a number (2001:db8::1.5).
+func ipv6Bounded(text string, start, end int) bool {
+	if start > 0 && isIPGlue(text[start-1]) {
+		return false
+	}
+	if end < len(text) {
+		c := text[end]
+		if isIPGlue(c) {
+			return false
+		}
+		if c == '.' && end+1 < len(text) && text[end+1] >= '0' && text[end+1] <= '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// isIPGlue reports whether c would make an adjacent address part of a longer token.
+func isIPGlue(c byte) bool {
+	return c == ':' || (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+// insideIPv6 reports whether [start, end) lies within one of the IPv6 spans.
+func insideIPv6(v6 []recognizers.Entity, start, end int) bool {
+	for _, e := range v6 {
+		if e.Start <= start && end <= e.End {
+			return true
+		}
+	}
+	return false
 }
 
 // URLRecognizer detects URLs.
