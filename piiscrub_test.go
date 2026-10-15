@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/u007/dataprotect/analyzer"
 	"github.com/u007/dataprotect/recognizers"
@@ -341,6 +342,29 @@ func TestScrubberRedactsCardNextToDigitGroup(t *testing.T) {
 		}
 		if strings.Contains(out, "4111111111111111") || strings.Contains(out, "4012888888881881") {
 			t.Errorf("Anonymize(%q) = %q, a card number is still visible", text, out)
+		}
+	}
+}
+
+// An email with a Unicode domain is redacted whole, and the output stays valid
+// UTF-8 (the span is cut on rune boundaries).
+func TestScrubberRedactsUnicodeEmail(t *testing.T) {
+	s := NewScrubber()
+	for _, text := range []string{
+		"write юзер@пример.рф today",
+		"mail a@example.рф now",
+	} {
+		out, err := s.Anonymize(context.Background(), text)
+		if err != nil {
+			t.Fatalf("Anonymize(%q): %v", text, err)
+		}
+		if !utf8.ValidString(out) {
+			t.Errorf("Anonymize(%q) = %q, not valid UTF-8", text, out)
+		}
+		for _, h := range []string{"пример", "юзер", "example.рф"} {
+			if strings.Contains(out, h) {
+				t.Errorf("Anonymize(%q) = %q, %q is still visible", text, out, h)
+			}
 		}
 	}
 }

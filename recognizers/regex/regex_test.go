@@ -24,6 +24,11 @@ func TestEmailRecognizer(t *testing.T) {
 		{"with hyphen", "my-user@sub.domain.com", 1, "my-user@sub.domain.com"},
 		{"punycode tld", "a@xn--d1acufc.xn--p1ai", 1, "a@xn--d1acufc.xn--p1ai"},
 		{"punycode tld in prose", "mail a@b.xn--p1ai now", 1, "a@b.xn--p1ai"},
+		{"unicode domain", "mail a@example.рф now", 1, "a@example.рф"},
+		{"unicode domain label", "write a@пример.рф now", 1, "a@пример.рф"},
+		{"unicode local part", "mail юзер@example.com now", 1, "юзер@example.com"},
+		// Accepted cost: with no space, the local part takes the CJK text before the @.
+		{"cjk prose before the at sign", "联系a@b.com", 1, "联系a@b.com"},
 	}
 
 	r := NewEmailRecognizer()

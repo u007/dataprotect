@@ -7,6 +7,7 @@
 ## 2026-10-16
 
 * **Update**: piiscrub v1 Spec — email punycode TLD, phone parenthesised area code, phone numbers after the change ([decisions/spec-v1.md](/decisions/spec-v1.md))
+* **Update**: piiscrub — email Unicode IDN addresses, IPv6 label residuals kept ([decisions/spec-v1.md](/decisions/spec-v1.md))
 
 ## 2026-10-15
 
