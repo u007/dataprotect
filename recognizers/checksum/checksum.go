@@ -4,6 +4,7 @@ package checksum
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -156,13 +157,13 @@ func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) [
 }
 
 // inside reports whether [start, end) lies within one of the entities.
+//
+// entities must be in start order and must not overlap, as the IBAN recognizer
+// reports them. Then the only entity that can contain the span is the last one
+// that starts at or before it, which a binary search finds.
 func inside(entities []recognizers.Entity, start, end int) bool {
-	for _, e := range entities {
-		if e.Start <= start && end <= e.End {
-			return true
-		}
-	}
-	return false
+	i := sort.Search(len(entities), func(i int) bool { return entities[i].Start > start }) - 1
+	return i >= 0 && entities[i].Start <= start && end <= entities[i].End
 }
 
 // boundedBySeparator reports whether a single group sits between a card

@@ -414,6 +414,24 @@ func TestLuhnRecognizeLongDigitRunIsBounded(t *testing.T) {
 	}
 }
 
+// Many IBANs, each followed by a short digit run that is its own candidate, must
+// not make the containment check superlinear: 4 MB finishes in a few seconds.
+func TestLuhnRecognizeManyIBANsIsBounded(t *testing.T) {
+	text := strings.Repeat("DE89370400440532013000;1;", 4000000/25)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, err := NewLuhnValidator().Recognize(context.Background(), text); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Recognize did not finish 4 MB of IBANs in 5 seconds")
+	}
+}
+
 // Digits inside a valid IBAN are the IBAN's own, so no card is reported there.
 func TestLuhnRecognizeValidIBANHasNoCardWindows(t *testing.T) {
 	for _, text := range []string{
