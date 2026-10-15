@@ -351,7 +351,7 @@ out-of-schema instead of inflating false positives.
 
 Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. Its in-scope modules are converted by `scripts/presidio_extract.py` and scored with `make presidio`. Pin: `2523c7b74a469270c5c78bb253f140eafca21e31`. Converted data lives in `testdata/external/presidio/` (gitignored). The CI gate still runs only on `testdata/golden/`. The numbers below are a measurement, not a gate, and no recognizer changed for them.
 
-**Scope.** The ten modules whose `entities` fixture maps to a type this library implements: EMAIL_ADDRESS, IP_ADDRESS, URL, IBAN_CODE, CRYPTO (bitcoin only), CREDIT_CARD, PHONE_NUMBER, US_SSN, TH_TNIN, SG_NRIC_FIN. Out of scope and not converted: the NLP-dependent entities (PERSON, LOCATION and similar), countries without a recognizer here (about 130 modules), presidio-research's evaluation framework and generator data (the generator's identities are CC BY-SA 3.0), and the context-word sentence file (no spans, so no gold). The e2e tests are API smoke tests with no per-type case tables.
+**Scope.** The ten modules whose `entities` fixture maps to a type this library implements: EMAIL_ADDRESS, IP_ADDRESS, URL, IBAN_CODE, CRYPTO, CREDIT_CARD, PHONE_NUMBER, US_SSN, TH_TNIN, SG_NRIC_FIN. CRYPTO is bitcoin only: its pattern is `bc1` and `1`/`3` base58 addresses (`presidio_analyzer/predefined_recognizers/generic/crypto_recognizer.py`). Out of scope and not converted, of the 140 test modules: 76 country recognizer modules for countries this library does not cover, 24 other recognizer modules (including the NLP and model-based entities such as PERSON and LOCATION), and 30 infrastructure modules (engine, registry, configuration, chunkers). Also out of scope: presidio-research's evaluation framework and generator data (the generator's identities are CC BY-SA 3.0), the context-word sentence file (no spans, so no gold), and the e2e tests, which are API smoke tests with no per-type case tables.
 
 **Method.** Only `parametrize` lists are parsed, with `ast` (never imported or run). Presidio's character offsets are converted to UTF-8 bytes, and each value is taken from the text. Rows that cannot be scored are set aside with a reason in `skipped.json`: count-only rows (Presidio asserts how many matches, not where), leniency rows (a non-default recognizer setting), and empty-text negatives (`golden.Load` rejects empty text). Each module is scored as its own dataset, so `in_schema` is that module's type.
 
@@ -360,9 +360,9 @@ Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. I
 | email | 8 | 2 | 0.8571 / 0.8571 (6, 1, 1) | 1.0000 / 1.0000 |
 | ip | 112 | 29 | 0.4082 / 0.2273 (20, 29, 68) | 1.0000 / 0.5568 |
 | url | 16 | 3 | 0.7500 / 0.6429 (9, 3, 5) | 0.9167 / 0.7857 |
-| iban | 330 | 173 | 1.0000 / 0.9810 (155, 0, 3) | 1.0000 / 0.9810 |
+| iban | 330 | 173 | 1.0000 / 0.9937 (157, 0, 1) | 1.0000 / 0.9937 |
 | crypto (BITCOIN) | 9 | 3 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
-| credit_card | 19 | 5 | 0.9286 / 0.8125 (13, 1, 3) | 0.9286 / 0.8125 |
+| credit_card | 19 | 5 | 0.9412 / 1.0000 (16, 1, 0) | 0.9412 / 1.0000 |
 | phone | 19 | 0 | 0.7826 / 0.6429 (18, 5, 10) | 1.0000 / 0.8214 |
 | us_ssn | 28 | 12 | 0.5769 / 0.8824 (15, 11, 2) | 0.5769 / 0.8824 |
 | th_tnin (TH_ID) | 39 | 26 | 0.7647 / 1.0000 (13, 4, 0) | 0.7647 / 1.0000 |
@@ -370,7 +370,23 @@ Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. I
 
 Totals: 590 cases from 601 rows. 11 rows set aside (3 IP count-only, 6 phone leniency, 2 empty-text). The overlap column counts a span that touches a gold span as a match, so it is an upper bound.
 
-**Findings.** Every mismatch class is recorded in TODO.md under "Presidio test cases: open findings". The most serious is a fail-open in the card path: two Luhn-valid cards, or a card and a digit group, separated only by a space, hyphen or dot are not redacted. `4111111111111111 123` comes back unchanged. The cause is candidate grouping in `checksum.findCardCandidates`, not the card pattern. The seed gate misses this because no seed case puts a card next to a digit group.
+**Card and IBAN fail-open, fixed 2026-10-15.** A card followed by a space and digits (`4111111111111111 123`), two cards separated by a space, and an IBAN followed by an uppercase word or digit group were not redacted. The cause was candidate grouping: each run of digits joined by space, hyphen or dot was checked as one number, and a run that failed the check was dropped. The fix keeps the whole-run check and, only when that fails, retries single digit groups and card-layout windows of groups (`checksum.cardSpans`). An IBAN keeps the whole candidate, or an unspaced first block, or the candidate without its final block, and only if the kept prefix has the printed shape (`checksum.canonicalIBANShape`). Guards: a single group must be bounded by spaces, and a run that starts an IBAN body is not split. Seed batch 9 (8 positives, 2 negatives) pins the cases, and the gate is 91 cases, exact P 61/62, recall 1.0.
+
+Measured before and after, on the same inputs:
+
+| Set | Before | After | Note |
+|-----|--------|-------|------|
+| seed | 81 cases, exact P 0.9811 (tp 52, fp 1), R 1.0000 | 91 cases, exact P 0.9839 (tp 61, fp 1), R 1.0000 | gate: `minCases` 91, `minExactPrecision` 61/62 |
+| nemotron, 2000 cases, exact | P 0.8340 (fp 471), R 0.8699 | P 0.8340 (fp 471), R 0.8699 | CREDIT_CARD P 0.5714 (fp 18), R 0.0945 |
+| gretel, 2000 cases, exact | P 0.3557 (fp 1105), R 0.7673 | P 0.3557 (fp 1105), R 0.7673 | CREDIT_CARD P 0.5094 (fp 26), R 0.4737; IBAN P 0.9556 (fp 2), R 0.9773 |
+| Presidio credit_card | tp 13, fp 1, fn 3 | tp 16, fp 1, fn 0 | recall 0.8125 to 1.0000 |
+| Presidio iban | tp 155, fp 0, fn 3 | tp 157, fp 0, fn 1 | precision 1.0000 kept |
+
+Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold that was missed (0 of the misses pass Luhn on their own), so the fix gains nothing on the corpora and costs nothing there. The differential over all sets (seed, 4000 corpus texts, 590 Presidio cases) loses no detection, and no case has overlapping detections. Anonymize runs without error over the seed, the corpora and every Presidio module.
+
+**Residuals, not fixed.** These stay as TODO items: a dash- or dot-joined CVV (`4111111111111111-123`) is not redacted; a spaced IBAN followed by two or more uppercase blocks (`GB82 WEST 1234 5698 7654 32 ALL FEES`) is not redacted; and seven card windows form inside the IBAN bodies in the Presidio IBAN module (out of schema, not scored, and none in the corpora).
+
+**Other findings.** Every mismatch class is recorded in TODO.md under "Presidio test cases: open findings".
 
 ## Operators (MVP)
 

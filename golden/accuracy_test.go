@@ -19,7 +19,7 @@ const datasetDir = "../testdata/golden"
 // moves recall by a large fraction — so a shrinking dataset would silently
 // weaken the gate rather than fail it. Ratcheted with each batch: it tracks the
 // current seed count, so any drop below it fails.
-const minCases = 81
+const minCases = 91
 
 // Gate thresholds.
 //
@@ -66,9 +66,9 @@ const minCases = 81
 // draws an "identical expressions" lint warning, so a sitting-at-1.0 constant
 // stays a literal with its counts in the trailing comment.
 const (
-	minExactPrecision = 52.0 / 53.0 // tp=52 fp=1   -> 52/53
-	minExactRecall    = 1.0         // tp=52 fn=0   -> 52/52
-	minOverlapRecall  = 1.0         // tp=52 fn=0   -> 52/52
+	minExactPrecision = 61.0 / 62.0 // tp=61 fp=1   -> 61/62
+	minExactRecall    = 1.0         // tp=61 fn=0   -> 61/61
+	minOverlapRecall  = 1.0         // tp=61 fn=0   -> 61/61
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled

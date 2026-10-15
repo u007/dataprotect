@@ -743,5 +743,109 @@
     "note": "bech32 shape, final checksum character changed: the bech32 checksum must fail.",
     "text": "Mistyped settlement bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5 was rejected at intake.",
     "entities": []
+  },
+  {
+    "id": "pos-card-then-cvv",
+    "note": "Card followed by a space and a three-digit CVV. The card and the CVV formed one digit run that failed Luhn, so the card was not redacted.",
+    "text": "Charged card 4111111111111111 123 at the till.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4111111111111111"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-then-year",
+    "note": "Spaced card followed by a four-digit year. Same grouping failure as the CVV case.",
+    "text": "Card 4111 1111 1111 1111 2024 expired last month.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4111 1111 1111 1111"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-dashed-then-cvv",
+    "note": "Dashed card followed by a CVV.",
+    "text": "Card 4111-1111-1111-1111 123 on file.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4111-1111-1111-1111"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-dotted-then-cvv",
+    "note": "Dotted card followed by a CVV.",
+    "text": "Card 4111.1111.1111.1111 123 on file.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4111.1111.1111.1111"
+      }
+    ]
+  },
+  {
+    "id": "pos-cards-two-mixed-one-space",
+    "note": "Two Luhn-valid cards in different forms, separated only by a space. Neither was redacted.",
+    "text": "Cards 4012888888881881 4012-8888-8888-1881 on file.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4012888888881881"
+      },
+      {
+        "type": "CREDIT_CARD",
+        "value": "4012-8888-8888-1881"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-then-capitals",
+    "note": "Valid IBAN followed by an uppercase word. The word joined the candidate, the candidate failed mod-97, and the IBAN was dropped.",
+    "text": "Pay to AL47212110090000000235698741 ALL FEES apply.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "AL47212110090000000235698741"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-then-digits",
+    "note": "Valid IBAN followed by a short digit group.",
+    "text": "Transfer to AL47212110090000000235698741 12 today.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "AL47212110090000000235698741"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-spaced-then-capital",
+    "note": "Spaced IBAN followed by a single uppercase letter.",
+    "text": "Reference VG96 VPVG 0000 0123 4567 8901 X and more.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "VG96 VPVG 0000 0123 4567 8901"
+      }
+    ]
+  },
+  {
+    "id": "neg-card-luhn-invalid-then-digits",
+    "note": "Card with a wrong Luhn check digit, followed by a CVV. No window may pass.",
+    "text": "Card 4111111111111112 123 expired.",
+    "entities": []
+  },
+  {
+    "id": "neg-iban-bad-checksum-then-capitals",
+    "note": "IBAN with a wrong mod-97 check, followed by uppercase words. No prefix may pass.",
+    "text": "Ref AL47212110090000000235698740 ALL FEES.",
+    "entities": []
   }
 ]

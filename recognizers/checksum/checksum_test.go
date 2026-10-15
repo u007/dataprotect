@@ -237,3 +237,105 @@ func TestLuhnRecognizeReportsThaiValidSpanAsCard(t *testing.T) {
 		t.Fatalf("got %+v, want one CREDIT_CARD", entities)
 	}
 }
+
+// A card followed by another digit group, or by another card, used to be
+// reported as one run of digits. The whole run then failed Luhn and nothing
+// was reported. Each card must be found on its own span.
+func TestLuhnRecognizeCardNextToDigitGroup(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{"card then cvv", "4111111111111111 123", []string{"4111111111111111"}},
+		{"card then year", "card 4111111111111111 2024", []string{"4111111111111111"}},
+		{"card then cvv, dashed", "4111-1111-1111-1111 123", []string{"4111-1111-1111-1111"}},
+		{"card then cvv, dotted", "4111.1111.1111.1111 123", []string{"4111.1111.1111.1111"}},
+		{"two cards, one space", "4012888888881881 4012888888881881", []string{"4012888888881881", "4012888888881881"}},
+		{"two cards, mixed forms", "4012888888881881 4012-8888-8888-1881", []string{"4012888888881881", "4012-8888-8888-1881"}},
+		{"card three times", "4012 8888 8888 1881 4012 8888 8888 1881 4012 8888 8888 1881", []string{"4012 8888 8888 1881", "4012 8888 8888 1881", "4012 8888 8888 1881"}},
+	}
+	v := NewLuhnValidator()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entities, err := v.Recognize(context.Background(), tt.text)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			var got []string
+			for _, e := range entities {
+				got = append(got, e.Text)
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %q, want %q", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("entity %d = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+// The span must start and end on the card's own digits, so the text around it
+// is never part of the match.
+func TestLuhnRecognizeCardSpanExcludesNeighbours(t *testing.T) {
+	text := "pay 4111111111111111 cvv 123"
+	entities, err := NewLuhnValidator().Recognize(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 {
+		t.Fatalf("got %+v, want one card", entities)
+	}
+	e := entities[0]
+	if text[e.Start:e.End] != "4111111111111111" {
+		t.Errorf("span = %q, want the card only", text[e.Start:e.End])
+	}
+}
+
+// An IBAN followed by an uppercase word, or by digits, used to absorb that
+// word into the candidate. The candidate then failed mod-97, so the valid IBAN
+// was dropped.
+func TestIBANRecognizeIBANNextToCapitalisedWordOrDigits(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want string
+	}{
+		{"then capitals", "IBAN AL47212110090000000235698741 ALL", "AL47212110090000000235698741"},
+		{"then digits", "AL47212110090000000235698741 12", "AL47212110090000000235698741"},
+		{"then single letter", "this is an iban VG96 VPVG 0000 0123 4567 8901 X in a sentence", "VG96 VPVG 0000 0123 4567 8901"},
+		{"then capitals, no prefix", "AL47212110090000000235698741 ALL CAPS", "AL47212110090000000235698741"},
+	}
+	v := NewIBANValidator()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entities, err := v.Recognize(context.Background(), tt.text)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(entities) != 1 {
+				t.Fatalf("got %+v, want one IBAN", entities)
+			}
+			if entities[0].Text != tt.want {
+				t.Errorf("got %q, want %q", entities[0].Text, tt.want)
+			}
+		})
+	}
+}
+
+// HR12 001 0051 8630 passes mod-97 on its own, but it is 18 characters and a
+// Croatian IBAN is 21. A candidate that fails as a whole must not be cut down
+// to such a prefix, or any short run that passes by chance is reported.
+func TestIBANRecognizeDoesNotCutToChancePassingPrefix(t *testing.T) {
+	v := NewIBANValidator()
+	entities, err := v.Recognize(context.Background(), "Ref HR12 001 0051 8630 0000 0000 end")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 0 {
+		t.Fatalf("got %+v, want no IBAN", entities)
+	}
+}

@@ -56,17 +56,162 @@ func (v *LuhnValidator) Recognize(ctx context.Context, text string) ([]recognize
 	candidates := findCardCandidates(text)
 	entities := make([]recognizers.Entity, 0)
 	for _, c := range candidates {
-		if v.Validate(c.text) {
+		for _, card := range v.cardSpans(text, c) {
 			entities = append(entities, recognizers.Entity{
 				Type:       recognizers.EntityCreditCard,
-				Start:      c.start,
-				End:        c.end,
-				Text:       c.text,
+				Start:      card.start,
+				End:        card.end,
+				Text:       card.text,
 				Confidence: 0.99,
 			})
 		}
 	}
 	return entities, nil
+}
+
+// cardSpans returns the cards a run of digits holds. A run that passes Luhn
+// whole is one card. A run that fails is split at its digit groups: each window
+// of consecutive groups that is 13 to 19 digits, passes Luhn and has a card
+// layout is a card. Windows are taken left to right, longest first, and never
+// overlap.
+//
+// The run is joined by space, hyphen and dot, so a card followed by a CVV, a
+// year, or another card reaches here as one run. Without the split, the whole
+// run fails Luhn and the card is not reported at all.
+//
+// Two guards keep the split from reporting digits that are not a card:
+//   - A single group is a card only when a space or the run edge bounds it on
+//     both sides. A group joined by `-` or `.` is part of a decimal, a
+//     timestamp or an identifier.
+//   - A run that starts an IBAN body (two digits right after a country code's
+//     two letters) is not split, because the IBAN recognizer owns it.
+func (v *LuhnValidator) cardSpans(text string, c cardCandidate) []cardCandidate {
+	if v.Validate(c.text) {
+		return []cardCandidate{c}
+	}
+	if followsCountryCode(text, c.start) {
+		return nil
+	}
+	var groups []cardGroup
+	for i := 0; i < len(c.text); {
+		if !isDigit(c.text[i]) {
+			i++
+			continue
+		}
+		start := i
+		for i < len(c.text) && isDigit(c.text[i]) {
+			i++
+		}
+		groups = append(groups, cardGroup{start, i})
+	}
+	var cards []cardCandidate
+	for a := 0; a < len(groups); {
+		claimed := false
+		for b := len(groups) - 1; b >= a && !claimed; b-- {
+			window := c.text[groups[a].start:groups[b].end]
+			if digitCount(window) < 13 || digitCount(window) > 19 {
+				continue
+			}
+			if !cardGrouping(c.text, groups[a:b+1]) || !v.Validate(window) {
+				continue
+			}
+			if a == b && !boundedBySpace(c.text, groups[a]) {
+				continue
+			}
+			cards = append(cards, cardCandidate{
+				text:  window,
+				start: c.start + groups[a].start,
+				end:   c.start + groups[b].end,
+			})
+			a = b + 1
+			claimed = true
+		}
+		if !claimed {
+			a++
+		}
+	}
+	return cards
+}
+
+// boundedBySpace reports whether a single group sits between a space or the
+// candidate's edges on both sides.
+func boundedBySpace(text string, g cardGroup) bool {
+	left := g.start == 0 || text[g.start-1] == ' '
+	right := g.end == len(text) || text[g.end] == ' '
+	return left && right
+}
+
+// followsCountryCode reports whether the two bytes before offset start are ASCII
+// letters, and the run begins with exactly two digits: the shape of an IBAN's
+// check digits after its country code, as in "FR72 2000 4000 ...".
+func followsCountryCode(text string, start int) bool {
+	if start < 2 || !isLetter(text[start-2]) || !isLetter(text[start-1]) {
+		return false
+	}
+	return start+2 <= len(text) && isDigit(text[start]) && isDigit(text[start+1]) &&
+		(start+2 == len(text) || !isDigit(text[start+2]))
+}
+
+// cardGrouping reports whether a window of digit groups is laid out like a
+// card. A single group always is. A window of several groups must use one
+// separator character, exactly once between each pair of groups, and one of
+// the layouts a card number is printed in: 4-4-4-4 (last group 1 to 4 digits),
+// 4-6-5 (Amex) or 4-6-4 (Diners). A mixed or unusual layout is not a card, so a
+// number glued to a neighbouring digit group is never reported as one.
+func cardGrouping(text string, groups []cardGroup) bool {
+	if len(groups) == 1 {
+		return true
+	}
+	for i := 0; i+1 < len(groups); i++ {
+		gap := groups[i].end
+		if groups[i+1].start != gap+1 || text[gap] != text[groups[0].end] {
+			return false
+		}
+	}
+	lengths := make([]int, len(groups))
+	for i, g := range groups {
+		lengths[i] = g.end - g.start
+	}
+	last := lengths[len(lengths)-1]
+	if last >= 1 && last <= 4 {
+		uniform := true
+		for _, n := range lengths[:len(lengths)-1] {
+			if n != 4 {
+				uniform = false
+			}
+		}
+		if uniform {
+			return true
+		}
+	}
+	return equalInts(lengths, []int{4, 6, 5}) || equalInts(lengths, []int{4, 6, 4})
+}
+
+// equalInts reports whether a and b hold the same values in the same order.
+func equalInts(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// cardGroup is one maximal run of digits inside a candidate, by byte offsets.
+type cardGroup struct{ start, end int }
+
+// digitCount returns the number of ASCII digits in s.
+func digitCount(s string) int {
+	n := 0
+	for i := 0; i < len(s); i++ {
+		if isDigit(s[i]) {
+			n++
+		}
+	}
+	return n
 }
 
 type cardCandidate struct {
@@ -162,17 +307,96 @@ func (v *IBANValidator) Recognize(ctx context.Context, text string) ([]recognize
 	candidates := findIBANCandidates(text)
 	entities := make([]recognizers.Entity, 0)
 	for _, c := range candidates {
-		if v.Validate(c.text) {
-			entities = append(entities, recognizers.Entity{
-				Type:       recognizers.EntityIBAN,
-				Start:      c.start,
-				End:        c.end,
-				Text:       c.text,
-				Confidence: 0.99,
-			})
+		iban, ok := v.ibanSpan(c)
+		if !ok {
+			continue
 		}
+		entities = append(entities, recognizers.Entity{
+			Type:       recognizers.EntityIBAN,
+			Start:      iban.start,
+			End:        iban.end,
+			Text:       iban.text,
+			Confidence: 0.99,
+		})
 	}
 	return entities, nil
+}
+
+// ibanSpan returns the IBAN a candidate holds. The candidate can run on past
+// the IBAN into an uppercase word or a digit group, because a space continues
+// it when the next block is uppercase or numeric.
+//
+// Two shapes are tried, and nothing else, so a short prefix that passes mod-97
+// by chance is never reported:
+//   - An unspaced IBAN, whose first block holds 15 or more characters, ends at
+//     its first space.
+//   - A spaced IBAN is the whole candidate, or the candidate without its final
+//     block.
+func (v *IBANValidator) ibanSpan(c ibanCandidate) (ibanCandidate, bool) {
+	if v.Validate(c.text) {
+		return c, true
+	}
+	first := strings.IndexByte(c.text, ' ')
+	if first >= ibanUnspacedMinBlock {
+		return c.prefix(first, v)
+	}
+	last := strings.LastIndexByte(c.text, ' ')
+	if last <= 0 {
+		return ibanCandidate{}, false
+	}
+	return c.prefix(last, v)
+}
+
+// ibanUnspacedMinBlock is the shortest first block that marks an unspaced IBAN.
+// The shortest IBAN is 15 characters, so a block this long cannot be a group of
+// a spaced IBAN, whose blocks are 4 characters.
+const ibanUnspacedMinBlock = 15
+
+// prefix returns the candidate cut at k, if that prefix is a valid IBAN with the
+// canonical shape of a printed IBAN.
+func (c ibanCandidate) prefix(k int, v *IBANValidator) (ibanCandidate, bool) {
+	text := c.text[:k]
+	if !canonicalIBANShape(text) || !v.Validate(text) {
+		return ibanCandidate{}, false
+	}
+	return ibanCandidate{text: text, start: c.start, end: c.start + k}, true
+}
+
+// canonicalIBANShape reports whether s is a printed IBAN: a country code of two
+// uppercase letters and two check digits, uppercase letters and digits only,
+// single spaces between blocks, and every block 4 characters except a last block
+// of 1 to 4. An unspaced IBAN is one block and is checked only for the country
+// code, because its length is the country's.
+func canonicalIBANShape(s string) bool {
+	if len(s) < 4 || !isUpperLetter(s[0]) || !isUpperLetter(s[1]) || !isDigit(s[2]) || !isDigit(s[3]) {
+		return false
+	}
+	blocks := strings.Split(s, " ")
+	for _, block := range blocks {
+		for i := 0; i < len(block); i++ {
+			if !isUpperLetter(block[i]) && !isDigit(block[i]) {
+				return false
+			}
+		}
+	}
+	if len(blocks) == 1 {
+		return true
+	}
+	for i, block := range blocks {
+		last := i == len(blocks)-1
+		if last && (len(block) < 1 || len(block) > 4) {
+			return false
+		}
+		if !last && len(block) != 4 {
+			return false
+		}
+	}
+	return true
+}
+
+// isUpperLetter reports whether c is an ASCII uppercase letter.
+func isUpperLetter(c byte) bool {
+	return c >= 'A' && c <= 'Z'
 }
 
 type ibanCandidate struct {

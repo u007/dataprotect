@@ -325,3 +325,22 @@ func TestAllEntityTypesParse(t *testing.T) {
 		}
 	}
 }
+
+// A valid card followed by a space and digits was not redacted at all. The
+// card and the digit group formed one run that failed Luhn.
+func TestScrubberRedactsCardNextToDigitGroup(t *testing.T) {
+	s := NewScrubber()
+	for _, text := range []string{
+		"card 4111111111111111 123",
+		"4111111111111111 2024",
+		"4012888888881881 4012888888881881",
+	} {
+		out, err := s.Anonymize(context.Background(), text)
+		if err != nil {
+			t.Fatalf("Anonymize(%q): %v", text, err)
+		}
+		if strings.Contains(out, "4111111111111111") || strings.Contains(out, "4012888888881881") {
+			t.Errorf("Anonymize(%q) = %q, a card number is still visible", text, out)
+		}
+	}
+}
