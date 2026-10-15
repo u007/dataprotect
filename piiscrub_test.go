@@ -485,6 +485,19 @@ func TestPseudonymizeSharesCanonicalValues(t *testing.T) {
 	}
 }
 
+// A text with no PII that already holds a placeholder-shaped token is an error
+// too. The shared map would rewrite that token when the texts are restored.
+func TestPseudonymizeAllRejectsLiteralPlaceholderInPIIFreeText(t *testing.T) {
+	s := NewScrubber()
+	outs, pseudonyms, err := s.PseudonymizeAll(context.Background(), []string{"mail a@b.com", "see [EMAIL_1] now"})
+	if err == nil {
+		t.Errorf("PseudonymizeAll = %q %v, want a placeholder-collision error", outs, pseudonyms)
+	}
+	if outs != nil || pseudonyms != nil {
+		t.Errorf("on error PseudonymizeAll returned %q %v, want nil and nil", outs, pseudonyms)
+	}
+}
+
 // PseudonymizeAll shares one mapping across texts, such as table cells, so a value
 // that recurs in a later cell gets the placeholder it got in an earlier one.
 func TestPseudonymizeAllSharesMappingAcrossTexts(t *testing.T) {

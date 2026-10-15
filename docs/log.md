@@ -10,6 +10,7 @@
 * **Update**: piiscrub — email Unicode IDN addresses, IPv6 label residuals kept ([decisions/spec-v1.md](/decisions/spec-v1.md))
 * **Update**: piiscrub — tail-aligned mask for phone and card, dash-separated IBAN, card after a dash IBAN ([decisions/spec-v1.md](/decisions/spec-v1.md))
 * **Update**: piiscrub v1 Spec — canonical pseudonym keys, PseudonymizeAll, IBAN country lengths, all-zero card ([decisions/spec-v1.md](/decisions/spec-v1.md))
+* **Update**: piiscrub v1 Spec — placeholder collision checked for texts with no entities ([decisions/spec-v1.md](/decisions/spec-v1.md))
 
 ## 2026-10-15
 

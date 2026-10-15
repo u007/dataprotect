@@ -186,15 +186,17 @@ func (p *pseudonymizer) placeholderFor(entityType recognizers.EntityType, value 
 
 // pseudonymizeText replaces the entities of one text with placeholders from p.
 func (a *Anonymizer) pseudonymizeText(p *pseudonymizer, text string, entities []recognizers.Entity) (string, error) {
+	// The collision check runs even when there are no entities: a shared mapping
+	// (PseudonymizeAll) would rewrite a literal token in this text on restore.
+	if token, ok := placeholderCollision(text, entities); ok {
+		return "", fmt.Errorf("text already contains placeholder-shaped token %s, so the map would be ambiguous", token)
+	}
 	if len(entities) == 0 {
 		return text, nil
 	}
 	ordered, err := validate(text, entities)
 	if err != nil {
 		return "", err
-	}
-	if token, ok := placeholderCollision(text, entities); ok {
-		return "", fmt.Errorf("text already contains placeholder-shaped token %s, so the map would be ambiguous", token)
 	}
 
 	// Number left to right. ordered is right-to-left, so walk it backwards.

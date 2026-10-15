@@ -219,7 +219,8 @@ cells. The round trip and error rules apply to each text.
 
 A text that already holds a placeholder-shaped token for a known entity type (for
 example a literal `[EMAIL_1]`) is an error, because the map could not be reversed
-reliably. The check uses `recognizers.AllEntityTypes`. An unknown bracketed token is
+reliably. The check applies to a text with no entities too, because a shared mapping
+(`PseudonymizeAll`) would rewrite such a token on restore. The check uses `recognizers.AllEntityTypes`. An unknown bracketed token is
 ordinary text. `Scrubber.Pseudonymize(ctx, text)` runs detection first. `make corpus-anonymize`
 checks the round trip over the corpora (up to spelling).
 
