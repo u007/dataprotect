@@ -6,6 +6,7 @@
 
 ## 2026-10-15
 
+* **Update**: piiscrub v1 Spec — IPv6 label fix, linear IP scan and containment check ([decisions/spec-v1.md](/decisions/spec-v1.md))
 * **Update**: piiscrub v1 Spec — scope decisions, IPv6 detection ([decisions/spec-v1.md](/decisions/spec-v1.md))
 * **Update**: piiscrub v1 Spec — spaced IBAN cut from the right, dash- or dot-joined card ([decisions/spec-v1.md](/decisions/spec-v1.md))
 * **Update**: piiscrub — Usage & Quick Start, Pseudonymize example ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md))

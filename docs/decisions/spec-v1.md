@@ -300,8 +300,8 @@ order, recorded in each `schema.json`).
 
 | | nemotron (2000 of 100000) | gretel (2000 of 5596) |
 |---|---|---|
-| **Exact** | P=0.8354 R=0.8916 F1=0.8626 (tp=2426 fp=478 fn=295) | P=0.3673 R=0.8201 F1=0.5074 (tp=652 fp=1123 fn=143) |
-| **Overlap** | P=0.8378 R=0.8942 F1=0.8651 (tp=2433 fp=471 fn=288) | P=0.3854 R=0.8604 F1=0.5323 (tp=684 fp=1091 fn=111) |
+| **Exact** | P=0.8345 R=0.8916 F1=0.8621 (tp=2426 fp=481 fn=295) | P=0.3669 R=0.8201 F1=0.5070 (tp=652 fp=1125 fn=143) |
+| **Overlap** | P=0.8380 R=0.8953 F1=0.8657 (tp=2436 fp=471 fn=285) | P=0.3849 R=0.8604 F1=0.5319 (tp=684 fp=1093 fn=111) |
 | negatives clean | 471 of 600 | 1291 of 1497 |
 | out-of-schema (not scored) | IBAN=1 | BITCOIN=21, URL=817, MY_PASSPORT=1 |
 
@@ -324,9 +324,9 @@ headline. It is set aside into a bucket, and the report shows the precision with
 it removed, labelled as an upper bound. The headline stays as it was, so the
 bucket can't quietly move a number. Measured on the 2000-record samples:
 
-- nemotron, exact: headline P=0.8354; 453 detections set aside (PHONE 408, SSN 25,
+- nemotron, exact: headline P=0.8345; 453 detections set aside (PHONE 408, SSN 25,
   CREDIT_CARD 18, EMAIL 2); upper bound P=0.9925.
-- gretel, exact: headline P=0.3673; 18 detections set aside (CREDIT_CARD on `bban`
+- gretel, exact: headline P=0.3669; 18 detections set aside (CREDIT_CARD on `bban`
   7, EMAIL on `name` 6 and `user_name` 4, PHONE 1); upper bound P=0.3595.
 
 An upper bound is not accuracy. The nemotron PHONE bucket is mostly ID-field
@@ -393,7 +393,7 @@ Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. I
 | Module | Cases | Negatives | Exact P / R (tp, fp, fn) | Overlap P / R |
 |--------|-------|-----------|--------------------------|---------------|
 | email | 8 | 2 | 0.8571 / 0.8571 (6, 1, 1) | 1.0000 / 1.0000 |
-| ip | 112 | 29 | 0.8049 / 0.7500 (66, 16, 22) | 1.0000 / 0.9318 (82, 0, 6) |
+| ip | 112 | 29 | 0.7738 / 0.7386 (65, 19, 23) | 0.9762 / 0.9318 (82, 2, 6) |
 | url | 16 | 3 | 0.7500 / 0.6429 (9, 3, 5) | 0.9167 / 0.7857 |
 | iban | 330 | 173 | 0.9812 / 0.9937 (157, 3, 1) | 0.9812 / 0.9937 |
 | crypto (BITCOIN) | 9 | 3 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
@@ -416,6 +416,7 @@ Measured before and after, on the same inputs:
 | gretel, 2000 cases, exact | P 0.3557 (fp 1105), R 0.7673 | P 0.3557 (fp 1105), R 0.7673 | CREDIT_CARD P 0.5094 (fp 26), R 0.4737; IBAN P 0.9556 (fp 2), R 0.9773 |
 | nemotron and gretel, 2000 cases, exact, after the card separator and IBAN cut (2026-10-15) | nemotron P 0.8326 (fp 476), R 0.8699; CREDIT_CARD P 0.5106 (fp 23) | gretel P 0.3544 (fp 1111), R 0.7673; CREDIT_CARD P 0.4576 (fp 32); IBAN P 0.9556 (fp 2), R 0.9773 | recall unchanged; the new false positives are over-redaction from the separator and cut changes |
 | nemotron and gretel, 2000 cases, exact, after IPv6 detection (2026-10-15) | nemotron P 0.8354 (fp 478), R 0.8916; IP P 0.9884 (fp 2), R 0.9771 | gretel P 0.3673 (fp 1123), R 0.8201; IP P 0.8571 (fp 14), R 0.9767 | IPv6 adds recall; the new gretel false positives are EDIFACT `::` separators and full-form addresses the corpus leaves unlabelled |
+| nemotron and gretel, 2000 cases, exact, after the label and containment fixes (2026-10-15) | nemotron P 0.8345 (fp 481), R 0.8916; IP P 0.9716 (fp 5), R 0.9771 | gretel P 0.3669 (fp 1125), R 0.8201; IP P 0.8400 (fp 16), R 0.9767 | the new positives are unlabelled IPv6 addresses (nemotron), and EDIFACT `::` separators plus unlabelled addresses (gretel) |
 | Presidio credit_card | tp 13, fp 1, fn 3 (exact R 0.8125) | tp 14, fp 2, fn 2 exact (R 0.8750); overlap 15, 1, 1 (R 0.9375) | the merged cluster covers two adjacent gold cards |
 | Presidio iban | tp 155, fp 0, fn 3 | tp 157, fp 0, fn 1 | precision 1.0000 kept (IBAN cut, 8609c2c: tp 157, fp 3, fn 1, P 0.9812) |
 
@@ -426,6 +427,8 @@ Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold t
 **Spaced IBAN followed by uppercase blocks, fixed 2026-10-15.** `GB82 WEST 1234 5698 7654 32 ALL FEES` and `DE89 3704 0044 0532 0130 00 BIC TESTDEFF` now keep the IBAN. `checksum.ibanSpan` tries cuts from the right, not only the last space. Cost, measured: Presidio IBAN exact fp 0 to 3 (P 1.0 to 0.9812, R 0.9937 unchanged). The three are chance mod-97 passes on shorter cuts of negatives (`MC58 A122 2000 0101`, `JO94 CBJO 0010 0000 0000 0131`). Gretel IBAN unchanged (P 0.9556, R 0.9773). A country-length table would remove them (TODO).
 
 **Scope decisions, 2026-10-15 (user).** IPv6 is in scope. `regex.IPRecognizer` reports an IPv6 candidate only when `netip` parses it, so clock times and MAC addresses stay out (commit `06b84dc`). Not in scope, documented: bare domains; national phone formats for Israel, Japan and UK (Presidio uses the `phonenumbers` library, which this dependency-free design does not use); and the Thai extra rule, so Thai stays on mod-11. SSN stays shape-only. Adopting Presidio's never-issued rules needs seed and test changes the user has not approved. Asian IDs: `ph_tin` then `in_gstin`, once their format documents are supplied. No Asian ID recognizer is added yet.
+
+**IPv6 span conventions and residuals, 2026-10-15.** An address after a label colon is reported (`IP:2001:db8::1`, `id:fe80::1`). Two residuals remain. First, an address glued to a word that ends in digits (`text2001:db8::1`) is read as label plus address, so the leading group stays visible. The same rule is what fixes `id:fe80::1`, so a fix must keep both. Second, a candidate whose first group is not valid but whose suffix is (`2a02:4d60:1031:4c3f::85e1:79f2:9122:5234`) reports the suffix, so its first group stays visible. Against Presidio's IP cases, the exact-span misses are span conventions, not missed addresses: CIDR suffixes (`/24`) and zone IDs (`%eth0`) are outside our span; the unspecified `::` is not redacted by design; and a URL containing an IPv6 host wins the overlap, so the address is redacted inside the URL span. The IP scan is linear, and so is the card-versus-IBAN containment check (`checksum.inside`, binary search).
 
 **Dash- or dot-joined card, fixed 2026-10-15.** A single group is bounded by a space, hyphen or dot, so `4111111111111111-123`, `4111111111111111.123` and `123-4111111111111111` now report the card. Cost, measured: any Luhn-passing group of 13 to 19 digits joined by `-` or `.` is reported. Gretel CREDIT_CARD fp 26 to 32 (timestamps, EDI references, and a decimal such as `50.0000000000000000`). Nemotron CREDIT_CARD fp 22 to 23 (`88.01951444993813`). Card recall is unchanged on both corpora, and Presidio credit_card is unchanged (exact tp 14, fp 2, fn 2).
 
@@ -526,8 +529,8 @@ proves nothing.
 - [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT
       MET, now measured.** The seed set reads P=0.9811 R=1.0000 over 81
       cases, which cannot support a >99% claim. The corpora are now measurable
-      and do not come close: exact aggregate P=0.8354 R=0.8916 (nemotron) and
-      P=0.3673 R=0.8201 (gretel) over 2000 records each — see "Corpus
+      and do not come close: exact aggregate P=0.8345 R=0.8916 (nemotron) and
+      P=0.3669 R=0.8201 (gretel) over 2000 records each — see "Corpus
       measurement (2026-10-09)" above for the per-type numbers and the
       explanation of every large gap. BITCOIN remains unmeasured because
       neither corpus labels it. Reproduce with `make corpus`.
