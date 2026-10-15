@@ -362,3 +362,43 @@ func TestScrubberRedactsCardAfterLettersAndChancePrefix(t *testing.T) {
 		}
 	}
 }
+
+// restorePlaceholders is the inverse of Pseudonymize: each placeholder back to
+// its original value.
+func restorePlaceholders(out string, pseudonyms map[string]string) string {
+	var pairs []string
+	for placeholder, original := range pseudonyms {
+		pairs = append(pairs, placeholder, original)
+	}
+	return strings.NewReplacer(pairs...).Replace(out)
+}
+
+func TestScrubberPseudonymize(t *testing.T) {
+	s := NewScrubber()
+	text := "Contact a@example.com or a@example.com, or b@example.org. Card 4111111111111111. NRIC S1234567D."
+	out, pseudonyms, err := s.Pseudonymize(context.Background(), text)
+	if err != nil {
+		t.Fatalf("Pseudonymize: %v", err)
+	}
+	want := "Contact [EMAIL_1] or [EMAIL_1], or [EMAIL_2]. Card [CREDIT_CARD_1]. NRIC [SG_NRIC_1]."
+	if out != want {
+		t.Errorf("out = %q, want %q", out, want)
+	}
+	wantMap := map[string]string{
+		"[EMAIL_1]":       "a@example.com",
+		"[EMAIL_2]":       "b@example.org",
+		"[CREDIT_CARD_1]": "4111111111111111",
+		"[SG_NRIC_1]":     "S1234567D",
+	}
+	if len(pseudonyms) != len(wantMap) {
+		t.Fatalf("map = %v, want %v", pseudonyms, wantMap)
+	}
+	for k, v := range wantMap {
+		if pseudonyms[k] != v {
+			t.Errorf("map[%s] = %q, want %q", k, pseudonyms[k], v)
+		}
+	}
+	if got := restorePlaceholders(out, pseudonyms); got != text {
+		t.Errorf("restore(out) = %q, want %q", got, text)
+	}
+}

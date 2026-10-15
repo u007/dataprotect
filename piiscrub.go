@@ -112,6 +112,18 @@ func (s *Scrubber) Anonymize(ctx context.Context, text string) (string, error) {
 	return s.anonymizer.Anonymize(ctx, text, entities)
 }
 
+// Pseudonymize detects PII in text and replaces each value with a numbered
+// placeholder such as [EMAIL_1]. It returns the redacted text and a map from
+// each placeholder to its original value. The map holds raw PII, so the caller
+// must protect it. See anonymizer.Pseudonymize for the numbering rules.
+func (s *Scrubber) Pseudonymize(ctx context.Context, text string) (string, map[string]string, error) {
+	entities, err := s.Analyze(ctx, text)
+	if err != nil {
+		return "", nil, err
+	}
+	return s.anonymizer.Pseudonymize(text, entities)
+}
+
 // isThaiIDSpan reports whether text[start:end] is a Thai citizen ID, bounded the
 // way the Thai pattern's word boundaries bound it. A glued run stays a card.
 func isThaiIDSpan(text string, start, end int) bool {

@@ -100,6 +100,16 @@ func main() {
 }
 ```
 
+Replace each value with a numbered placeholder and keep the map to restore it:
+
+```go
+redacted, pseudonyms, err := s.Pseudonymize(context.Background(), "mail a@b.com and a@b.com")
+// redacted:   "mail [EMAIL_1] and [EMAIL_1]"
+// pseudonyms: map[string]string{"[EMAIL_1]": "a@b.com"}
+```
+
+The map holds the original values in plain text. Protect it as you would the input.
+
 ## Testing & dataset coverage
 
 Accuracy here is measured, not asserted. `testdata/golden/seed.json` holds 81

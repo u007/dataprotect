@@ -1,5 +1,11 @@
 # TODO
 
+## Pseudonymize follow-ups (2026-10-15)
+
+- [ ] **`structured/` (CSV) has no pseudonymize path.** `Scrubber.Pseudonymize` covers free text only. A CSV column is analysed one cell at a time, so a repeated value gets one placeholder per cell only if the same cell text repeats. Design the column-level numbering before adding it.
+- [ ] **Pseudonym equality is exact string.** `4111 1111 1111 1111` and `4111111111111111`, or the same email in different case, get different placeholders. Normalising the value for equality is a separate decision; it changes which values count as the same person.
+- [ ] **Merged card spans are one placeholder.** A span merged by the card window search (see the review response) can cover two cards or a card plus a year. Its placeholder then restores both values as one original. Revisit with the merge decision.
+
 ## Review response (2026-10-15)
 
 A background security review of commit `ff3c08b` reported two findings in `recognizers/checksum/checksum.go`. The finding text never arrived, so the shapes below are what I confirmed by probing, not the reviewer's wording.

@@ -208,7 +208,26 @@ type Anonymizer struct {
 func New(opts ...Option) *Anonymizer
 func (a *Anonymizer) SetOperator(entityType recognizers.EntityType, op operators.Operator)
 func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []recognizers.Entity) (string, error)
+func (a *Anonymizer) Pseudonymize(text string, entities []recognizers.Entity) (string, map[string]string, error)
 ```
+
+`Pseudonymize` replaces every entity with a numbered placeholder named for its type,
+such as `[EMAIL_1]` or `[CREDIT_CARD_2]`, and returns the placeholder-to-original
+map. Numbers count per type from 1, in text order. The same type and the same exact
+value share one placeholder. Different values, and the same value under two types,
+get different placeholders. Numbering is local to each call. It ignores the
+configured operators, so every entity is replaced. The returned map holds raw PII:
+the caller must protect it as it would the input. On any error the string is empty
+and the map is nil, and an error never includes an original value.
+
+A text that already holds a placeholder-shaped token for a known entity type (for
+example a literal `[EMAIL_1]`) is an error, because the map could not be reversed
+reliably. The check uses `recognizers.AllEntityTypes`. An unknown bracketed token is
+ordinary text. `Scrubber.Pseudonymize(ctx, text)` runs detection first. The round trip
+(restoring every placeholder reproduces the input) is checked over the seed, the
+corpora and the Presidio cases by `make corpus-anonymize`.
+
+Scope: `structured/` (CSV) has no pseudonymize path yet (TODO).
 
 `Anonymize` requires non-overlapping, in-bounds entities whose start and end fall
 on UTF-8 rune boundaries. An overlapping, out-of-bounds, or mid-rune span is
