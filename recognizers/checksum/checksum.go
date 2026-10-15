@@ -277,7 +277,7 @@ func (v *IBANValidator) Name() string { return "checksum_iban" }
 
 // Validate checks if an IBAN passes the mod-97 checksum.
 func (v *IBANValidator) Validate(iban string) bool {
-	iban = strings.ToUpper(strings.ReplaceAll(iban, " ", ""))
+	iban = strings.ToUpper(strings.NewReplacer(" ", "", "-", "").Replace(iban))
 	if len(iban) < 15 || len(iban) > 34 {
 		return false
 	}
@@ -338,20 +338,21 @@ func (v *IBANValidator) Recognize(ctx context.Context, text string) ([]recognize
 // continues it when the next block is uppercase or numeric.
 //
 // An unspaced IBAN, whose first block holds 15 or more characters, ends at its
-// first space. A spaced IBAN is the longest prefix cut at a space that has the
-// printed shape and passes mod-97. Cuts are tried from the right, so words
-// after the IBAN are dropped one block at a time. Each cut that passes the
+// first separator. A spaced IBAN is the longest prefix cut at a separator that
+// has the printed shape and passes mod-97. Cuts are tried from the right, so
+// words after the IBAN are dropped one block at a time. A separator is a space
+// or a dash. Each cut that passes the
 // shape check still has about a 1 in 97 chance of passing mod-97 by accident,
 // so the shape check is what keeps short accidental matches out.
 func (v *IBANValidator) ibanSpan(c ibanCandidate) (ibanCandidate, bool) {
 	if v.Validate(c.text) {
 		return c, true
 	}
-	first := strings.IndexByte(c.text, ' ')
+	first := strings.IndexAny(c.text, " -")
 	if first >= ibanUnspacedMinBlock {
 		return c.prefix(first, v)
 	}
-	for k := strings.LastIndexByte(c.text, ' '); k > 0; k = strings.LastIndexByte(c.text[:k], ' ') {
+	for k := strings.LastIndexAny(c.text, " -"); k > 0; k = strings.LastIndexAny(c.text[:k], " -") {
 		if iban, ok := c.prefix(k, v); ok {
 			return iban, true
 		}
@@ -376,14 +377,14 @@ func (c ibanCandidate) prefix(k int, v *IBANValidator) (ibanCandidate, bool) {
 
 // canonicalIBANShape reports whether s is a printed IBAN: a country code of two
 // uppercase letters and two check digits, uppercase letters and digits only,
-// single spaces between blocks, and every block 4 characters except a last block
-// of 1 to 4. An unspaced IBAN is one block and is checked only for the country
+// single separators between blocks (a space or a dash, either or both), and every
+// block 4 characters except a last block of 1 to 4. An unspaced IBAN is one block and is checked only for the country
 // code, because its length is the country's.
 func canonicalIBANShape(s string) bool {
 	if len(s) < 4 || !isUpperLetter(s[0]) || !isUpperLetter(s[1]) || !isDigit(s[2]) || !isDigit(s[3]) {
 		return false
 	}
-	blocks := strings.Split(s, " ")
+	blocks := strings.Split(strings.ReplaceAll(s, "-", " "), " ")
 	for _, block := range blocks {
 		for i := 0; i < len(block); i++ {
 			if !isUpperLetter(block[i]) && !isDigit(block[i]) {
@@ -464,8 +465,8 @@ func findIBANCandidates(text string) []ibanCandidate {
 			// bad" stops at the space before "and", which is followed by letters
 			// A space can extend the span only while at least one further
 			// character could still fit inside the 34-character limit.
-			if text[end] == ' ' && significant+1 <= ibanMaxSignificant &&
-				hasShortAlphanumBlock(text, end+1) {
+			if (text[end] == ' ' || text[end] == '-') &&
+				significant+1 <= ibanMaxSignificant && hasShortAlphanumBlock(text, end+1) {
 				end++
 				continue
 			}

@@ -470,3 +470,32 @@ func TestLuhnRecognizeCardsThreeTimesAreCovered(t *testing.T) {
 		at = start + len("4012 8888 8888 1881")
 	}
 }
+
+// A dash-printed IBAN is one span, the same as the space-printed form. A space
+// and a dash may both appear in one IBAN: a mixed IBAN is still a visible value.
+func TestIBANRecognizeDashSeparated(t *testing.T) {
+	v := NewIBANValidator()
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		text string
+		want []string
+	}{
+		{"AL47-2121-1009-0000-0002-3569-8741", []string{"AL47-2121-1009-0000-0002-3569-8741"}},
+		{"pay AL47-2121-1009-0000-0002-3569-8741 now", []string{"AL47-2121-1009-0000-0002-3569-8741"}},
+		{"AL47-2121-1009-0000-0002-3569-8741 ALL CAPS", []string{"AL47-2121-1009-0000-0002-3569-8741"}},
+		{"AL47-2121 1009-0000-0002-3569-8741", []string{"AL47-2121 1009-0000-0002-3569-8741"}},
+	} {
+		entities, err := v.Recognize(ctx, tc.text)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		var got []string
+		for _, e := range entities {
+			got = append(got, e.Text)
+		}
+		if len(got) != len(tc.want) || (len(got) == 1 && got[0] != tc.want[0]) {
+			t.Errorf("Recognize(%q) = %q, want %q", tc.text, got, tc.want)
+		}
+	}
+}

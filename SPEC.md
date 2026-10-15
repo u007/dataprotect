@@ -379,7 +379,7 @@ Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. I
 | email | 8 | 2 | 0.8571 / 0.8571 (6, 1, 1) | 1.0000 / 1.0000 |
 | ip | 112 | 29 | 0.7738 / 0.7386 (65, 19, 23) | 0.9762 / 0.9318 (82, 2, 6) |
 | url | 16 | 3 | 0.7500 / 0.6429 (9, 3, 5) | 0.9167 / 0.7857 |
-| iban | 330 | 173 | 0.9812 / 0.9937 (157, 3, 1) | 0.9812 / 0.9937 |
+| iban | 330 | 173 | 0.9814 / 1.0000 (158, 3, 0) | 0.9814 / 1.0000 |
 | crypto (BITCOIN) | 9 | 3 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
 | credit_card | 19 | 5 | 0.8750 / 0.8750 (14, 2, 2) | 0.9375 / 0.9375 (15, 1, 1) |
 | phone | 19 | 0 | 0.7917 / 0.6786 (19, 5, 9) | 1.0000 / 0.8571 |
@@ -402,7 +402,7 @@ Measured before and after, on the same inputs:
 | nemotron and gretel, 2000 cases, exact, after IPv6 detection (2026-10-15) | nemotron P 0.8354 (fp 478), R 0.8916; IP P 0.9884 (fp 2), R 0.9771 | gretel P 0.3673 (fp 1123), R 0.8201; IP P 0.8571 (fp 14), R 0.9767 | IPv6 adds recall; the new gretel false positives are EDIFACT `::` separators and full-form addresses the corpus leaves unlabelled |
 | nemotron and gretel, 2000 cases, exact, after the label and containment fixes (2026-10-15) | nemotron P 0.8345 (fp 481), R 0.8916; IP P 0.9716 (fp 5), R 0.9771 | gretel P 0.3669 (fp 1125), R 0.8201; IP P 0.8400 (fp 16), R 0.9767 | the new positives are unlabelled IPv6 addresses (nemotron), and EDIFACT `::` separators plus unlabelled addresses (gretel) |
 | Presidio credit_card | tp 13, fp 1, fn 3 (exact R 0.8125) | tp 14, fp 2, fn 2 exact (R 0.8750); overlap 15, 1, 1 (R 0.9375) | the merged cluster covers two adjacent gold cards |
-| Presidio iban | tp 155, fp 0, fn 3 | tp 157, fp 0, fn 1 | precision 1.0000 kept (IBAN cut, 8609c2c: tp 157, fp 3, fn 1, P 0.9812) |
+| Presidio iban | tp 155, fp 0, fn 3 | tp 158, fp 3, fn 0 | dash separators (2026-10-16): tp 158, fp 3, fn 0, P 0.9814, R 1.0000 (was tp 157, fp 3, fn 1, P 0.9812) |
 
 Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold that was missed (0 of the misses pass Luhn on their own), so the fix gains nothing on the corpora and costs nothing there. The differential over all sets (seed, 4000 corpus texts, 590 Presidio cases) loses no detection, and no case has overlapping detections. Anonymize runs without error over the seed, the corpora and every Presidio module.
 

@@ -346,6 +346,20 @@ func TestScrubberRedactsCardNextToDigitGroup(t *testing.T) {
 	}
 }
 
+// A dash-printed IBAN is redacted whole: no block of it stays visible.
+func TestScrubberRedactsDashSeparatedIBAN(t *testing.T) {
+	s := NewScrubber()
+	out, err := s.Anonymize(context.Background(), "pay AL47-2121-1009-0000-0002-3569-8741 now")
+	if err != nil {
+		t.Fatalf("Anonymize: %v", err)
+	}
+	for _, h := range []string{"AL47", "2121", "3569", "8741"} {
+		if strings.Contains(out, h) {
+			t.Errorf("Anonymize = %q, %q is still visible", out, h)
+		}
+	}
+}
+
 // An email with a Unicode domain is redacted whole, and the output stays valid
 // UTF-8 (the span is cut on rune boundaries).
 func TestScrubberRedactsUnicodeEmail(t *testing.T) {
