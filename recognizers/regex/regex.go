@@ -245,29 +245,18 @@ func (r *IPRecognizer) Name() string { return "regex_ip" }
 
 // Recognize detects IPv4 and IPv6 addresses in text.
 func (r *IPRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
-	var v6 []recognizers.Entity
-	for _, m := range ipv6Candidate.FindAllStringIndex(text, -1) {
-		if !ipv6Bounded(text, m[0], m[1]) {
-			continue
-		}
-		candidate := text[m[0]:m[1]]
-		addr, err := netip.ParseAddr(candidate)
-		// intentionally not logged: a candidate that is not an address is the normal negative case
-		if err != nil || !addr.Is6() || !strings.ContainsAny(candidate, "0123456789abcdefABCDEF") {
-			continue
-		}
-		v6 = append(v6, recognizers.Entity{
-			Type:       recognizers.EntityIP,
-			Start:      m[0],
-			End:        m[1],
-			Text:       candidate,
-			Confidence: 0.99,
-		})
-	}
+	v6 := ipv6Spans(text)
 
-	entities := make([]recognizers.Entity, 0)
-	for _, m := range r.pattern.FindAllStringIndex(text, -1) {
-		if insideIPv6(v6, m[0], m[1]) {
+	// Both lists are in start order, and the IPv6 spans do not overlap, so one
+	// forward walk finds the IPv4 matches that sit inside an IPv6 span.
+	ipv4 := r.pattern.FindAllStringIndex(text, -1)
+	entities := make([]recognizers.Entity, 0, len(ipv4)+len(v6))
+	j := 0
+	for _, m := range ipv4 {
+		for j < len(v6) && v6[j].End <= m[0] {
+			j++
+		}
+		if j < len(v6) && v6[j].Start <= m[0] && m[1] <= v6[j].End {
 			continue
 		}
 		entities = append(entities, recognizers.Entity{
@@ -283,38 +272,108 @@ func (r *IPRecognizer) Recognize(ctx context.Context, text string) ([]recognizer
 	return entities, nil
 }
 
-// ipv6Bounded reports whether text[start:end] stands alone. A letter, digit or
-// colon touching it means it is part of a longer token (std::vector, 12345::1).
-// A dot followed by a digit continues it as a number (2001:db8::1.5).
-func ipv6Bounded(text string, start, end int) bool {
-	if start > 0 && isIPGlue(text[start-1]) {
+// ipv6Spans returns the IPv6 addresses in text, in order. A candidate that is not
+// an address gets one retry from just after its first single colon, so an address
+// after a label (id:fe80::1) is not lost to the label. The scan resumes after the
+// candidate either way, so a long run is read once.
+func ipv6Spans(text string) []recognizers.Entity {
+	var spans []recognizers.Entity
+	from := 0
+	for from < len(text) {
+		m := ipv6Candidate.FindStringIndex(text[from:])
+		if m == nil {
+			break
+		}
+		start, end := from+m[0], from+m[1]
+		if e, ok := ipv6Span(text, start, end); ok {
+			spans = append(spans, e)
+		} else if k := firstSingleColon(text, start, end); k >= 0 {
+			if e, ok := ipv6Span(text, k+1, end); ok {
+				spans = append(spans, e)
+			}
+		}
+		from = end
+	}
+	return spans
+}
+
+// ipv6Span returns text[start:end] as an IPv6 entity when it is a standalone
+// address. A single colon at either end is a label separator, not part of the
+// address, so it is trimmed before the check.
+func ipv6Span(text string, start, end int) (recognizers.Entity, bool) {
+	if start < end && text[start] == ':' && start+1 < end && text[start+1] != ':' {
+		start++
+	}
+	if end-start >= 2 && text[end-1] == ':' && text[end-2] != ':' {
+		end--
+	}
+	if start >= end || leftGlue(text, start) || rightGlue(text, end) {
+		return recognizers.Entity{}, false
+	}
+	candidate := text[start:end]
+	addr, err := netip.ParseAddr(candidate)
+	// intentionally not logged: a candidate that is not an address is the normal negative case
+	if err != nil || !addr.Is6() || !strings.ContainsAny(candidate, "0123456789abcdefABCDEF") {
+		return recognizers.Entity{}, false
+	}
+	return recognizers.Entity{
+		Type:       recognizers.EntityIP,
+		Start:      start,
+		End:        end,
+		Text:       candidate,
+		Confidence: 0.99,
+	}, true
+}
+
+// firstSingleColon returns the index of the first colon in text[start:end] that
+// is not part of a "::" run, or -1 when there is none.
+func firstSingleColon(text string, start, end int) int {
+	for i := start; i < end; i++ {
+		if text[i] != ':' {
+			continue
+		}
+		if (i > start && text[i-1] == ':') || (i+1 < end && text[i+1] == ':') {
+			continue
+		}
+		return i
+	}
+	return -1
+}
+
+// leftGlue reports whether the byte before start joins the candidate to a longer
+// token: a letter or digit, or a colon that continues a "::" run. A single colon
+// before the candidate is a label separator (IP:2001:db8::1).
+func leftGlue(text string, start int) bool {
+	if start == 0 {
 		return false
 	}
-	if end < len(text) {
-		c := text[end]
-		if isIPGlue(c) {
-			return false
-		}
-		if c == '.' && end+1 < len(text) && text[end+1] >= '0' && text[end+1] <= '9' {
-			return false
-		}
+	c := text[start-1]
+	if c == ':' {
+		return start >= 2 && text[start-2] == ':'
 	}
-	return true
+	return isAlnumByte(c)
 }
 
-// isIPGlue reports whether c would make an adjacent address part of a longer token.
-func isIPGlue(c byte) bool {
-	return c == ':' || (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+// rightGlue reports whether the byte at end joins the candidate to a longer
+// token: a letter or digit, a colon that continues a "::" run, or a dot that
+// begins another number (2001:db8::1.5).
+func rightGlue(text string, end int) bool {
+	if end == len(text) {
+		return false
+	}
+	c := text[end]
+	switch c {
+	case ':':
+		return end+1 < len(text) && text[end+1] == ':'
+	case '.':
+		return end+1 < len(text) && text[end+1] >= '0' && text[end+1] <= '9'
+	}
+	return isAlnumByte(c)
 }
 
-// insideIPv6 reports whether [start, end) lies within one of the IPv6 spans.
-func insideIPv6(v6 []recognizers.Entity, start, end int) bool {
-	for _, e := range v6 {
-		if e.Start <= start && end <= e.End {
-			return true
-		}
-	}
-	return false
+// isAlnumByte reports whether c is an ASCII letter or digit.
+func isAlnumByte(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
 // URLRecognizer detects URLs.

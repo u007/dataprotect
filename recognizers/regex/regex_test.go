@@ -2,7 +2,9 @@ package regex
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/u007/dataprotect/recognizers"
 )
@@ -239,6 +241,10 @@ func TestIPv6Recognizer(t *testing.T) {
 		{"bare double colon", "a :: b", nil},
 		{"five hex digits", "value 12345::1 here", nil},
 		{"dotted tail not an address", "x 2001:db8::1.5 y", nil},
+		{"after a label colon", "IP:2001:db8::1 up", []string{"2001:db8::1"}},
+		{"after a short label", "id:fe80::1 up", []string{"fe80::1"}},
+		{"after an underscore label", "client_ip:2001:db8::1 up", []string{"2001:db8::1"}},
+		{"clock time after a label", "time:12:30:45 today", nil},
 	}
 
 	r := NewIPRecognizer()
@@ -393,5 +399,22 @@ func TestURLRecognizerExactSpan(t *testing.T) {
 				t.Errorf("Text = %q, want %q", entities[0].Text, tt.want)
 			}
 		})
+	}
+}
+
+// A long run of addresses and non-addresses must not make the scan superlinear.
+func TestIPRecognizerLongMixedRunIsBounded(t *testing.T) {
+	text := strings.Repeat("1.1.1.1 ::1 ", 90000)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, err := NewIPRecognizer().Recognize(context.Background(), text); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Recognize did not finish a 1 MB mixed run in 5 seconds")
 	}
 }
