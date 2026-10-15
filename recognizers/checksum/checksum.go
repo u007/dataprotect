@@ -295,13 +295,14 @@ func (v *IBANValidator) Name() string { return "checksum_iban" }
 // Validate checks if an IBAN passes the mod-97 checksum.
 func (v *IBANValidator) Validate(iban string) bool {
 	iban = strings.ToUpper(strings.NewReplacer(" ", "", "-", "").Replace(iban))
-	if len(iban) < 4 {
+	if len(iban) < 15 || len(iban) > 34 {
 		return false
 	}
-	// The length is the country's: a prefix of a longer IBAN can pass mod-97 by
-	// chance, and its length is wrong for the country it names.
-	want, ok := ibanLength[iban[:2]]
-	if !ok || len(iban) != want {
+	// The length is the country's when the registry table has the country: a
+	// prefix of a longer IBAN can pass mod-97 by chance, and its length is wrong
+	// for the country it names. A country the table does not list keeps the
+	// general range, so an unknown IBAN is still reported.
+	if want, ok := ibanLength[iban[:2]]; ok && len(iban) != want {
 		return false
 	}
 

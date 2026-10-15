@@ -564,3 +564,12 @@ func TestLuhnRecognizeCardBeforeZeroGroup(t *testing.T) {
 		t.Errorf("Recognize = %+v, want one card 4111 1111 1111 1111", entities)
 	}
 }
+
+// A country missing from the registry table is not rejected for its length. An
+// IBAN-shaped value the table cannot check is still reported (fail closed).
+func TestIBANValidateUnknownCountryKeepsRangeCheck(t *testing.T) {
+	v := NewIBANValidator()
+	if !v.Validate("QQ37ABCD1234EFGH5678") {
+		t.Errorf("Validate(unknown country, valid mod-97, length 20) = false, want true")
+	}
+}
