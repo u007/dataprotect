@@ -378,7 +378,7 @@ Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. I
 | url | 16 | 3 | 0.7500 / 0.6429 (9, 3, 5) | 0.9167 / 0.7857 |
 | iban | 330 | 173 | 1.0000 / 0.9937 (157, 0, 1) | 1.0000 / 0.9937 |
 | crypto (BITCOIN) | 9 | 3 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
-| credit_card | 19 | 5 | 0.9412 / 1.0000 (16, 1, 0) | 0.9412 / 1.0000 |
+| credit_card | 19 | 5 | 0.8750 / 0.8750 (14, 2, 2) | 0.9375 / 0.9375 (15, 1, 1) |
 | phone | 19 | 0 | 0.7826 / 0.6429 (18, 5, 10) | 1.0000 / 0.8214 |
 | us_ssn | 28 | 12 | 0.5769 / 0.8824 (15, 11, 2) | 0.5769 / 0.8824 |
 | th_tnin (TH_ID) | 39 | 26 | 0.7647 / 1.0000 (13, 4, 0) | 0.7647 / 1.0000 |
@@ -386,16 +386,16 @@ Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. I
 
 Totals: 590 cases from 601 rows. 11 rows set aside (3 IP count-only, 6 phone leniency, 2 empty-text). The overlap column counts a span that touches a gold span as a match, so it is an upper bound.
 
-**Card and IBAN fail-open, fixed 2026-10-15.** A card followed by a space and digits (`4111111111111111 123`), two cards separated by a space, and an IBAN followed by an uppercase word or digit group were not redacted. The cause was candidate grouping: each run of digits joined by space, hyphen or dot was checked as one number, and a run that failed the check was dropped. The fix keeps the whole-run check and, only when that fails, retries single digit groups and card-layout windows of groups (`checksum.cardSpans`). An IBAN keeps the whole candidate, or an unspaced first block, or the candidate without its final block, and only if the kept prefix has the printed shape (`checksum.canonicalIBANShape`). Guards: a single group must be bounded by spaces, and a run that starts an IBAN body is not split. Seed batch 9 (8 positives, 2 negatives) pins the cases, and the gate is 91 cases, exact P 61/62, recall 1.0.
+**Card and IBAN fail-open, fixed 2026-10-15.** A card followed by a space and digits (`4111111111111111 123`), two cards separated by a space, and an IBAN followed by an uppercase word or digit group were not redacted. The cause was candidate grouping: each run of digits joined by space, hyphen or dot was checked as one number, and a run that failed the check was dropped. The fix keeps the whole-run check. When that fails, every card-layout window of digit groups that passes Luhn is found, the search is bounded to 19 digits per start, and overlapping windows are merged so every card digit is covered (`checksum.cardSpans`). A run inside a valid IBAN is not searched. An IBAN keeps the whole candidate, or an unspaced first block, or the candidate without its final block, and only if the kept prefix has the printed shape (`checksum.canonicalIBANShape`). Guards: a single group must be bounded by spaces, and a run inside a valid IBAN is not searched. Seed batch 9 (8 positives, 2 negatives) pins the cases, and the gate is 91 cases. Exact bounds were 61/62 and 1.0 and are now 60/62 and 60/61 (see the review response below).
 
 Measured before and after, on the same inputs:
 
 | Set | Before | After | Note |
 |-----|--------|-------|------|
-| seed | 81 cases, exact P 0.9811 (tp 52, fp 1), R 1.0000 | 91 cases, exact P 0.9839 (tp 61, fp 1), R 1.0000 | gate: `minCases` 91, `minExactPrecision` 61/62 |
-| nemotron, 2000 cases, exact | P 0.8340 (fp 471), R 0.8699 | P 0.8340 (fp 471), R 0.8699 | CREDIT_CARD P 0.5714 (fp 18), R 0.0945 |
+| seed | 81 cases, exact P 0.9811 (tp 52, fp 1), R 1.0000 | 91 cases, exact P 0.9677 (tp 60, fp 2), R 0.9836 (tp 60, fn 1); overlap R 1.0000 | gate: `minCases` 91; exact bounds 60/62 and 60/61, re-measured (see review response) |
+| nemotron, 2000 cases, exact | P 0.8340 (fp 471), R 0.8699 | P 0.8329 (fp 475), R 0.8699 | CREDIT_CARD P 0.5714 (fp 18) to 0.5217 (fp 22), R 0.0945. The four new FPs are card windows on account-number spans (unlabelled gold) |
 | gretel, 2000 cases, exact | P 0.3557 (fp 1105), R 0.7673 | P 0.3557 (fp 1105), R 0.7673 | CREDIT_CARD P 0.5094 (fp 26), R 0.4737; IBAN P 0.9556 (fp 2), R 0.9773 |
-| Presidio credit_card | tp 13, fp 1, fn 3 | tp 16, fp 1, fn 0 | recall 0.8125 to 1.0000 |
+| Presidio credit_card | tp 13, fp 1, fn 3 (exact R 0.8125) | tp 14, fp 2, fn 2 exact (R 0.8750); overlap 15, 1, 1 (R 0.9375) | the merged cluster covers two adjacent gold cards |
 | Presidio iban | tp 155, fp 0, fn 3 | tp 157, fp 0, fn 1 | precision 1.0000 kept |
 
 Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold that was missed (0 of the misses pass Luhn on their own), so the fix gains nothing on the corpora and costs nothing there. The differential over all sets (seed, 4000 corpus texts, 590 Presidio cases) loses no detection, and no case has overlapping detections. Anonymize runs without error over the seed, the corpora and every Presidio module.

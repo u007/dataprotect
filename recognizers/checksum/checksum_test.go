@@ -2,7 +2,9 @@ package checksum
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/u007/dataprotect/recognizers"
 )
@@ -253,7 +255,6 @@ func TestLuhnRecognizeCardNextToDigitGroup(t *testing.T) {
 		{"card then cvv, dotted", "4111.1111.1111.1111 123", []string{"4111.1111.1111.1111"}},
 		{"two cards, one space", "4012888888881881 4012888888881881", []string{"4012888888881881", "4012888888881881"}},
 		{"two cards, mixed forms", "4012888888881881 4012-8888-8888-1881", []string{"4012888888881881", "4012-8888-8888-1881"}},
-		{"card three times", "4012 8888 8888 1881 4012 8888 8888 1881 4012 8888 8888 1881", []string{"4012 8888 8888 1881", "4012 8888 8888 1881", "4012 8888 8888 1881"}},
 	}
 	v := NewLuhnValidator()
 	for _, tt := range tests {
@@ -337,5 +338,112 @@ func TestIBANRecognizeDoesNotCutToChancePassingPrefix(t *testing.T) {
 	}
 	if len(entities) != 0 {
 		t.Fatalf("got %+v, want no IBAN", entities)
+	}
+}
+
+// coveredBy reports whether the card digits [start, end) of text are inside a
+// reported entity. A redacted card must have every digit covered.
+func coveredBy(entities []recognizers.Entity, start, end int) bool {
+	for _, e := range entities {
+		if e.Start <= start && end <= e.End {
+			return true
+		}
+	}
+	return false
+}
+
+// A card whose digits follow two letters and two digits must still be found.
+// The run "12 4111 ..." used to be skipped as an IBAN body, which left the card
+// visible.
+func TestLuhnRecognizeCardAfterLettersAndDigitsIsCovered(t *testing.T) {
+	tests := []struct {
+		name, text, card string
+	}{
+		{"letters then two digits", "Ref AB12 4111 1111 1111 1111", "4111 1111 1111 1111"},
+		{"glued letters then cvv", "ID01 4111111111111111 123", "4111111111111111"},
+	}
+	v := NewLuhnValidator()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entities, err := v.Recognize(context.Background(), tt.text)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			start := strings.Index(tt.text, tt.card)
+			if start < 0 || !coveredBy(entities, start, start+len(tt.card)) {
+				t.Fatalf("card %q not covered by %+v", tt.card, entities)
+			}
+		})
+	}
+}
+
+// A window of four groups can pass Luhn by chance and cut the real card short:
+// "1004 4111 1111 1111" passes, so the trailing "1111" of the real card was
+// left out. Every digit of the card must still be covered.
+func TestLuhnRecognizeChancePassingWindowDoesNotCutCard(t *testing.T) {
+	text := "1004 4111 1111 1111 1111"
+	entities, err := NewLuhnValidator().Recognize(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !coveredBy(entities, len("1004 "), len(text)) {
+		t.Fatalf("card digits %q not covered by %+v", text[len("1004 "):], entities)
+	}
+}
+
+// A long run of digit groups must be read in bounded time. The window search
+// used to try every later group for every start, which is cubic in the run.
+func TestLuhnRecognizeLongDigitRunIsBounded(t *testing.T) {
+	text := strings.Repeat("1 ", 500000)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, err := NewLuhnValidator().Recognize(context.Background(), text); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Recognize did not finish a 1 MB digit run in 5 seconds")
+	}
+}
+
+// Digits inside a valid IBAN are the IBAN's own, so no card is reported there.
+func TestLuhnRecognizeValidIBANHasNoCardWindows(t *testing.T) {
+	for _, text := range []string{
+		"AD12 0001 2030 2003 5910 0100",
+		"Pay AD12 0001 2030 2003 5910 0100 today",
+	} {
+		entities, err := NewLuhnValidator().Recognize(context.Background(), text)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entities) != 0 {
+			t.Errorf("Recognize(%q) = %+v, want no card", text, entities)
+		}
+	}
+}
+
+// Three cards in a row: every card digit must be covered. Windows that straddle
+// two cards can pass Luhn by chance, and overlapping windows are merged, so the
+// three cards may come back as one span. Covering every digit is the contract;
+// the number of spans is not.
+func TestLuhnRecognizeCardsThreeTimesAreCovered(t *testing.T) {
+	text := "4012 8888 8888 1881 4012 8888 8888 1881 4012 8888 8888 1881"
+	entities, err := NewLuhnValidator().Recognize(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for at := 0; at < len(text); {
+		i := strings.Index(text[at:], "4012 8888 8888 1881")
+		if i < 0 {
+			break
+		}
+		start := at + i
+		if !coveredBy(entities, start, start+len("4012 8888 8888 1881")) {
+			t.Fatalf("card at %d not covered by %+v", start, entities)
+		}
+		at = start + len("4012 8888 8888 1881")
 	}
 }

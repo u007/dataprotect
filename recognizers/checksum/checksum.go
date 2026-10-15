@@ -54,9 +54,13 @@ func (v *LuhnValidator) Validate(number string) bool {
 func (v *LuhnValidator) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	// Find all number sequences that could be credit cards
 	candidates := findCardCandidates(text)
+	ibans, err := NewIBANValidator().Recognize(ctx, text)
+	if err != nil {
+		return nil, err
+	}
 	entities := make([]recognizers.Entity, 0)
 	for _, c := range candidates {
-		for _, card := range v.cardSpans(text, c) {
+		for _, card := range v.cardSpans(c, ibans) {
 			entities = append(entities, recognizers.Entity{
 				Type:       recognizers.EntityCreditCard,
 				Start:      card.start,
@@ -69,27 +73,30 @@ func (v *LuhnValidator) Recognize(ctx context.Context, text string) ([]recognize
 	return entities, nil
 }
 
+// maxCardDigits is the longest card number, and so the most digits a window
+// of groups can hold. It bounds the window search to a few groups per start.
+const maxCardDigits = 19
+
 // cardSpans returns the cards a run of digits holds. A run that passes Luhn
-// whole is one card. A run that fails is split at its digit groups: each window
-// of consecutive groups that is 13 to 19 digits, passes Luhn and has a card
-// layout is a card. Windows are taken left to right, longest first, and never
-// overlap.
+// whole is one card. A run that fails is searched for card windows: each
+// window of consecutive digit groups that is 13 to 19 digits, passes Luhn and
+// has a card layout. Every valid window is found, overlapping windows are
+// merged into one span, and the merged spans are reported. Merging keeps a
+// chance-passing window from cutting a card short: every digit of the card
+// stays inside a reported span.
 //
 // The run is joined by space, hyphen and dot, so a card followed by a CVV, a
-// year, or another card reaches here as one run. Without the split, the whole
+// year, or another card reaches here as one run. Without the search, the whole
 // run fails Luhn and the card is not reported at all.
 //
-// Two guards keep the split from reporting digits that are not a card:
-//   - A single group is a card only when a space or the run edge bounds it on
-//     both sides. A group joined by `-` or `.` is part of a decimal, a
-//     timestamp or an identifier.
-//   - A run that starts an IBAN body (two digits right after a country code's
-//     two letters) is not split, because the IBAN recognizer owns it.
-func (v *LuhnValidator) cardSpans(text string, c cardCandidate) []cardCandidate {
+// A run inside a valid IBAN is the IBAN's own digits and is not searched.
+// Single groups must be bounded by spaces, so a group joined by `-` or `.`
+// (a decimal, a timestamp, an identifier) is not reported on its own.
+func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) []cardCandidate {
 	if v.Validate(c.text) {
 		return []cardCandidate{c}
 	}
-	if followsCountryCode(text, c.start) {
+	if inside(ibans, c.start, c.end) {
 		return nil
 	}
 	var groups []cardGroup
@@ -104,33 +111,57 @@ func (v *LuhnValidator) cardSpans(text string, c cardCandidate) []cardCandidate 
 		}
 		groups = append(groups, cardGroup{start, i})
 	}
-	var cards []cardCandidate
-	for a := 0; a < len(groups); {
-		claimed := false
-		for b := len(groups) - 1; b >= a && !claimed; b-- {
-			window := c.text[groups[a].start:groups[b].end]
-			if digitCount(window) < 13 || digitCount(window) > 19 {
-				continue
+
+	// Each start tries at most maxCardDigits digits of groups, so the search is
+	// linear in the run. Windows are collected in order of start, then end.
+	type window struct{ first, last int }
+	var valid []window
+	for a := range groups {
+		digits := 0
+		for b := a; b < len(groups); b++ {
+			digits += groups[b].end - groups[b].start
+			if digits > maxCardDigits {
+				break
 			}
-			if !cardGrouping(c.text, groups[a:b+1]) || !v.Validate(window) {
+			if digits < 13 || !cardGrouping(c.text, groups[a:b+1]) {
 				continue
 			}
 			if a == b && !boundedBySpace(c.text, groups[a]) {
 				continue
 			}
-			cards = append(cards, cardCandidate{
-				text:  window,
-				start: c.start + groups[a].start,
-				end:   c.start + groups[b].end,
-			})
-			a = b + 1
-			claimed = true
-		}
-		if !claimed {
-			a++
+			if v.Validate(c.text[groups[a].start:groups[b].end]) {
+				valid = append(valid, window{a, b})
+			}
 		}
 	}
+
+	// Merge windows that share a group, so one span covers each overlapping
+	// cluster of cards.
+	var cards []cardCandidate
+	for i := 0; i < len(valid); {
+		first, last := valid[i].first, valid[i].last
+		for i++; i < len(valid) && valid[i].first <= last; i++ {
+			if valid[i].last > last {
+				last = valid[i].last
+			}
+		}
+		cards = append(cards, cardCandidate{
+			text:  c.text[groups[first].start:groups[last].end],
+			start: c.start + groups[first].start,
+			end:   c.start + groups[last].end,
+		})
+	}
 	return cards
+}
+
+// inside reports whether [start, end) lies within one of the entities.
+func inside(entities []recognizers.Entity, start, end int) bool {
+	for _, e := range entities {
+		if e.Start <= start && end <= e.End {
+			return true
+		}
+	}
+	return false
 }
 
 // boundedBySpace reports whether a single group sits between a space or the
@@ -139,17 +170,6 @@ func boundedBySpace(text string, g cardGroup) bool {
 	left := g.start == 0 || text[g.start-1] == ' '
 	right := g.end == len(text) || text[g.end] == ' '
 	return left && right
-}
-
-// followsCountryCode reports whether the two bytes before offset start are ASCII
-// letters, and the run begins with exactly two digits: the shape of an IBAN's
-// check digits after its country code, as in "FR72 2000 4000 ...".
-func followsCountryCode(text string, start int) bool {
-	if start < 2 || !isLetter(text[start-2]) || !isLetter(text[start-1]) {
-		return false
-	}
-	return start+2 <= len(text) && isDigit(text[start]) && isDigit(text[start+1]) &&
-		(start+2 == len(text) || !isDigit(text[start+2]))
 }
 
 // cardGrouping reports whether a window of digit groups is laid out like a
@@ -202,17 +222,6 @@ func equalInts(a, b []int) bool {
 
 // cardGroup is one maximal run of digits inside a candidate, by byte offsets.
 type cardGroup struct{ start, end int }
-
-// digitCount returns the number of ASCII digits in s.
-func digitCount(s string) int {
-	n := 0
-	for i := 0; i < len(s); i++ {
-		if isDigit(s[i]) {
-			n++
-		}
-	}
-	return n
-}
 
 type cardCandidate struct {
 	text  string

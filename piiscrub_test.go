@@ -344,3 +344,21 @@ func TestScrubberRedactsCardNextToDigitGroup(t *testing.T) {
 		}
 	}
 }
+
+// Cards that the IBAN guard or a chance-passing window used to leave visible.
+func TestScrubberRedactsCardAfterLettersAndChancePrefix(t *testing.T) {
+	s := NewScrubber()
+	for _, text := range []string{
+		"Ref AB12 4111 1111 1111 1111",
+		"ID01 4111111111111111 123",
+		"1004 4111 1111 1111 1111",
+	} {
+		out, err := s.Anonymize(context.Background(), text)
+		if err != nil {
+			t.Fatalf("Anonymize(%q): %v", text, err)
+		}
+		if strings.Contains(out, "4111") || strings.Contains(out, "111111111111") {
+			t.Errorf("Anonymize(%q) = %q, card digits are still visible", text, out)
+		}
+	}
+}
