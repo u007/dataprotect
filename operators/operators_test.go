@@ -123,6 +123,38 @@ func TestMaskOperatorNeverLeaksUnmaskedDigits(t *testing.T) {
 	}
 }
 
+// The tail mask keeps the LAST '#' slots of a longer input, so the digits it
+// shows are the last four whatever the length. Inputs that fit the pattern use
+// the same left-to-right rule as MaskOperator.
+func TestTailMaskOperator(t *testing.T) {
+	tests := []struct {
+		name    string
+		pattern string
+		input   string
+		want    string
+	}{
+		{"phone 10 digits", "***-***-####", "555-123-4567", "***-***-4567"},
+		{"phone 13 digits, international", "***-***-####", "+44 20 7946 0958", "***-***-0958"},
+		{"phone 11 digits, paren area code", "***-***-####", "+1 (555) 867-5309", "***-***-5309"},
+		{"card 16 digits", "****-****-****-####", "4111 1111 1111 1111", "****-****-****-1111"},
+		{"card 19 digits", "****-****-****-####", "4000000000000000006", "****-****-****-0006"},
+		{"shorter input unchanged", "########", "abc", "abc*****"},
+		{"empty pattern masks everything", "", "abcdef", "******"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NewTailMaskOperator(tt.pattern).Replace(context.Background(), tt.input)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("tail mask %q with pattern %q = %q, want %q", tt.input, tt.pattern, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestHashOperator(t *testing.T) {
 	o := NewHashOperator(16)
 	got, err := o.Replace(context.Background(), "john@example.com")

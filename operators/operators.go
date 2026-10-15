@@ -55,6 +55,79 @@ func NewMaskOperator(maskPattern string) *MaskOperator {
 	return &MaskOperator{maskPattern: maskPattern}
 }
 
+// TailMaskOperator masks a value like MaskOperator, except that a value longer
+// than the pattern is aligned to the pattern's END: the value's last characters
+// fill the slots, and its leading characters are masked. So a '#' keeps the
+// value's last digits whatever its length. A value that fits the pattern is
+// masked exactly as MaskOperator masks it.
+//
+// MaskOperator fills slots from the front, so a 13-digit phone number showed
+// digits from its middle. This operator is the default for phone and card.
+type TailMaskOperator struct {
+	maskPattern string
+}
+
+// NewTailMaskOperator creates a tail-aligned mask operator. The pattern uses the
+// same slots as NewMaskOperator: '#' keeps a character and '*' masks it.
+func NewTailMaskOperator(maskPattern string) *TailMaskOperator {
+	return &TailMaskOperator{maskPattern: maskPattern}
+}
+
+// Name returns the operator name.
+func (o *TailMaskOperator) Name() string { return "tail_mask" }
+
+// Replace masks a single value according to the mask pattern, aligned to its end.
+func (o *TailMaskOperator) Replace(ctx context.Context, value string) (string, error) {
+	return o.applyMask(value), nil
+}
+
+// applyMask aligns the value's significant characters to the pattern's last slot
+// when there are more of them than slots, and otherwise defers to MaskOperator.
+func (o *TailMaskOperator) applyMask(s string) string {
+	slots := 0
+	for _, r := range o.maskPattern {
+		if isPatternSlot(r) {
+			slots++
+		}
+	}
+	sig := significantChars(s)
+	if slots == 0 || len(sig) <= slots {
+		return NewMaskOperator(o.maskPattern).applyMask(s)
+	}
+	next := len(sig) - slots
+	var result strings.Builder
+	for _, r := range o.maskPattern {
+		if !isPatternSlot(r) {
+			result.WriteRune(r)
+			continue
+		}
+		if r == '#' {
+			result.WriteString(sig[next])
+		} else {
+			result.WriteByte('*')
+		}
+		next++
+	}
+	return result.String()
+}
+
+// significantChars returns the raw text of each significant character of s: every
+// character that is not a separator, with invalid bytes kept as one unit each.
+// It follows the same rule as MaskOperator.applyMask.
+func significantChars(s string) []string {
+	var out []string
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if (r != utf8.RuneError || size > 1) && isMaskSeparator(r) {
+			i += size
+			continue
+		}
+		out = append(out, s[i:i+size])
+		i += size
+	}
+	return out
+}
+
 // Name returns the operator name.
 func (o *MaskOperator) Name() string { return "mask" }
 

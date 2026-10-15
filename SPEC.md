@@ -433,6 +433,12 @@ produced. `#` keeps a slot, `*` masks it, any other pattern character is a
 separator emitted verbatim, and an empty pattern masks every character. Input
 that is not valid UTF-8 is kept byte-faithfully on a `#` slot.
 
+`TailMaskOperator` is the same, except that a value with more characters than the
+pattern has slots is aligned to the pattern's end, so `#` keeps the last characters.
+The default for PHONE and CREDIT_CARD uses it (decided 2026-10-16): `MaskOperator`
+filled from the front and showed middle digits for a 13-digit phone or a 19-digit
+card. `MaskOperator` is unchanged.
+
 ---
 
 ## Structured Data (CSV)

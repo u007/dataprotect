@@ -383,6 +383,38 @@ func TestScrubberRedactsUnicodeEmail(t *testing.T) {
 	}
 }
 
+// The default phone and card masks show the last four digits of the value,
+// not four digits from the middle of a longer one.
+func TestScrubberMasksKeepLastFourDigits(t *testing.T) {
+	s := NewScrubber()
+	for _, tc := range []struct{ text, want string }{
+		{"call +44 20 7946 0958 now", "call ***-***-0958 now"},
+		{"call (555) 867-5309 now", "call ***-***-5309 now"},
+		{"card 4000000000000000006 now", "card ****-****-****-0006 now"},
+	} {
+		out, err := s.Anonymize(context.Background(), tc.text)
+		if err != nil {
+			t.Fatalf("Anonymize(%q): %v", tc.text, err)
+		}
+		if out != tc.want {
+			t.Errorf("Anonymize(%q) = %q, want %q", tc.text, out, tc.want)
+		}
+	}
+}
+
+// A card that follows a dash-printed IBAN is redacted. A chance-passing card
+// window that starts on an IBAN digit must not win the overlap and hide the card.
+func TestScrubberRedactsCardAfterDashIBAN(t *testing.T) {
+	s := NewScrubber()
+	out, err := s.Anonymize(context.Background(), "AL47-2121-1009-0000-0002-3569-8741-4111-1111-1111-1111 end")
+	if err != nil {
+		t.Fatalf("Anonymize: %v", err)
+	}
+	if want := "[REDACTED]-****-****-****-1111 end"; out != want {
+		t.Errorf("Anonymize = %q, want %q", out, want)
+	}
+}
+
 // A phone number next to a card or another digit group keeps both values
 // hidden. Overlap resolution keeps the higher-confidence span, so a phone span
 // that ran into a card would lose to it and leave the phone digits visible.

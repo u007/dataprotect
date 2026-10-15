@@ -77,8 +77,8 @@ func main() {
     // Build anonymizer
     an := anonymizer.New(anonymizer.WithDefaultOperator(operators.NewRedactOperator()))
     an.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
-    an.SetOperator(recognizers.EntityPhone, operators.NewMaskOperator("***-***-####"))
-    an.SetOperator(recognizers.EntityCreditCard, operators.NewMaskOperator("****-****-****-####"))
+    an.SetOperator(recognizers.EntityPhone, operators.NewTailMaskOperator("***-***-####"))
+    an.SetOperator(recognizers.EntityCreditCard, operators.NewTailMaskOperator("****-****-****-####"))
 
     // Analyze + anonymize
     text := "Contact John at john@example.com or 555-123-4567. Card: 4111111111111111."

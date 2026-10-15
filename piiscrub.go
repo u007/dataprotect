@@ -63,8 +63,8 @@ func newScrubber(opts ...analyzer.Option) *Scrubber {
 
 	an := anonymizer.New()
 	an.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
-	an.SetOperator(recognizers.EntityPhone, operators.NewMaskOperator("***-***-####"))
-	an.SetOperator(recognizers.EntityCreditCard, operators.NewMaskOperator("****-****-****-####"))
+	an.SetOperator(recognizers.EntityPhone, operators.NewTailMaskOperator("***-***-####"))
+	an.SetOperator(recognizers.EntityCreditCard, operators.NewTailMaskOperator("****-****-****-####"))
 	an.SetOperator(recognizers.EntitySSN, operators.NewMaskOperator("***-**-####"))
 	an.SetOperator(recognizers.EntityIP, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntityURL, operators.NewRedactOperator())
