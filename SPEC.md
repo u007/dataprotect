@@ -197,21 +197,33 @@ func (a *Anonymizer) Pseudonymize(text string, entities []recognizers.Entity) (s
 
 `Pseudonymize` replaces every entity with a numbered placeholder named for its type,
 such as `[EMAIL_1]` or `[CREDIT_CARD_2]`, and returns the placeholder-to-original
-map. Numbers count per type from 1, in text order. The same type and the same exact
-value share one placeholder. Different values, and the same value under two types,
-get different placeholders. Numbering is local to each call. It ignores the
-configured operators, so every entity is replaced. The returned map holds raw PII:
-the caller must protect it as it would the input. On any error the string is empty
-and the map is nil, and an error never includes an original value.
+map. Numbers count per type from 1, in text order. The same type and the same
+canonical value share one placeholder (decided 2026-10-16). The canonical value is
+the digits of a card, phone or SSN, the upper-case form of an IBAN without separators,
+the lower-case form of an email, and the `netip` form of an IP. A URL and other types
+compare exactly. Different values, and the same value under two types, get different
+placeholders. Numbering is local to each call. It ignores the configured operators,
+so every entity is replaced. The returned map holds raw PII: the caller must protect
+it as it would the input. On any error the string is empty and the map is nil, and an
+error never includes an original value.
+
+Restoring a placeholder gives the first spelling seen for it, so the round trip is
+exact up to spelling: spacing, separators, parentheses, letter case, and IPv6 notation
+may differ from the input. `golden.SameModuloSpelling` is the check the seed and the
+corpora use.
+
+`Scrubber.PseudonymizeAll(ctx, texts)` pseudonymizes several texts with one mapping,
+so a value that recurs in a later text reuses its placeholder and numbering runs
+through the texts in order. It is the path for inputs split into texts, such as table
+cells. The round trip and error rules apply to each text.
 
 A text that already holds a placeholder-shaped token for a known entity type (for
 example a literal `[EMAIL_1]`) is an error, because the map could not be reversed
 reliably. The check uses `recognizers.AllEntityTypes`. An unknown bracketed token is
-ordinary text. `Scrubber.Pseudonymize(ctx, text)` runs detection first. The round trip
-(restoring every placeholder reproduces the input) is checked over the seed, the
-corpora and the Presidio cases by `make corpus-anonymize`.
+ordinary text. `Scrubber.Pseudonymize(ctx, text)` runs detection first. `make corpus-anonymize`
+checks the round trip over the corpora (up to spelling).
 
-Scope: `structured/` (CSV) has no pseudonymize path yet (TODO).
+Scope: `structured/` (CSV) does not call `PseudonymizeAll` yet (TODO).
 
 `Anonymize` requires non-overlapping, in-bounds entities whose start and end fall
 on UTF-8 rune boundaries. An overlapping, out-of-bounds, or mid-rune span is

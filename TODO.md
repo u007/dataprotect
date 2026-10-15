@@ -2,9 +2,9 @@
 
 ## Pseudonymize follow-ups (2026-10-15)
 
-- [ ] **`structured/` (CSV) has no pseudonymize path.** `Scrubber.Pseudonymize` covers free text only. A CSV column is analysed one cell at a time, so a repeated value gets one placeholder per cell only if the same cell text repeats. Design the column-level numbering before adding it.
-- [ ] **Pseudonym equality is exact string.** `4111 1111 1111 1111` and `4111111111111111`, or the same email in different case, get different placeholders. Normalising the value for equality is a separate decision; it changes which values count as the same person.
-- [ ] **Merged card spans are one placeholder.** A span merged by the card window search (see the review response) can cover two cards or a card plus a year. Its placeholder then restores both values as one original. Revisit with the merge decision.
+- [ ] **`structured/` (CSV) has no pseudonymize path.** `Scrubber.PseudonymizeAll` (2026-10-16) pseudonymizes cells against one mapping, so a repeated value reuses its placeholder across the table. Still open: wiring the CSV reader to call it, with the column handling (which columns are scanned, and whether a header is text). That is a scope decision for the CSV reader, so it is not done here.
+- [x] **Pseudonym equality. Decided and fixed 2026-10-16.** A value's placeholder is keyed by its canonical form per type: digits for a card, phone or SSN; upper-case without separators for an IBAN; lower-case for an email; the `netip` form for an IP; URLs exact. `4111 1111 1111 1111` and `4111111111111111` now share `[CREDIT_CARD_1]`. Restoring gives the first spelling seen, so the round trip is exact up to spelling (`golden.SameModuloSpelling`). SPEC updated. Tests: `TestPseudonymizeSharesCanonicalValues`, `TestPseudonymizeAllSharesMappingAcrossTexts`.
+- [x] **Merged card spans are one placeholder. Decided 2026-10-16: keep one placeholder, consistent with keeping the merge.** A span merged by the card window search (see the review response) can cover two cards or a card plus a year. Its placeholder then restores both values as one original. Revisit with the merge decision.  A merged span restores as one original, so the restored text keeps both cards in the first card's spelling (see the spelling rule in SPEC).
 
 ## Review response (2026-10-15)
 

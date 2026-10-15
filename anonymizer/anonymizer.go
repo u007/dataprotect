@@ -4,8 +4,10 @@ package anonymizer
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"regexp"
 	"sort"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/u007/dataprotect/operators"
@@ -98,9 +100,11 @@ func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []reco
 //
 // Placeholders are named for the entity type: [EMAIL_1], [CREDIT_CARD_2]. The
 // numbers count per type from 1, in the order the entities appear in text. The
-// same type and the same exact value share one placeholder, so a repeated value
-// reads as one thing. Different values, and the same value under two types, get
-// different placeholders.
+// same type and the same canonical value share one placeholder, so a repeated
+// value reads as one thing. The canonical form (canonicalValue) ignores spacing
+// in a card, phone or SSN, case in an email or IBAN, and IP notation. Different
+// values, and the same value under two types, get different placeholders. The
+// restored text uses the first spelling seen for each placeholder.
 //
 // Numbering is local to the call. It is never stored on the Anonymizer, so
 // concurrent calls cannot share it.
@@ -114,38 +118,90 @@ func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []reco
 // token for a known type is an error, because the map could not be reversed
 // reliably: the token would be indistinguishable from a placeholder.
 func (a *Anonymizer) Pseudonymize(text string, entities []recognizers.Entity) (string, map[string]string, error) {
-	pseudonyms := make(map[string]string)
-	if len(entities) == 0 {
-		return text, pseudonyms, nil
-	}
-	ordered, err := validate(text, entities)
+	p := newPseudonymizer()
+	result, err := a.pseudonymizeText(p, text, entities)
 	if err != nil {
 		return "", nil, err
 	}
+	return result, p.pseudonyms, nil
+}
+
+// PseudonymizeAll pseudonymizes several texts, such as the cells of a table, with
+// one mapping. A value that recurs in any of them gets the same placeholder, and
+// numbering runs through the texts in order. texts and entities pair up by index.
+// The error rules are those of Pseudonymize, and apply to every text.
+func (a *Anonymizer) PseudonymizeAll(texts []string, entities [][]recognizers.Entity) ([]string, map[string]string, error) {
+	if len(texts) != len(entities) {
+		return nil, nil, fmt.Errorf("pseudonymize: %d texts but %d entity lists", len(texts), len(entities))
+	}
+	p := newPseudonymizer()
+	results := make([]string, len(texts))
+	for i, text := range texts {
+		result, err := a.pseudonymizeText(p, text, entities[i])
+		if err != nil {
+			return nil, nil, err
+		}
+		results[i] = result
+	}
+	return results, p.pseudonyms, nil
+}
+
+// pseudonymizer numbers placeholders across one or more texts. It is local to one
+// call, so concurrent calls never share it.
+type pseudonymizer struct {
+	keyed      map[pseudonymKey]string
+	counters   map[recognizers.EntityType]int
+	pseudonyms map[string]string
+}
+
+// pseudonymKey is an entity type and the canonical form of a value. Two spellings
+// of one value (a card with and without spaces) have one key.
+type pseudonymKey struct {
+	entityType recognizers.EntityType
+	value      string
+}
+
+func newPseudonymizer() *pseudonymizer {
+	return &pseudonymizer{
+		keyed:      make(map[pseudonymKey]string),
+		counters:   make(map[recognizers.EntityType]int),
+		pseudonyms: make(map[string]string),
+	}
+}
+
+// placeholderFor returns the placeholder for a value of the given type, numbering
+// a new one. The map keeps the first spelling seen, so restoring a placeholder
+// gives the first form of the value, not each occurrence's own spelling.
+func (p *pseudonymizer) placeholderFor(entityType recognizers.EntityType, value string) string {
+	key := pseudonymKey{entityType, canonicalValue(entityType, value)}
+	if placeholder, seen := p.keyed[key]; seen {
+		return placeholder
+	}
+	p.counters[entityType]++
+	placeholder := fmt.Sprintf("[%s_%d]", entityType, p.counters[entityType])
+	p.keyed[key] = placeholder
+	p.pseudonyms[placeholder] = value
+	return placeholder
+}
+
+// pseudonymizeText replaces the entities of one text with placeholders from p.
+func (a *Anonymizer) pseudonymizeText(p *pseudonymizer, text string, entities []recognizers.Entity) (string, error) {
+	if len(entities) == 0 {
+		return text, nil
+	}
+	ordered, err := validate(text, entities)
+	if err != nil {
+		return "", err
+	}
 	if token, ok := placeholderCollision(text, entities); ok {
-		return "", nil, fmt.Errorf("text already contains placeholder-shaped token %s, so the map would be ambiguous", token)
+		return "", fmt.Errorf("text already contains placeholder-shaped token %s, so the map would be ambiguous", token)
 	}
 
 	// Number left to right. ordered is right-to-left, so walk it backwards.
-	type pseudonymKey struct {
-		entityType recognizers.EntityType
-		value      string
-	}
 	placeholders := make([]string, len(ordered))
-	keyed := make(map[pseudonymKey]string)
-	counters := make(map[recognizers.EntityType]int)
 	for i := len(ordered) - 1; i >= 0; i-- {
 		e := ordered[i]
-		value := text[e.Start:e.End]
-		key := pseudonymKey{e.Type, value}
-		placeholder, seen := keyed[key]
-		if !seen {
-			counters[e.Type]++
-			placeholder = fmt.Sprintf("[%s_%d]", e.Type, counters[e.Type])
-			keyed[key] = placeholder
-			pseudonyms[placeholder] = value
-		}
-		placeholders[i] = placeholder
+		placeholders[i] = p.placeholderFor(e.Type, text[e.Start:e.End])
 	}
 
 	// Splice right-to-left, so each span is still valid when it is reached.
@@ -153,7 +209,35 @@ func (a *Anonymizer) Pseudonymize(text string, entities []recognizers.Entity) (s
 	for i, e := range ordered {
 		result = result[:e.Start] + placeholders[i] + result[e.End:]
 	}
-	return result, pseudonyms, nil
+	return result, nil
+}
+
+// canonicalValue is the form two spellings of one value share. Digits identify a
+// card, phone or SSN however they are grouped. An IBAN ignores case and separators.
+// An email is case-insensitive in practice. An IP is its netip form. Other values,
+// including URLs, are compared exactly.
+func canonicalValue(entityType recognizers.EntityType, value string) string {
+	switch entityType {
+	case recognizers.EntityCreditCard, recognizers.EntityPhone, recognizers.EntitySSN:
+		var digits strings.Builder
+		for i := 0; i < len(value); i++ {
+			if value[i] >= '0' && value[i] <= '9' {
+				digits.WriteByte(value[i])
+			}
+		}
+		return digits.String()
+	case recognizers.EntityIBAN:
+		return strings.ToUpper(strings.NewReplacer(" ", "", "-", "").Replace(value))
+	case recognizers.EntityEmail:
+		return strings.ToLower(value)
+	case recognizers.EntityIP:
+		// A value that is not an address keeps its exact form.
+		if addr, err := netip.ParseAddr(value); err == nil {
+			return addr.String()
+		}
+		return value
+	}
+	return value
 }
 
 // placeholderShape matches a placeholder-shaped token: [TYPE_n].

@@ -427,6 +427,84 @@ func TestScrubberRedactsCardBeforeZeroGroup(t *testing.T) {
 	}
 }
 
+// Spellings of one value share a placeholder: spacing in a card, case in an
+// email, IP notation, and separators in an IBAN and a phone. A URL is compared
+// exactly, so two case variants stay two placeholders.
+func TestPseudonymizeSharesCanonicalValues(t *testing.T) {
+	s := NewScrubber()
+	for _, tc := range []struct {
+		text, want string
+		restored   map[string]string
+	}{
+		{
+			"card 4111 1111 1111 1111 or 4111111111111111 or 4111-1111-1111-1111 end",
+			"card [CREDIT_CARD_1] or [CREDIT_CARD_1] or [CREDIT_CARD_1] end",
+			map[string]string{"[CREDIT_CARD_1]": "4111 1111 1111 1111"},
+		},
+		{
+			"mail John@Example.com or john@example.com end",
+			"mail [EMAIL_1] or [EMAIL_1] end",
+			map[string]string{"[EMAIL_1]": "John@Example.com"},
+		},
+		{
+			"call 555-123-4567 or 5551234567 end",
+			"call [PHONE_1] or [PHONE_1] end",
+			map[string]string{"[PHONE_1]": "555-123-4567"},
+		},
+		{
+			"pay DE89 3704 0044 0532 0130 00 or DE89370400440532013000 end",
+			"pay [IBAN_1] or [IBAN_1] end",
+			map[string]string{"[IBAN_1]": "DE89 3704 0044 0532 0130 00"},
+		},
+		{
+			"host 2001:DB8::1 or 2001:db8:0::1 end",
+			"host [IP_ADDRESS_1] or [IP_ADDRESS_1] end",
+			map[string]string{"[IP_ADDRESS_1]": "2001:DB8::1"},
+		},
+		{
+			"see https://Example.com/a and https://example.com/a end",
+			"see [URL_1] and [URL_2] end",
+			map[string]string{"[URL_1]": "https://Example.com/a", "[URL_2]": "https://example.com/a"},
+		},
+	} {
+		out, pseudonyms, err := s.Pseudonymize(context.Background(), tc.text)
+		if err != nil {
+			t.Fatalf("Pseudonymize(%q): %v", tc.text, err)
+		}
+		if out != tc.want {
+			t.Errorf("Pseudonymize(%q) = %q, want %q", tc.text, out, tc.want)
+		}
+		if len(pseudonyms) != len(tc.restored) {
+			t.Errorf("Pseudonymize(%q) map = %v, want %v", tc.text, pseudonyms, tc.restored)
+		}
+		for k, v := range tc.restored {
+			if pseudonyms[k] != v {
+				t.Errorf("Pseudonymize(%q) map[%s] = %q, want %q", tc.text, k, pseudonyms[k], v)
+			}
+		}
+	}
+}
+
+// PseudonymizeAll shares one mapping across texts, such as table cells, so a value
+// that recurs in a later cell gets the placeholder it got in an earlier one.
+func TestPseudonymizeAllSharesMappingAcrossTexts(t *testing.T) {
+	s := NewScrubber()
+	texts := []string{"a 555-123-4567", "b 5551234567", "c 555-999-0000"}
+	outs, pseudonyms, err := s.PseudonymizeAll(context.Background(), texts)
+	if err != nil {
+		t.Fatalf("PseudonymizeAll: %v", err)
+	}
+	want := []string{"a [PHONE_1]", "b [PHONE_1]", "c [PHONE_2]"}
+	for i := range want {
+		if outs[i] != want[i] {
+			t.Errorf("outs[%d] = %q, want %q", i, outs[i], want[i])
+		}
+	}
+	if len(pseudonyms) != 2 {
+		t.Errorf("map = %v, want two placeholders", pseudonyms)
+	}
+}
+
 // A phone number next to a card or another digit group keeps both values
 // hidden. Overlap resolution keeps the higher-confidence span, so a phone span
 // that ran into a card would lose to it and leave the phone digits visible.

@@ -124,6 +124,21 @@ func (s *Scrubber) Pseudonymize(ctx context.Context, text string) (string, map[s
 	return s.anonymizer.Pseudonymize(text, entities)
 }
 
+// PseudonymizeAll detects PII in each text and pseudonymizes all of them with one
+// mapping, so a value that recurs in any text gets the same placeholder. It is
+// for inputs split into texts, such as table cells. See Pseudonymize.
+func (s *Scrubber) PseudonymizeAll(ctx context.Context, texts []string) ([]string, map[string]string, error) {
+	entities := make([][]recognizers.Entity, len(texts))
+	for i, text := range texts {
+		found, err := s.Analyze(ctx, text)
+		if err != nil {
+			return nil, nil, err
+		}
+		entities[i] = found
+	}
+	return s.anonymizer.PseudonymizeAll(texts, entities)
+}
+
 // isThaiIDSpan reports whether text[start:end] is a Thai citizen ID, bounded the
 // way the Thai pattern's word boundaries bound it. A glued run stays a card.
 func isThaiIDSpan(text string, start, end int) bool {
