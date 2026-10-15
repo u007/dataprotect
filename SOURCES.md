@@ -27,7 +27,7 @@ SPEC.md.
 
 ### Final set (decided 2026-10-15)
 
-Use this block before looking for any dataset. Nothing else is fetched or measured.
+Use this block before looking for any dataset. Measured: the two corpora and Presidio's in-scope test cases. Nothing else is fetched.
 
 **Measured (the only corpora behind published numbers):**
 
@@ -66,7 +66,7 @@ for a candidate only when its trigger fires.
 | PIIBench (`Pritesh-2711/pii-bench`) | Not fetched | Declared apache-2.0, but constituents govern (includes CoNLL-2003 and ai4privacy) | Only after an audit of its ten constituents |
 | ai4privacy `openpii-1m` | Not fetched | Licence tag and declared name disagree; the LICENCE file has not been read | Before any use: read the LICENCE file |
 | OpenNER 1.0 | Not fetched or used | CC-BY compilation over constituents with their own licences. Repository loads (2026-10-14) | v2 benchmark suite starts (TODO, benchmark suite) |
-| Microsoft Presidio and presidio-research | Not a corpus; not fetched | Both are MIT licensed (README and project page, 2026-10-15). Presidio ships recognizers and anonymizers, not a dataset. presidio-research's README names CoNLL-2003 (no licence stated), a synthetic generator (no licence stated), and Fake Name Generator identities (CC BY-SA 3.0 US). Its README lists no complete dataset set | v2 benchmark suite starts |
+| Microsoft Presidio test cases (`microsoft/presidio`, MIT) | Measured, apart from the CI gate (2026-10-15). Pin `2523c7b74a469270c5c78bb253f140eafca21e31`, extracted to `testdata/external/presidio/` by `make presidio`. Ten in-scope modules, 590 cases; see SPEC.md "Presidio test cases". | Test data, not a corpus. Its in-scope modules map to types this library implements. Out of scope: NLP entities, countries without a recognizer, presidio-research (evaluation framework; its generator identities are CC BY-SA 3.0). | Re-measure when the Presidio pin changes or the card fix lands. |
 | Kaggle PII Detection | Not located; not fetched | Per-competition terms | v2 benchmark suite starts |
 | Financial PII (Mendeley) | Not located; no URL recorded | Named in SPEC.md by source only | v2 benchmark suite starts |
 | SecretBench | Not located; no URL recorded | Named in SPEC.md; no licence recorded | v2 benchmark suite starts |

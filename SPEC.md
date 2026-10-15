@@ -347,6 +347,31 @@ out-of-schema instead of inflating false positives.
 
 ---
 
+## Presidio test cases (2026-10-15)
+
+Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. Its in-scope modules are converted by `scripts/presidio_extract.py` and scored with `make presidio`. Pin: `2523c7b74a469270c5c78bb253f140eafca21e31`. Converted data lives in `testdata/external/presidio/` (gitignored). The CI gate still runs only on `testdata/golden/`. The numbers below are a measurement, not a gate, and no recognizer changed for them.
+
+**Scope.** The ten modules whose `entities` fixture maps to a type this library implements: EMAIL_ADDRESS, IP_ADDRESS, URL, IBAN_CODE, CRYPTO (bitcoin only), CREDIT_CARD, PHONE_NUMBER, US_SSN, TH_TNIN, SG_NRIC_FIN. Out of scope and not converted: the NLP-dependent entities (PERSON, LOCATION and similar), countries without a recognizer here (about 130 modules), presidio-research's evaluation framework and generator data (the generator's identities are CC BY-SA 3.0), and the context-word sentence file (no spans, so no gold). The e2e tests are API smoke tests with no per-type case tables.
+
+**Method.** Only `parametrize` lists are parsed, with `ast` (never imported or run). Presidio's character offsets are converted to UTF-8 bytes, and each value is taken from the text. Rows that cannot be scored are set aside with a reason in `skipped.json`: count-only rows (Presidio asserts how many matches, not where), leniency rows (a non-default recognizer setting), and empty-text negatives (`golden.Load` rejects empty text). Each module is scored as its own dataset, so `in_schema` is that module's type.
+
+| Module | Cases | Negatives | Exact P / R (tp, fp, fn) | Overlap P / R |
+|--------|-------|-----------|--------------------------|---------------|
+| email | 8 | 2 | 0.8571 / 0.8571 (6, 1, 1) | 1.0000 / 1.0000 |
+| ip | 112 | 29 | 0.4082 / 0.2273 (20, 29, 68) | 1.0000 / 0.5568 |
+| url | 16 | 3 | 0.7500 / 0.6429 (9, 3, 5) | 0.9167 / 0.7857 |
+| iban | 330 | 173 | 1.0000 / 0.9810 (155, 0, 3) | 1.0000 / 0.9810 |
+| crypto (BITCOIN) | 9 | 3 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
+| credit_card | 19 | 5 | 0.9286 / 0.8125 (13, 1, 3) | 0.9286 / 0.8125 |
+| phone | 19 | 0 | 0.7826 / 0.6429 (18, 5, 10) | 1.0000 / 0.8214 |
+| us_ssn | 28 | 12 | 0.5769 / 0.8824 (15, 11, 2) | 0.5769 / 0.8824 |
+| th_tnin (TH_ID) | 39 | 26 | 0.7647 / 1.0000 (13, 4, 0) | 0.7647 / 1.0000 |
+| sg_fin (SG_NRIC) | 10 | 1 | 1.0000 / 0.5000 (5, 0, 5) | 1.0000 / 0.5000 |
+
+Totals: 590 cases from 601 rows. 11 rows set aside (3 IP count-only, 6 phone leniency, 2 empty-text). The overlap column counts a span that touches a gold span as a match, so it is an upper bound.
+
+**Findings.** Every mismatch class is recorded in TODO.md under "Presidio test cases: open findings". The most serious is a fail-open in the card path: two Luhn-valid cards, or a card and a digit group, separated only by a space, hyphen or dot are not redacted. `4111111111111111 123` comes back unchanged. The cause is candidate grouping in `checksum.findCardCandidates`, not the card pattern. The seed gate misses this because no seed case puts a card next to a digit group.
+
 ## Operators (MVP)
 
 | Operator | Behavior | Example |

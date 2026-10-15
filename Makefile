@@ -25,7 +25,7 @@ DATA_ROOT := $(abspath $(or $(DATAPROTECT_DATA_DIR),testdata/external))
 LIMIT ?= 2000
 
 .PHONY: help download list info dry-run benchmark test test-tools build vet fmt \
-        corpus corpus-convert corpus-anonymize corpus-clean clean-data
+        corpus corpus-convert corpus-anonymize corpus-clean clean-data presidio presidio-fetch
 
 help:
 	@echo "piiscrub targets:"
@@ -44,6 +44,7 @@ help:
 	@echo "  make vet             run go vet"
 	@echo "  make fmt             fail if any file is not gofmt-clean"
 	@echo "  make clean-data      delete downloaded corpora (testdata/external)"
+	@echo "  make presidio        score Presidio's in-scope recognizer test cases (MIT, not committed)"
 
 download:
 	$(FETCH) fetch-all
@@ -94,6 +95,22 @@ corpus-clean:
 
 test-tools:
 	cd tools/corpusbench && $(GO) test ./...
+
+# Presidio's in-scope recognizer test cases. Scored apart from the CI gate: the
+# gate stays on testdata/golden. The clone and the converted cases are under
+# DATA_ROOT, which is gitignored, so the extracted strings are not committed.
+PRESIDIO_REV := 2523c7b74a469270c5c78bb253f140eafca21e31
+PRESIDIO_SRC := $(DATA_ROOT)/presidio/src
+
+presidio-fetch:
+	@mkdir -p "$(DATA_ROOT)/presidio"
+	@if [ ! -d "$(PRESIDIO_SRC)/.git" ]; then git clone --quiet https://github.com/microsoft/presidio.git "$(PRESIDIO_SRC)"; fi
+	git -C "$(PRESIDIO_SRC)" checkout --quiet $(PRESIDIO_REV)
+	@test "$$(git -C "$(PRESIDIO_SRC)" rev-parse HEAD)" = "$(PRESIDIO_REV)" || (echo "presidio: clone is not at $(PRESIDIO_REV)" >&2; exit 1)
+
+presidio: presidio-fetch
+	python3 -I scripts/presidio_extract.py "$(PRESIDIO_SRC)" "$(DATA_ROOT)/presidio" $(PRESIDIO_REV)
+	@for d in "$(DATA_ROOT)"/presidio/test_*_recognizer/converted; do echo; ./scripts/benchmark.sh "$$d" || exit 1; done
 
 clean-data:
 	rm -rf testdata/external

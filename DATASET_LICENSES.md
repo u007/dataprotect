@@ -27,6 +27,7 @@ source before relying on any row.
 | Financial PII (Mendeley) | not verified | unknown | unknown | Cited in SPEC.md by source only. Confirm on the Mendeley record before use. |
 | SecretBench | not verified | unknown | unknown | Listed in SPEC.md; no licence recorded yet. |
 | wikiann / MultiNERD / FewNERD / FiNER-139 | permissive, per-dataset | mostly yes | attribution | Reached only through PIIBench, so the composite terms above already apply. |
+| Microsoft Presidio test cases (`microsoft/presidio`, pin `2523c7b7`) | MIT | yes | keep the copyright notice if redistributed | Measured only. `make presidio` extracts strings from its `tests/` into `testdata/external/presidio/` (gitignored). Not committed. Scope and results: SPEC.md "Presidio test cases". |
 | dlib (planned, via go-face) | Boost Software License 1.0 | yes | keep copyright notice | Permissive; explicitly allows closed-source commercial use. |
 | dlib **model weights** (iBUG LFW etc.) | **varies, some non-commercial** | restricted | varies | Separate from the library licence. Commercial face-recognition use has historically required care. Verify per weight file. |
 
