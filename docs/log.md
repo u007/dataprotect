@@ -6,6 +6,7 @@
 
 ## 2026-10-15
 
+* **Update**: piiscrub v1 Spec — dash- or dot-joined card, card separators ([decisions/spec-v1.md](/decisions/spec-v1.md))
 * **Update**: piiscrub — Usage & Quick Start, Pseudonymize example ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md))
 * **Update**: piiscrub v1 Spec — `Pseudonymize` contract ([decisions/spec-v1.md](/decisions/spec-v1.md))
 * **Update**: piiscrub v1 Spec — Scope, Architecture & Non-Goals ([decisions/spec-v1.md](/decisions/spec-v1.md))

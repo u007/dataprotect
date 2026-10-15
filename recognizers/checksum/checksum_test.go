@@ -253,6 +253,9 @@ func TestLuhnRecognizeCardNextToDigitGroup(t *testing.T) {
 		{"card then year", "card 4111111111111111 2024", []string{"4111111111111111"}},
 		{"card then cvv, dashed", "4111-1111-1111-1111 123", []string{"4111-1111-1111-1111"}},
 		{"card then cvv, dotted", "4111.1111.1111.1111 123", []string{"4111.1111.1111.1111"}},
+		{"single card then dashed cvv", "4111111111111111-123", []string{"4111111111111111"}},
+		{"single card then dotted cvv", "4111111111111111.123", []string{"4111111111111111"}},
+		{"dashed cvv then single card", "123-4111111111111111", []string{"4111111111111111"}},
 		{"two cards, one space", "4012888888881881 4012888888881881", []string{"4012888888881881", "4012888888881881"}},
 		{"two cards, mixed forms", "4012888888881881 4012-8888-8888-1881", []string{"4012888888881881", "4012-8888-8888-1881"}},
 	}

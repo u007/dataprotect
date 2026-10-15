@@ -90,8 +90,9 @@ const maxCardDigits = 19
 // run fails Luhn and the card is not reported at all.
 //
 // A run inside a valid IBAN is the IBAN's own digits and is not searched.
-// Single groups must be bounded by spaces, so a group joined by `-` or `.`
-// (a decimal, a timestamp, an identifier) is not reported on its own.
+// A single group must sit between separators (space, hyphen or dot) or the
+// candidate's edges. A 13 to 19 digit group that passes Luhn is a card whatever
+// joins it, so a card next to a CVV joined by `-` or `.` is reported.
 func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) []cardCandidate {
 	if v.Validate(c.text) {
 		return []cardCandidate{c}
@@ -126,7 +127,7 @@ func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) [
 			if digits < 13 || !cardGrouping(c.text, groups[a:b+1]) {
 				continue
 			}
-			if a == b && !boundedBySpace(c.text, groups[a]) {
+			if a == b && !boundedBySeparator(c.text, groups[a]) {
 				continue
 			}
 			if v.Validate(c.text[groups[a].start:groups[b].end]) {
@@ -164,11 +165,11 @@ func inside(entities []recognizers.Entity, start, end int) bool {
 	return false
 }
 
-// boundedBySpace reports whether a single group sits between a space or the
-// candidate's edges on both sides.
-func boundedBySpace(text string, g cardGroup) bool {
-	left := g.start == 0 || text[g.start-1] == ' '
-	right := g.end == len(text) || text[g.end] == ' '
+// boundedBySeparator reports whether a single group sits between a card
+// separator or the candidate's edges on both sides.
+func boundedBySeparator(text string, g cardGroup) bool {
+	left := g.start == 0 || isCardSeparator(text[g.start-1])
+	right := g.end == len(text) || isCardSeparator(text[g.end])
 	return left && right
 }
 
