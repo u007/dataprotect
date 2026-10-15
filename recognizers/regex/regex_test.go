@@ -27,6 +27,7 @@ func TestEmailRecognizer(t *testing.T) {
 		{"unicode domain", "mail a@example.рф now", 1, "a@example.рф"},
 		{"unicode domain label", "write a@пример.рф now", 1, "a@пример.рф"},
 		{"unicode local part", "mail юзер@example.com now", 1, "юзер@example.com"},
+		{"combining mark in tld", "a@b.co\u0301m end", 1, "a@b.co\u0301m"},
 		// Accepted cost: with no space, the local part takes the CJK text before the @.
 		{"cjk prose before the at sign", "联系a@b.com", 1, "联系a@b.com"},
 	}

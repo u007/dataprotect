@@ -21,11 +21,11 @@ type EmailRecognizer struct {
 func NewEmailRecognizer() *EmailRecognizer {
 	// RFC 5322 simplified pattern. The local part and domain labels take Unicode
 	// letters, numbers and marks (IDN addresses). The TLD is a punycode label
-	// (xn--...) or Unicode letters; Go's regexp is leftmost-first, so the punycode
-	// branch is listed first. Accepted cost: with no space, the local part takes
-	// the CJK or Thai text before the @.
+	// (xn--...) or Unicode letters and marks; Go's regexp is leftmost-first, so
+	// the punycode branch is listed first. Accepted cost: with no space, the local
+	// part takes the CJK or Thai text before the @.
 	return &EmailRecognizer{
-		pattern: regexp.MustCompile(`[\p{L}\p{N}\p{M}._%+\-]+@[\p{L}\p{N}\p{M}.\-]+\.(?:xn--[a-zA-Z0-9\-]+|\p{L}{2,})`),
+		pattern: regexp.MustCompile(`[\p{L}\p{N}\p{M}._%+\-]+@[\p{L}\p{N}\p{M}.\-]+\.(?:xn--[a-zA-Z0-9\-]+|\p{L}[\p{L}\p{M}]+)`),
 	}
 }
 
