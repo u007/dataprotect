@@ -31,6 +31,10 @@ func (v *LuhnValidator) Validate(number string) bool {
 	if len(number) < 13 || len(number) > 19 {
 		return false
 	}
+	// An all-zero run passes Luhn, but no issuer issues it.
+	if strings.Trim(number, "0") == "" {
+		return false
+	}
 
 	sum := 0
 	alternate := false

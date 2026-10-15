@@ -532,3 +532,35 @@ func TestIBANValidateKnownLengths(t *testing.T) {
 		}
 	}
 }
+
+// A run of zeros passes Luhn but is no card: no issuer issues it, and Presidio
+// rejects it. Zeros are rejected per candidate, so a real card beside them stays.
+func TestLuhnRecognizeRejectsAllZeroRun(t *testing.T) {
+	v := NewLuhnValidator()
+	ctx := context.Background()
+
+	for _, text := range []string{
+		"card 0000000000000000 end",
+		"card 0000 0000 0000 0000 end",
+		"card 0000000000000 end",
+	} {
+		entities, err := v.Recognize(ctx, text)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entities) != 0 {
+			t.Errorf("Recognize(%q) = %+v, want no card", text, entities)
+		}
+	}
+}
+
+func TestLuhnRecognizeCardBeforeZeroGroup(t *testing.T) {
+	v := NewLuhnValidator()
+	entities, err := v.Recognize(context.Background(), "card 4111 1111 1111 1111 0000 end")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 || entities[0].Text != "4111 1111 1111 1111" {
+		t.Errorf("Recognize = %+v, want one card 4111 1111 1111 1111", entities)
+	}
+}

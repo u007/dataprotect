@@ -415,6 +415,18 @@ func TestScrubberRedactsCardAfterDashIBAN(t *testing.T) {
 	}
 }
 
+// A card followed by a zero group is still redacted as a card.
+func TestScrubberRedactsCardBeforeZeroGroup(t *testing.T) {
+	s := NewScrubber()
+	out, err := s.Anonymize(context.Background(), "card 4111 1111 1111 1111 0000 end")
+	if err != nil {
+		t.Fatalf("Anonymize: %v", err)
+	}
+	if want := "card ****-****-****-1111 0000 end"; out != want {
+		t.Errorf("Anonymize = %q, want %q", out, want)
+	}
+}
+
 // A phone number next to a card or another digit group keeps both values
 // hidden. Overlap resolution keeps the higher-confidence span, so a phone span
 // that ran into a card would lose to it and leave the phone digits visible.
