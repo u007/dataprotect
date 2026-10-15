@@ -128,6 +128,12 @@ func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) [
 			if digits < 13 || !cardGrouping(c.text, groups[a:b+1]) {
 				continue
 			}
+			// A window that shares a digit with a valid IBAN is the IBAN's digits,
+			// not a card. If it passed Luhn by chance it would win the overlap
+			// against the IBAN and hide the card that follows it.
+			if overlapsAny(ibans, c.start+groups[a].start, c.start+groups[b].end) {
+				continue
+			}
 			if a == b && !boundedBySeparator(c.text, groups[a]) {
 				continue
 			}
@@ -164,6 +170,13 @@ func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) [
 func inside(entities []recognizers.Entity, start, end int) bool {
 	i := sort.Search(len(entities), func(i int) bool { return entities[i].Start > start }) - 1
 	return i >= 0 && entities[i].Start <= start && end <= entities[i].End
+}
+
+// overlapsAny reports whether [start, end) shares a byte with one of the
+// entities. The entities must be in start order and must not overlap.
+func overlapsAny(entities []recognizers.Entity, start, end int) bool {
+	i := sort.Search(len(entities), func(i int) bool { return entities[i].End > start })
+	return i < len(entities) && entities[i].Start < end
 }
 
 // boundedBySeparator reports whether a single group sits between a card
