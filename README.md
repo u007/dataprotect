@@ -179,8 +179,8 @@ would score a correct EMAIL detection as a false positive.
 
 | | nemotron (2000 of 100000) | gretel (2000 of 5596) |
 |---|---|---|
-| exact | P=0.8340 R=0.8699 | P=0.3557 R=0.7673 |
-| byte overlap | P=0.8365 R=0.8725 | P=0.3743 R=0.8075 |
+| exact | P=0.8326 R=0.8699 | P=0.3544 R=0.7673 |
+| byte overlap | P=0.8350 R=0.8725 | P=0.3730 R=0.8075 |
 
 Those are real numbers from a 2000-record sample, not a target: the seed set
 above is too small to test the detector at scale, while 2000 real records

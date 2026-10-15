@@ -300,9 +300,9 @@ order, recorded in each `schema.json`).
 
 | | nemotron (2000 of 100000) | gretel (2000 of 5596) |
 |---|---|---|
-| **Exact** | P=0.8340 R=0.8699 F1=0.8516 (tp=2367 fp=471 fn=354) | P=0.3557 R=0.7673 F1=0.4861 (tp=610 fp=1105 fn=185) |
-| **Overlap** | P=0.8365 R=0.8725 F1=0.8541 (tp=2374 fp=464 fn=347) | P=0.3743 R=0.8075 F1=0.5116 (tp=642 fp=1073 fn=153) |
-| negatives clean | 474 of 600 | 1296 of 1497 |
+| **Exact** | P=0.8326 R=0.8699 F1=0.8508 (tp=2367 fp=476 fn=354) | P=0.3544 R=0.7673 F1=0.4849 (tp=610 fp=1111 fn=185) |
+| **Overlap** | P=0.8350 R=0.8725 F1=0.8533 (tp=2374 fp=469 fn=347) | P=0.3730 R=0.8075 F1=0.5103 (tp=642 fp=1079 fn=153) |
+| negatives clean | 471 of 600 | 1295 of 1497 |
 | out-of-schema (not scored) | IBAN=1 | BITCOIN=21, URL=817, MY_PASSPORT=1 |
 
 Per type (exact):
@@ -324,9 +324,9 @@ headline. It is set aside into a bucket, and the report shows the precision with
 it removed, labelled as an upper bound. The headline stays as it was, so the
 bucket can't quietly move a number. Measured on the 2000-record samples:
 
-- nemotron, exact: headline P=0.8340; 453 detections set aside (PHONE 408, SSN 25,
+- nemotron, exact: headline P=0.8326; 453 detections set aside (PHONE 408, SSN 25,
   CREDIT_CARD 18, EMAIL 2); upper bound P=0.9925.
-- gretel, exact: headline P=0.3557; 18 detections set aside (CREDIT_CARD on `bban`
+- gretel, exact: headline P=0.3544; 18 detections set aside (CREDIT_CARD on `bban`
   7, EMAIL on `name` 6 and `user_name` 4, PHONE 1); upper bound P=0.3595.
 
 An upper bound is not accuracy. The nemotron PHONE bucket is mostly ID-field
@@ -395,7 +395,7 @@ Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. I
 | email | 8 | 2 | 0.8571 / 0.8571 (6, 1, 1) | 1.0000 / 1.0000 |
 | ip | 112 | 29 | 0.4082 / 0.2273 (20, 29, 68) | 1.0000 / 0.5568 |
 | url | 16 | 3 | 0.7500 / 0.6429 (9, 3, 5) | 0.9167 / 0.7857 |
-| iban | 330 | 173 | 1.0000 / 0.9937 (157, 0, 1) | 1.0000 / 0.9937 |
+| iban | 330 | 173 | 0.9812 / 0.9937 (157, 3, 1) | 0.9812 / 0.9937 |
 | crypto (BITCOIN) | 9 | 3 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
 | credit_card | 19 | 5 | 0.8750 / 0.8750 (14, 2, 2) | 0.9375 / 0.9375 (15, 1, 1) |
 | phone | 19 | 0 | 0.7826 / 0.6429 (18, 5, 10) | 1.0000 / 0.8214 |
@@ -414,8 +414,9 @@ Measured before and after, on the same inputs:
 | seed | 81 cases, exact P 0.9811 (tp 52, fp 1), R 1.0000 | 91 cases, exact P 0.9677 (tp 60, fp 2), R 0.9836 (tp 60, fn 1); overlap R 1.0000 | gate: `minCases` 91; exact bounds 60/62 and 60/61, re-measured (see review response) |
 | nemotron, 2000 cases, exact | P 0.8340 (fp 471), R 0.8699 | P 0.8329 (fp 475), R 0.8699 | CREDIT_CARD P 0.5714 (fp 18) to 0.5217 (fp 22), R 0.0945. The four new FPs are card windows on account-number spans (unlabelled gold) |
 | gretel, 2000 cases, exact | P 0.3557 (fp 1105), R 0.7673 | P 0.3557 (fp 1105), R 0.7673 | CREDIT_CARD P 0.5094 (fp 26), R 0.4737; IBAN P 0.9556 (fp 2), R 0.9773 |
+| nemotron and gretel, 2000 cases, exact, after the card separator and IBAN cut (2026-10-15) | nemotron P 0.8326 (fp 476), R 0.8699; CREDIT_CARD P 0.5106 (fp 23) | gretel P 0.3544 (fp 1111), R 0.7673; CREDIT_CARD P 0.4576 (fp 32); IBAN P 0.9556 (fp 2), R 0.9773 | recall unchanged; the new false positives are over-redaction from the separator and cut changes |
 | Presidio credit_card | tp 13, fp 1, fn 3 (exact R 0.8125) | tp 14, fp 2, fn 2 exact (R 0.8750); overlap 15, 1, 1 (R 0.9375) | the merged cluster covers two adjacent gold cards |
-| Presidio iban | tp 155, fp 0, fn 3 | tp 157, fp 0, fn 1 | precision 1.0000 kept |
+| Presidio iban | tp 155, fp 0, fn 3 | tp 157, fp 0, fn 1 | precision 1.0000 kept (IBAN cut, 8609c2c: tp 157, fp 3, fn 1, P 0.9812) |
 
 Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold that was missed (0 of the misses pass Luhn on their own), so the fix gains nothing on the corpora and costs nothing there. The differential over all sets (seed, 4000 corpus texts, 590 Presidio cases) loses no detection, and no case has overlapping detections. Anonymize runs without error over the seed, the corpora and every Presidio module.
 
@@ -522,8 +523,8 @@ proves nothing.
 - [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT
       MET, now measured.** The seed set reads P=0.9811 R=1.0000 over 81
       cases, which cannot support a >99% claim. The corpora are now measurable
-      and do not come close: exact aggregate P=0.8340 R=0.8699 (nemotron) and
-      P=0.3557 R=0.7673 (gretel) over 2000 records each — see "Corpus
+      and do not come close: exact aggregate P=0.8326 R=0.8699 (nemotron) and
+      P=0.3544 R=0.7673 (gretel) over 2000 records each — see "Corpus
       measurement (2026-10-09)" above for the per-type numbers and the
       explanation of every large gap. BITCOIN remains unmeasured because
       neither corpus labels it. Reproduce with `make corpus`.
