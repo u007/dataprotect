@@ -213,3 +213,27 @@ func TestPseudonymizeCSVShortRow(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+// A column whose name appears twice is scanned in both positions. Before the fix
+// only the last copy was, so the first leaked its email unchanged.
+func TestCSVScansEveryCopyOfADuplicateHeader(t *testing.T) {
+	bp := newProcessor()
+	bp.SetColumnType("email", recognizers.EntityEmail)
+	in := "email,email\na@b.com,x@y.org\n"
+
+	var out bytes.Buffer
+	if _, err := bp.ProcessCSV(context.Background(), strings.NewReader(in), &out); err != nil {
+		t.Fatalf("ProcessCSV: unexpected error: %v", err)
+	}
+	if got, want := out.String(), "email,email\n<EMAIL>,<EMAIL>\n"; got != want {
+		t.Errorf("ProcessCSV: got %q, want %q", got, want)
+	}
+
+	var pout bytes.Buffer
+	if _, _, err := bp.PseudonymizeCSV(context.Background(), strings.NewReader(in), &pout); err != nil {
+		t.Fatalf("PseudonymizeCSV: unexpected error: %v", err)
+	}
+	if got, want := pout.String(), "email,email\n[EMAIL_1],[EMAIL_2]\n"; got != want {
+		t.Errorf("PseudonymizeCSV: got %q, want %q", got, want)
+	}
+}

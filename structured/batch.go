@@ -53,11 +53,7 @@ func (bp *BatchProcessor) ProcessCSV(ctx context.Context, r io.Reader, w io.Writ
 		return 0, err
 	}
 
-	// Map column names to indices
-	colIndex := make(map[string]int)
-	for i, h := range header {
-		colIndex[h] = i
-	}
+	scanned := bp.scannedColumns(header)
 
 	// Ragged rows are tolerated rather than fatal, but NOT silently: a short row
 	// is padded to the header width and reported through the returned count, so a
@@ -84,10 +80,9 @@ func (bp *BatchProcessor) ProcessCSV(ctx context.Context, r io.Reader, w io.Writ
 			record = padRecord(record, len(header))
 		}
 
-		// Anonymize each cell
-		for col := range bp.columnTypes {
-			idx, ok := colIndex[col]
-			if !ok || idx >= len(record) {
+		// Anonymize each configured cell
+		for idx := range record {
+			if !scanned[idx] {
 				continue
 			}
 			cell := record[idx]
@@ -136,16 +131,7 @@ func (bp *BatchProcessor) PseudonymizeCSV(ctx context.Context, r io.Reader, w io
 	}
 
 	header := rows[0]
-	colIndex := make(map[string]int)
-	for i, h := range header {
-		colIndex[h] = i
-	}
-	scanned := make([]bool, len(header))
-	for col := range bp.columnTypes {
-		if idx, ok := colIndex[col]; ok {
-			scanned[idx] = true
-		}
-	}
+	scanned := bp.scannedColumns(header)
 
 	// Flatten every cell, header first, into one list so PseudonymizeAll can share
 	// its mapping across the whole file. Only scanned cells carry entities.
@@ -187,6 +173,17 @@ func (bp *BatchProcessor) PseudonymizeCSV(ctx context.Context, r io.Reader, w io
 		return ragged, nil, err
 	}
 	return ragged, pseudonyms, nil
+}
+
+// scannedColumns reports, for each header position, whether the column is one the
+// caller configured. A name that appears more than once marks every copy, so a
+// repeated column cannot pass unscanned.
+func (bp *BatchProcessor) scannedColumns(header []string) []bool {
+	scanned := make([]bool, len(header))
+	for i, h := range header {
+		_, scanned[i] = bp.columnTypes[h]
+	}
+	return scanned
 }
 
 // padRecord pads a short row with empty cells to width. A longer row is cut to
