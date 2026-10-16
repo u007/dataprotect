@@ -54,23 +54,13 @@ func main() {
 			if !utf8.ValidString(pseudo) {
 				fail(fmt.Errorf("%s: case %q: pseudonymized output is not valid UTF-8", dir, c.ID))
 			}
-			if !golden.SameModuloSpelling(restore(pseudo, pseudonyms), c.Text) {
+			if !golden.PseudonymRoundTrip(c.Text, pseudo, pseudonyms) {
 				fail(fmt.Errorf("%s: case %q: restoring the placeholders does not reproduce the input", dir, c.ID))
 			}
 			checked++
 		}
 		fmt.Printf("%s: %d cases anonymized, no errors, all output valid UTF-8; pseudonyms round-trip on %d, %d collisions set aside\n", dir, len(cases), checked, collisions)
 	}
-}
-
-// restore substitutes each placeholder back to its original value. It is the
-// inverse Pseudonymize promises: restore(out, map) must equal the input.
-func restore(out string, pseudonyms map[string]string) string {
-	var pairs []string
-	for placeholder, original := range pseudonyms {
-		pairs = append(pairs, placeholder, original)
-	}
-	return strings.NewReplacer(pairs...).Replace(out)
 }
 
 func fail(err error) {

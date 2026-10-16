@@ -2,7 +2,6 @@ package golden_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	piiscrub "github.com/u007/dataprotect"
@@ -24,12 +23,8 @@ func TestPseudonymizeRoundTripOnSeed(t *testing.T) {
 			t.Errorf("case %s: %v", c.ID, err)
 			continue
 		}
-		var pairs []string
-		for placeholder, original := range pseudonyms {
-			pairs = append(pairs, placeholder, original)
-		}
-		if got := strings.NewReplacer(pairs...).Replace(out); !golden.SameModuloSpelling(got, c.Text) {
-			t.Errorf("case %s: restore(out) = %q, want %q", c.ID, got, c.Text)
+		if !golden.PseudonymRoundTrip(c.Text, out, pseudonyms) {
+			t.Errorf("case %s: pseudonymized text %q does not restore to %q", c.ID, out, c.Text)
 		}
 	}
 }
