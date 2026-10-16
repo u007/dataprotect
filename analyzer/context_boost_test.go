@@ -428,3 +428,27 @@ func TestContextBoostDoesNotAlterSpans(t *testing.T) {
 		}
 	}
 }
+
+// A boost must not lift a span inside a URL above that URL. Here the IP has two
+// context words, so an unguarded boost takes it from 0.95 to 1.0 and it wins
+// overlap resolution. The URL must survive whole.
+func TestContextBoostDoesNotLiftSpanInsideURL(t *testing.T) {
+	text := "ip address: http://192.168.1.100:8080/status"
+	a := New(WithContextBoost())
+	a.AddRecognizer(&fixedConfidenceRecognizer{
+		name: "url", entityType: recognizers.EntityURL,
+		text: "http://192.168.1.100:8080/status", confidence: 0.99,
+	})
+	a.AddRecognizer(&fixedConfidenceRecognizer{
+		name: "ip", entityType: recognizers.EntityIP,
+		text: "192.168.1.100", confidence: 0.95,
+	})
+
+	got, err := a.Analyze(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0].Type != recognizers.EntityURL {
+		t.Fatalf("got %+v, want the URL alone", got)
+	}
+}

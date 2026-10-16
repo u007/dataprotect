@@ -35,11 +35,8 @@ func WithMinConfidence(confidence float64) Option {
 // WithContextBoost enables raising an entity's confidence when keywords for its
 // type appear in the surrounding text (e.g. the word "email" next to an address).
 // It is off by default because boosting changes overlap-resolution outcomes, so
-// it is an explicit opt-in rather than a silent behaviour change.
-//
-// Caution: on nemotron a boosted IP or card inside a URL can outrank the URL on
-// overlap, so the URL is lost and its path stays visible. Keep boosting off for
-// URL-bearing text until that policy is decided (see TODO.md).
+// it is an explicit opt-in rather than a silent behaviour change. A span inside a
+// URL is never boosted (see applyContextBoost).
 func WithContextBoost() Option {
 	return func(a *Analyzer) {
 		a.contextBoost = true
@@ -171,8 +168,15 @@ func quantiseEntities(entities []recognizers.Entity) {
 // applyContextBoost raises each entity's confidence using keywords in the
 // surrounding text. Confidence is clamped to 1.0 so a boost can never push an
 // entity above the maximum of the scale.
+//
+// A span inside a URL is not boosted. The boost could lift the inner entity above
+// the URL that contains it, and overlap resolution would then keep the inner span,
+// leaving the URL's path and query visible.
 func applyContextBoost(text string, entities []recognizers.Entity) []recognizers.Entity {
 	for i := range entities {
+		if insideURL(entities[i], entities) {
+			continue
+		}
 		boost := ctxconf.BoostConfidence(text, entities[i].Type, entities[i].Start, entities[i].End)
 		if boost == 0 {
 			continue
@@ -180,6 +184,20 @@ func applyContextBoost(text string, entities []recognizers.Entity) []recognizers
 		entities[i].Confidence = roundConfidence(entities[i].Confidence + boost)
 	}
 	return entities
+}
+
+// insideURL reports whether e lies within a URL entity in entities. A URL is not
+// inside itself, so it is never reported as enclosed.
+func insideURL(e recognizers.Entity, entities []recognizers.Entity) bool {
+	if e.Type == recognizers.EntityURL {
+		return false
+	}
+	for _, u := range entities {
+		if u.Type == recognizers.EntityURL && e.Start >= u.Start && e.End <= u.End {
+			return true
+		}
+	}
+	return false
 }
 
 func removeOverlapping(entities []recognizers.Entity) []recognizers.Entity {

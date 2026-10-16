@@ -42,6 +42,10 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
   overlap-resolution outcomes. It is applied BEFORE the confidence filter and
   BEFORE overlap resolution, otherwise it can neither rescue a borderline entity
   nor influence which of two colliding recognizers wins.
+- A boost never applies to a span inside a URL entity (`insideURL` in
+  `analyzer.go`). Otherwise a boosted IP or card inside a URL can outrank the URL
+  and leave its path and query visible. Covered by
+  `TestContextBoostDoesNotLiftSpanInsideURL`.
 - `removeOverlapping` breaks ties by higher confidence; on an exact tie the
   earlier span wins. That is a policy choice, not an implementation accident.
 

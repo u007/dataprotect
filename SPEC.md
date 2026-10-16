@@ -44,9 +44,10 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
   2026-10-15): a looser boundary would also redact order and reference numbers.
 - **Operators** — replace, mask, hash, redact
 - **Context-aware confidence boosting** — opt-in via `analyzer.WithContextBoost()`, applied
-  before the confidence filter and before overlap resolution. Measured: no change on the
-  seed set; on nemotron it lowers exact P and R slightly, because a boosted IP or card inside a
-  URL displaces the URL (see TODO.md). Keep it off for URL-bearing text until that is decided.
+  before the confidence filter and before overlap resolution. A span inside a URL is never
+  boosted, so a URL keeps its whole span. Measured with the corpus schema: boost on and off
+  give identical exact P and R on both corpora (nemotron P 0.8345 R 0.8916; gretel P 0.3677
+  R 0.8201), and no URL span is lost. Still off by default.
 - **Structured data** — CSV batch processing
 - **Golden dataset** — 81-case hand-labelled seed set for CI, plus an
   on-demand corpus measurement over the fetched corpora (`make corpus`)
