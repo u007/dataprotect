@@ -45,7 +45,9 @@ func TestPseudonymRoundTrip(t *testing.T) {
 			want:      false,
 		},
 		{
-			name:      "trailing separators in the value are matched by extent",
+			// Accepted edge limitation, see PseudonymRoundTrip: the separator
+			// after the value is absorbed into its stretch.
+			name:      "separator beside a value is absorbed at its edge",
 			original:  "x -",
 			pseudo:    "[TOKEN_1]",
 			pseudonym: map[string]string{"[TOKEN_1]": "x"},

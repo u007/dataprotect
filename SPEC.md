@@ -213,8 +213,9 @@ Restoring a placeholder gives the first spelling seen for it, so the round trip 
 exact up to spelling: spacing, separators, parentheses, letter case, and IPv6 notation
 may differ from the input, inside a value only. `golden.PseudonymRoundTrip(original, out,
 map)` is the check the seed and the corpora use. It requires text outside the placeholders
-to match exactly, and compares each placeholder's stretch of the original with its value
-modulo spelling.
+to match exactly, except that a value's stretch may take up separators beside it. The check
+cannot tell those separators from the prose, so a dropped full stop after an email passes.
+Each stretch is compared with its value modulo spelling.
 
 `Scrubber.PseudonymizeAll(ctx, texts)` pseudonymizes several texts with one mapping,
 so a value that recurs in a later text reuses its placeholder and numbering runs

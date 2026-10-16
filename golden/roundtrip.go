@@ -8,6 +8,12 @@ import "strings"
 // placeholders must match original byte for byte. The stretch of original that a
 // placeholder stands for must be SameModuloSpelling with that placeholder's value.
 //
+// The edge of a value is the one place the check is loose. A stretch may take up
+// separators beside it, because "(555) 867-5309" and "555-867-5309" differ only
+// there. The alignment cannot tell a separator that belongs to the value from one
+// that belongs to the prose, so a restore that drops the full stop after an email
+// still passes. Only the detector's spans could settle that.
+//
 // Only the values get the spelling allowance. Comparing the whole text modulo
 // spelling would also accept a corrupted sentence whose only change is spacing,
 // punctuation or case.
