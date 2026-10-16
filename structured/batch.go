@@ -81,9 +81,7 @@ func (bp *BatchProcessor) ProcessCSV(ctx context.Context, r io.Reader, w io.Writ
 			// The ragged count is returned to the caller, which owns the logging
 			// and alerting policy; logging here would force a logging dependency on
 			// every consumer and duplicate what the caller already receives.
-			padded := make([]string, len(header))
-			copy(padded, record)
-			record = padded
+			record = padRecord(record, len(header))
 		}
 
 		// Anonymize each cell
@@ -112,4 +110,89 @@ func (bp *BatchProcessor) ProcessCSV(ctx context.Context, r io.Reader, w io.Writ
 	}
 
 	return ragged, nil
+}
+
+// PseudonymizeCSV reads CSV from r, replaces each value in a configured column
+// with a numbered placeholder such as [EMAIL_1], and writes the result to w. All
+// cells share one mapping, so a value that recurs anywhere in the file gets the
+// same placeholder. The returned map holds raw PII, so the caller must protect it.
+//
+// Only configured columns are scanned, as in ProcessCSV. The header and every
+// other cell still pass the placeholder check, so a literal placeholder anywhere
+// in the file is an error. Restoring the file would otherwise rewrite it.
+//
+// The file is read whole and nothing is written until the check passes, so a
+// failure leaves w untouched. The returned count is the number of ragged rows,
+// as in ProcessCSV.
+func (bp *BatchProcessor) PseudonymizeCSV(ctx context.Context, r io.Reader, w io.Writer) (int, map[string]string, error) {
+	reader := csv.NewReader(r)
+	reader.FieldsPerRecord = -1
+	rows, err := reader.ReadAll()
+	if err != nil {
+		return 0, nil, err
+	}
+	if len(rows) == 0 {
+		return 0, nil, io.EOF
+	}
+
+	header := rows[0]
+	colIndex := make(map[string]int)
+	for i, h := range header {
+		colIndex[h] = i
+	}
+	scanned := make([]bool, len(header))
+	for col := range bp.columnTypes {
+		if idx, ok := colIndex[col]; ok {
+			scanned[idx] = true
+		}
+	}
+
+	// Flatten every cell, header first, into one list so PseudonymizeAll can share
+	// its mapping across the whole file. Only scanned cells carry entities.
+	ragged := 0
+	var texts []string
+	var entities [][]recognizers.Entity
+	for ri, row := range rows {
+		if ri > 0 && len(row) != len(header) {
+			ragged++
+			row = padRecord(row, len(header))
+		}
+		for ci, cell := range row {
+			var found []recognizers.Entity
+			if ri > 0 && scanned[ci] {
+				found, err = bp.analyzer.Analyze(ctx, cell)
+				if err != nil {
+					return ragged, nil, err
+				}
+			}
+			texts = append(texts, cell)
+			entities = append(entities, found)
+		}
+		rows[ri] = row
+	}
+
+	results, pseudonyms, err := bp.anonymizer.PseudonymizeAll(texts, entities)
+	if err != nil {
+		return ragged, nil, err
+	}
+
+	writer := csv.NewWriter(w)
+	for ri := range rows {
+		if err := writer.Write(results[ri*len(header) : (ri+1)*len(header)]); err != nil {
+			return ragged, nil, err
+		}
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return ragged, nil, err
+	}
+	return ragged, pseudonyms, nil
+}
+
+// padRecord pads a short row with empty cells to width. A longer row is cut to
+// width, as ProcessCSV always has.
+func padRecord(record []string, width int) []string {
+	padded := make([]string, width)
+	copy(padded, record)
+	return padded
 }

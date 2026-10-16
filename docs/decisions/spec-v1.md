@@ -240,7 +240,9 @@ reliably. The check applies to a text with no entities too, because a shared map
 ordinary text. `Scrubber.Pseudonymize(ctx, text)` runs detection first. `make corpus-anonymize`
 checks the round trip over the corpora (up to spelling).
 
-Scope: `structured/` (CSV) does not call `PseudonymizeAll` yet (TODO).
+Scope: `structured/` (CSV) pseudonymizes through `PseudonymizeCSV` (see Structured Data), which is `PseudonymizeAll` over the file's cells.
+
+Caller-join rule: each call numbers its placeholders from 1. Two texts pseudonymized in separate calls can both hold `[EMAIL_1]` for different values, and a token can be split or recreated where two texts are joined. A caller that joins them and then restores gets wrong values. Restore each text before joining, or join before pseudonymizing.
 
 `Anonymize` requires non-overlapping, in-bounds entities whose start and end fall
 on UTF-8 rune boundaries. An overlapping, out-of-bounds, or mid-rune span is
@@ -481,7 +483,13 @@ package structured
 // one truncated row is worse than writing an empty cell — but the count lets a
 // caller detect that it happened instead of silently trusting the output.
 func (bp *BatchProcessor) ProcessCSV(ctx context.Context, r io.Reader, w io.Writer) (int, error)
+
+// PseudonymizeCSV replaces each configured-column value with a numbered
+// placeholder, one mapping across the whole file. The map holds raw PII.
+func (bp *BatchProcessor) PseudonymizeCSV(ctx context.Context, r io.Reader, w io.Writer) (int, map[string]string, error)
 ```
+
+Column scope is set by `SetColumnType`, as in `ProcessCSV`: only registered columns are scanned, and the header is written as-is and never scanned. `PseudonymizeCSV` reads the whole file, runs the placeholder check on every cell (header and unscanned columns included), and writes nothing if the check fails. A ragged row is padded to the header width and counted, as in `ProcessCSV`. Known gap: `Scrubber.Analyze` retypes a Thai citizen ID as TH_ID, but the CSV path calls the bare analyzer, so a Thai ID cell is labelled CREDIT_CARD there.
 
 ---
 

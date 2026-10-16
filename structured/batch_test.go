@@ -135,3 +135,81 @@ func TestProcessCSVQuotedFields(t *testing.T) {
 		t.Errorf("quoted field not scrubbed: %q", out.String())
 	}
 }
+
+// One mapping spans the file: a repeated email gets one placeholder, and the
+// returned map restores it.
+func TestPseudonymizeCSVSharesPlaceholderAcrossRows(t *testing.T) {
+	bp := newProcessor()
+	bp.SetColumnType("email", recognizers.EntityEmail)
+
+	in := strings.NewReader("name,email\nJohn,a@b.com\nJane,a@b.com\nKim,x@y.org\n")
+	var out bytes.Buffer
+
+	ragged, pseudonyms, err := bp.PseudonymizeCSV(context.Background(), in, &out)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ragged != 0 {
+		t.Errorf("got %d ragged rows, want 0 for well-formed input", ragged)
+	}
+	want := "name,email\nJohn,[EMAIL_1]\nJane,[EMAIL_1]\nKim,[EMAIL_2]\n"
+	if got := out.String(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if pseudonyms["[EMAIL_1]"] != "a@b.com" || pseudonyms["[EMAIL_2]"] != "x@y.org" {
+		t.Errorf("mapping %v does not restore the file's emails", pseudonyms)
+	}
+}
+
+// Only configured columns are pseudonymized, as in ProcessCSV.
+func TestPseudonymizeCSVLeavesUnconfiguredColumns(t *testing.T) {
+	bp := newProcessor()
+	bp.SetColumnType("email", recognizers.EntityEmail)
+
+	in := strings.NewReader("name,email\na@b.com,x@y.org\n")
+	var out bytes.Buffer
+
+	if _, _, err := bp.PseudonymizeCSV(context.Background(), in, &out); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := out.String(), "name,email\na@b.com,[EMAIL_1]\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// A literal placeholder in an unscanned column would be rewritten when the file
+// is restored, so the whole file is rejected and nothing is written.
+func TestPseudonymizeCSVRejectsLiteralPlaceholderInUnscannedColumn(t *testing.T) {
+	bp := newProcessor()
+	bp.SetColumnType("email", recognizers.EntityEmail)
+
+	in := strings.NewReader("name,email,note\nJohn,a@b.com,see [EMAIL_1]\n")
+	var out bytes.Buffer
+
+	if _, _, err := bp.PseudonymizeCSV(context.Background(), in, &out); err == nil {
+		t.Fatal("want an error for a literal placeholder in an unscanned column")
+	}
+	if out.Len() != 0 {
+		t.Errorf("wrote %q before the check failed; want no output", out.String())
+	}
+}
+
+// A short row is padded to the header width and reported through the count.
+func TestPseudonymizeCSVShortRow(t *testing.T) {
+	bp := newProcessor()
+	bp.SetColumnType("email", recognizers.EntityEmail)
+
+	in := strings.NewReader("name,email\nJohn\nJane,b@c.com\n")
+	var out bytes.Buffer
+
+	ragged, _, err := bp.PseudonymizeCSV(context.Background(), in, &out)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ragged != 1 {
+		t.Errorf("got %d ragged rows, want 1", ragged)
+	}
+	if got, want := out.String(), "name,email\nJohn,\nJane,[EMAIL_1]\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
