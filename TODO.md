@@ -71,13 +71,18 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
 
 ## Known gaps in the current MVP
 
-- [ ] **Phone: an unseparated country code is not parsed.** `91 555 123 4567`
+- [x] **Phone: an unseparated country code is not parsed. Closed 2026-10-16: measured rare, no code change.** `91 555 123 4567`
       (no `+`) is matched as `555 123 4567` — the national number only, since the
       bare `1`-country-code handling is US-specific and there is no generic
       "country code + national number" branch. With a `+` (`+91 555 123 4567`)
       the whole string matches. Left UNASSERTED in `TestPhoneRecognizer`: it is
       not clearly a false positive, and pinning it would be deciding a policy
-      nobody has. Revisit if a seed case makes it matter.
+      nobody has. Revisit if a seed case makes it matter. **Measured 2026-10-16:**
+      of 881 gold PHONE spans over both corpora (nemotron 557, gretel 324), only one
+      prediction is a strict suffix with an unseparated country code (gretel, `001-`).
+      The national number is redacted in every case, so the leak is the country code
+      alone, which is not personal data. A generic country-code branch would add
+      false positives (`Room 12 555-123-4567`) for a single case. Not changed.
 - [x] **Overlap resolution property coverage — CLOSED.** `analyzer/overlap_test.go`
       exercises real recognizers over card-vs-phone, IBAN-vs-digit-patterns,
       bare-digits-vs-card and same-span collapse, and the `\b` regression is
