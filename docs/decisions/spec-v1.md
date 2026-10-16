@@ -1,7 +1,7 @@
 ---
 type: Decision
 title: piiscrub v1 Spec — Scope, Architecture & Non-Goals
-description: 'Architecture decision record for piiscrub v1: why a dependency-free Go PII library instead of Python Presidio, the explicit non-goals, MVP scope versus v2+ phases, core interfaces (Recognizer, Operator, Analyzer, Anonymizer), the actual on-disk package layout, per-recognizer accuracy targets alongside measured results from the 81-case golden seed AND from a 2000-record sample of both fetched corpora (which fall well short of the >99% target, with every large gap explained), operator semantics, the CSV batch contract, pinned dependencies, and the testing/benchmark strategy.'
+description: 'Architecture decision record for piiscrub v1: why a dependency-free Go PII library instead of Python Presidio, the explicit non-goals, MVP scope versus v2+ phases, core interfaces (Recognizer, Operator, Analyzer, Anonymizer), the actual on-disk package layout, per-recognizer accuracy targets alongside measured results from the 491-case golden seed AND from a 2000-record sample of both fetched corpora (which fall well short of the >99% target, with every large gap explained), operator semantics, the CSV batch contract, pinned dependencies, and the testing/benchmark strategy.'
 tags:
   - pii
   - go
@@ -66,7 +66,7 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
   both corpora (nemotron P 0.8345 R 0.8916; gretel P 0.3677 R 0.8201), and no URL span is
   lost. Still off by default.
 - **Structured data** — CSV batch processing
-- **Golden dataset** — 81-case hand-labelled seed set for CI, plus an
+- **Golden dataset** — 491-case hand-labelled seed set for CI, plus an
   on-demand corpus measurement over the fetched corpora (`make corpus`)
 
 ### Later (v2+):
@@ -265,16 +265,16 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 
 ## Recognizers (MVP)
 
-| Recognizer | Entity Type | Method | Target | Measured (81-case seed) |
+| Recognizer | Entity Type | Method | Target | Measured (491-case seed) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
-| Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=1.0000 R=1.0000 |
-| Credit Card | `CREDIT_CARD` | Luhn checksum | >99% P&R | P=1.0000 R=1.0000 |
-| SSN | `SSN` | Regex (XXX-XX-XXXX) | >99% P&R | P=1.0000 R=1.0000 |
-| IP Address | `IP_ADDRESS` | Regex (IPv4); IPv6 candidates validated by `netip` | >99% P&R | P=0.7500 R=1.0000 (version string read as IP) |
-| URL | `URL` | Regex (HTTP/HTTPS) | >99% P&R | P=1.0000 R=1.0000 |
+| Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope) |
+| Credit Card | `CREDIT_CARD` | Luhn checksum | >99% P&R | P=0.9808 R=0.9623 (tab-separated groups missed; the `pos-card-then-year` window defect) |
+| SSN | `SSN` | Regex (XXX-XX-XXXX) | >99% P&R | P=1.0000 R=1.0000 (shape-only, by decision) |
+| IP Address | `IP_ADDRESS` | Regex (IPv4); IPv6 candidates validated by `netip` | >99% P&R | P=0.9783 R=1.0000 (version string read as IP) |
+| URL | `URL` | Regex (HTTP/HTTPS) | >99% P&R | P=1.0000 R=0.9667 (upper-case scheme missed) |
 | IBAN | `IBAN` | Regex + mod-97 | >99% P&R | P=1.0000 R=1.0000 |
-| Bitcoin | `BITCOIN` | Regex (P2PKH, P2SH, Bech32) + Base58Check / bech32 checksum | >99% P&R | P=1.0000 R=1.0000 (seed cases only; neither corpus labels it) |
+| Bitcoin | `BITCOIN` | Regex (P2PKH, P2SH, Bech32) + Base58Check / bech32 checksum | >99% P&R | P=1.0000 R=0.9231 (all-caps bech32 missed; seed cases only, neither corpus labels it) |
 | SG NRIC/FIN | `SG_NRIC` | Regex + check letter (S, T, F, G) | >99% P&R | P=1.0000 R=1.0000 (M prefix unsupported) |
 | Malaysia MyKad | `MY_IC` | Regex (hyphenated) + date check | >99% P&R | P=1.0000 R=1.0000 (no checksum exists) |
 | Thailand citizen ID | `TH_ID` | Regex + mod-11 check digit | >99% P&R | P=1.0000 R=1.0000 (Scrubber types Luhn-valid Thai IDs as TH_ID, decision d; raw analyzers keep CREDIT_CARD) |
@@ -282,11 +282,10 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 | Singapore passport | `SG_PASSPORT` | Regex (E or K + 7 digits + letter) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Purview and the 2006 ICA BioPass description; K prefix and digit count not confirmed by PRADO) |
 
 **"Target" is a goal for a ~500-case dataset; "Measured" is what
-`scripts/benchmark.sh` reports today over the 81-case seed set.** The measured
-cells are 1.0 except IP_ADDRESS, whose batch-2 defect is in TODO.md. None of
-these cells is evidence that the targets are met: the shortfall is the dataset
-and that one defect. The Luhn and mod-97 validators are wired into the default
-pipeline.
+`scripts/benchmark.sh` reports today over the 491-case seed set.** Most measured
+cells are 1.0. The cells below 1.0 are the defects listed in TODO.md. These cells
+are evidence only for this hand-labelled set, not for the detector in general.
+The Luhn and mod-97 validators are wired into the default pipeline.
 The measured column covers all twelve types; the five national-ID and passport rows rest on synthetic cases only. BITCOIN is shape-then-checksum: a
 shape match is reported only when its Base58Check (`1`/`3`) or bech32/bech32m
 (`bc1`) checksum verifies. A shape match that fails its checksum is not an address
@@ -298,10 +297,10 @@ recognizers. It described an aspiration for a dataset that did not exist. Only
 the measured column is evidence.
 
 Note the aggregate is not an average of this table, and the per-type cells are
-coarse: `PHONE`, `SSN` and `EMAIL` rest on four cases each, so a single flipped case
-moves any of them a long way. Aggregate exact precision/recall over the whole seed set
-is P=0.9811 R=1.0000 (tp=52 fp=1 fn=0), and overlap matching — which tolerates
-mis-sized spans — gives the same. Before the parenthesised-phone
+coarse: `BITCOIN` rests on 13 gold spans, so one flipped case moves its recall by
+about 8 points. Aggregate exact precision/recall over the whole seed set is
+P=0.9941 R=0.9855 (tp=339 fp=2 fn=5), and overlap matching — which tolerates
+mis-sized spans — gives P=0.9971 R=0.9884 (tp=340 fp=1 fn=4). Before the parenthesised-phone
 fix the exact aggregate was P=0.9231 R=0.9231 while overlap stayed at 1.0000; the
 gap between the two granularities is exactly what localised the mis-sized span,
 which is why both are reported.
@@ -511,10 +510,10 @@ Column scope is set by `SetColumnType`, as in `ProcessCSV`: only registered colu
 ## Testing Strategy
 
 ### Golden Dataset
-- ~500 hand-labeled samples — **81 exist** in `testdata/golden/seed.json`; the
-  remaining ~450 do not
+- ~500 hand-labeled samples — **491 exist** in `testdata/golden/seed.json`
+  (314 positive, 177 negative); the remaining ~9 do not
 - CI regression testing on every commit: `golden/accuracy_test.go` gates on
-  precision/recall thresholds and fails if the dataset drops below 81 cases (ratcheted with each batch)
+  precision/recall thresholds and fails if the dataset drops below 491 cases (ratcheted with each batch)
 - Precision/recall/F1 per entity type, plus aggregate, under two matching
   policies (exact span and byte overlap)
 
@@ -547,7 +546,7 @@ proves nothing.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is an 81-case seed (not ~500); the corpora are measured on demand instead |
+| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 491-case seed (target ~500); the corpora are measured on demand instead |
 | 2 | NLP recognizer (prose) | Later |
 | 3 | Secret recognizers (patterns + entropy) | Later |
 | 4 | FPE operator | Later |
@@ -559,8 +558,8 @@ proves nothing.
 ## Success Criteria (MVP)
 
 - [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT
-      MET, now measured.** The seed set reads P=0.9811 R=1.0000 over 81
-      cases, which cannot support a >99% claim. The corpora are now measurable
+      MET, now measured.** The seed set reads exact P=0.9941 R=0.9855 over
+      491 cases; it has five exact misses, so the >99% claim is not met. The corpora are now measurable
       and do not come close: exact aggregate P=0.8345 R=0.8916 (nemotron) and
       P=0.3669 R=0.8201 (gretel) over 2000 records each — see "Corpus
       measurement (2026-10-09)" above for the per-type numbers and the

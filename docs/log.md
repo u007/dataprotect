@@ -6,6 +6,7 @@
 
 ## 2026-10-16
 
+* **Update**: piiscrub v1 Spec and README — golden seed expanded from 81 to 491 hand-labelled cases; measured table and known misses ([decisions/spec-v1.md](/decisions/spec-v1.md))
 * **Update**: piiscrub — AGENTS.md overlap rules: context boost never lifts a span over a surviving URL ([concepts/development-conventions.md](/concepts/development-conventions.md))
 * **Update**: piiscrub v1 Spec — context boost over URLs, PseudonymRoundTrip alignment check, edge limitation ([decisions/spec-v1.md](/decisions/spec-v1.md))
 * **Update**: piiscrub v1 Spec — email punycode TLD, phone parenthesised area code, phone numbers after the change ([decisions/spec-v1.md](/decisions/spec-v1.md))

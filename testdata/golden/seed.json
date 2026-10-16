@@ -847,5 +847,3792 @@
     "note": "IBAN with a wrong mod-97 check, followed by uppercase words. No prefix may pass.",
     "text": "Ref AL47212110090000000235698740 ALL FEES.",
     "entities": []
+  },
+  {
+    "id": "pos-email-uppercase",
+    "note": "Upper-case address in a request; the label is the address as written.",
+    "text": "Send the signed form to JANE.DOE@EXAMPLE.ORG before Friday.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "JANE.DOE@EXAMPLE.ORG"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-after-colon",
+    "note": "Address after a colon in a contact line.",
+    "text": "Contact: mark.ross@example.co.uk for account access.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "mark.ross@example.co.uk"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-in-quotes",
+    "note": "Address inside double quotes.",
+    "text": "The form names \"sam_k@example.io\" as the owner.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "sam_k@example.io"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-parenthesised",
+    "note": "Address in parentheses; the parentheses are not part of the label.",
+    "text": "Owner (kim-lee@example.com) approved the change.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "kim-lee@example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-two-in-sentence",
+    "note": "Two addresses in one sentence, each labelled separately.",
+    "text": "Copy alice@example.net and bob@example.net on the reply.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "alice@example.net"
+      },
+      {
+        "type": "EMAIL",
+        "value": "bob@example.net"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-trailing-comma",
+    "note": "Address followed by a comma.",
+    "text": "Reach ops@example.dev, or the on-call pager after six.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "ops@example.dev"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-numeric-subdomain",
+    "note": "Digits in the local part and a numbered subdomain.",
+    "text": "Forward it to team7@mail2.example.com today.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "team7@mail2.example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-signature-line",
+    "note": "Address on its own line in a signature block.",
+    "text": "Thanks,\nPriya Nair\npriya.nair@example.in",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "priya.nair@example.in"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-dotted-local",
+    "note": "Dotted local part with three segments.",
+    "text": "Escalate to first.middle.last@corp.example.com if the outage persists.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "first.middle.last@corp.example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-plus-numeric",
+    "note": "Plus-tag with a number.",
+    "text": "Use orders+2026@example.com for the batch upload.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "orders+2026@example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-sentence-period",
+    "note": "Address that ends the sentence with a full stop.",
+    "text": "Vendor contact is sales@acme-widgets.example.org.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "sales@acme-widgets.example.org"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-after-dash",
+    "note": "Address after a dash in a list.",
+    "text": "Owners - support@example.co - are on call.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "support@example.co"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-plus-us-dashed",
+    "note": "Plus-prefixed US number, dashed.",
+    "text": "Call +1-555-010-2030 after six.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+1-555-010-2030"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-paren-spaced",
+    "note": "Parenthesised area code with space-separated groups.",
+    "text": "Front desk: (555) 010 2031.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "(555) 010 2031"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-dotted-us",
+    "note": "Dotted US number after a label.",
+    "text": "Fax 555.010.2032 is no longer monitored.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555.010.2032"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-uk-plus",
+    "note": "UK number with a plus prefix and spaced groups.",
+    "text": "UK office +44 20 7946 0958 takes calls until five.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+44 20 7946 0958"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-de-plus",
+    "note": "German number with a plus prefix; synthetic digits.",
+    "text": "Berlin line +49 30 555 0100 is the switchboard.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+49 30 555 0100"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-sg-plus",
+    "note": "Singapore number with a plus prefix.",
+    "text": "Call +65 6555 0100 for the Singapore team.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+65 6555 0100"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-list",
+    "note": "Two dashed numbers in a list.",
+    "text": "Numbers: 555-010-2040; 555-010-2041.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2040"
+      },
+      {
+        "type": "PHONE",
+        "value": "555-010-2041"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-tel-label",
+    "note": "Space-separated number after a tel label.",
+    "text": "tel: 555 010 2050",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555 010 2050"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-text-verb",
+    "note": "Space-separated number after a verb.",
+    "text": "Text 555 010 2060 when you land.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555 010 2060"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-paren-dashed",
+    "note": "Parenthesised area code followed by a dashed line number.",
+    "text": "Ring (555) 010-2070 from the lobby.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "(555) 010-2070"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-plus-paren",
+    "note": "Plus, country code, and parenthesised area code.",
+    "text": "+1 (555) 010-2090 is the direct line.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+1 (555) 010-2090"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-prose",
+    "note": "Dashed SSN in an employee sentence.",
+    "text": "Employee record shows SSN 123-45-6789 on file.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "123-45-6789"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-after-colon",
+    "note": "SSN after a colon label.",
+    "text": "SSN: 345-67-8901",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "345-67-8901"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-no-keyword",
+    "note": "SSN in a list of case references with no label word.",
+    "text": "The file lists 456-78-9012 next to a case number.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "456-78-9012"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-sentence-end",
+    "note": "SSN at the end of a sentence.",
+    "text": "Her number is 567-89-0123.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "567-89-0123"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-parenthesised",
+    "note": "SSN inside parentheses.",
+    "text": "The record (SSN 789-01-2345) was verified.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "789-01-2345"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-two",
+    "note": "Two SSNs in one sentence.",
+    "text": "Parents 890-12-3456 and 901-23-4567 are listed.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "890-12-3456"
+      },
+      {
+        "type": "SSN",
+        "value": "901-23-4567"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-line-start",
+    "note": "SSN at the start of a line.",
+    "text": "901-23-4567\nreturned from the audit",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "901-23-4567"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-private-10",
+    "note": "Private 10/8 address on a floor network.",
+    "text": "The printer sits at 10.0.12.34 on the floor network.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.0.12.34"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-private-172",
+    "note": "Private 172.16/12 gateway.",
+    "text": "Gateway 172.16.254.1 handles guest traffic.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "172.16.254.1"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-private-192",
+    "note": "Private 192.168/16 mail relay.",
+    "text": "Mail relay 192.168.50.7 accepts only internal senders.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "192.168.50.7"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-testnet-203",
+    "note": "Documentation range 203.0.113/24 address.",
+    "text": "Blocked source 203.0.113.7 was flagged overnight.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "203.0.113.7"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-testnet-198",
+    "note": "Documentation range 198.51.100/24 address.",
+    "text": "Host 198.51.100.23 answered the ping.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "198.51.100.23"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-v6-doc",
+    "note": "Compressed IPv6 documentation address.",
+    "text": "The server answers on 2001:db8::1 after the migration.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "2001:db8::1"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-v6-full",
+    "note": "Full-form IPv6 address with leading zeros.",
+    "text": "Address 2001:0db8:85a3:0000:0000:8a2e:0370:7334 is the RFC example.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-v6-link-local",
+    "note": "Link-local IPv6 address on an interface.",
+    "text": "Link-local fe80::1ff:fe23:4567:890a sits on eth1.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "fe80::1ff:fe23:4567:890a"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-https-path",
+    "note": "HTTPS URL with numeric path segments.",
+    "text": "Details are at https://portal.example.com/users/42/profile for review.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://portal.example.com/users/42/profile"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-port-query",
+    "note": "HTTP URL with a port and a query string.",
+    "text": "Reports live at http://intranet.example.org:8443/reports?id=77 today.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "http://intranet.example.org:8443/reports?id=77"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-in-parens",
+    "note": "URL in parentheses; the parentheses are not part of the label.",
+    "text": "See (https://docs.example.net/guide) before deploying.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://docs.example.net/guide"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-fragment",
+    "note": "URL with a fragment.",
+    "text": "Jump to https://example.com/faq#refunds for the policy.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://example.com/faq#refunds"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-root-slash",
+    "note": "URL that is only a host with a trailing slash.",
+    "text": "Mirror is https://mirror.example.org/ for downloads.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://mirror.example.org/"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-visa-spaced",
+    "note": "Visa in four-digit groups, spaced.",
+    "text": "Visa 4012 8888 8888 1881 was declined.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4012 8888 8888 1881"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-mc-dashed",
+    "note": "Mastercard in four-digit groups, dashed.",
+    "text": "Mastercard 5555-5555-5555-4444 was used twice.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "5555-5555-5555-4444"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-amex-4-6-5",
+    "note": "Amex in its 4-6-5 grouping, which is not the 4-4-4-4 pattern.",
+    "text": "Amex 3782 822463 10005 expires in May.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "3782 822463 10005"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-discover",
+    "note": "Discover in four-digit groups.",
+    "text": "Discover 6011 1111 1111 1117 was used for the refund.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "6011 1111 1111 1117"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-jcb-bare",
+    "note": "JCB as a bare 16-digit run after a label.",
+    "text": "JCB 3530111333300000 failed verification.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "3530111333300000"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-in-parens",
+    "note": "Card number in parentheses.",
+    "text": "The card (4111111111111111) was saved on the account.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4111111111111111"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-two",
+    "note": "Two cards in one sentence, both Luhn-valid.",
+    "text": "Refund to 4000 0566 5566 5556 not the 5105 1051 0510 5100.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4000 0566 5566 5556"
+      },
+      {
+        "type": "CREDIT_CARD",
+        "value": "5105 1051 0510 5100"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-diners-14",
+    "note": "Diners Club number, 14 digits.",
+    "text": "Diners 3056 9309 0259 04 was used at checkout.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "3056 9309 0259 04"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-nl-spaced",
+    "note": "Dutch IBAN in four-character groups.",
+    "text": "Pay into NL91 ABNA 0417 1643 00 before month end.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "NL91 ABNA 0417 1643 00"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-es-spaced",
+    "note": "Spanish IBAN in four-character groups.",
+    "text": "Account ES91 2100 0418 4502 0005 1332 is ours.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "ES91 2100 0418 4502 0005 1332"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-it-spaced",
+    "note": "Italian IBAN with a letter in the BBAN.",
+    "text": "IBAN IT60 X054 2811 1010 0000 0123 456 is the supplier account.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "IT60 X054 2811 1010 0000 0123 456"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-be-unspaced",
+    "note": "Belgian IBAN with no spaces.",
+    "text": "Transfer to BE68539007547034 this week.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "BE68539007547034"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-pl-spaced",
+    "note": "Polish IBAN, 28 characters, spaced.",
+    "text": "PL61 1090 1014 0000 0712 1981 2874 is the vendor account.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "PL61 1090 1014 0000 0712 1981 2874"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-de-unspaced-end",
+    "note": "German IBAN with no spaces, ending the sentence.",
+    "text": "Send it to DE89370400440532013000.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "DE89370400440532013000"
+      }
+    ]
+  },
+  {
+    "id": "pos-bitcoin-legacy-prose",
+    "note": "Legacy P2PKH address in a donation request.",
+    "text": "Donate to 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2 by Friday.",
+    "entities": [
+      {
+        "type": "BITCOIN",
+        "value": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2"
+      }
+    ]
+  },
+  {
+    "id": "pos-bitcoin-bech32-prose",
+    "note": "Bech32 address in a payment line.",
+    "text": "Payment address bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq is final.",
+    "entities": [
+      {
+        "type": "BITCOIN",
+        "value": "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+      }
+    ]
+  },
+  {
+    "id": "neg-timestamp-iso",
+    "note": "ISO timestamp with time and zone.",
+    "text": "The job started at 2026-10-16 14:33:01 UTC and finished in four minutes.",
+    "entities": []
+  },
+  {
+    "id": "neg-hex-colour",
+    "note": "Hex colour codes in a style note.",
+    "text": "Set the header to #1A2B3C and the border to #FFFFFF.",
+    "entities": []
+  },
+  {
+    "id": "neg-git-sha",
+    "note": "Abbreviated git commit hash.",
+    "text": "Roll back to commit 3f9a1c2b7d4e5f60 before the release.",
+    "entities": []
+  },
+  {
+    "id": "neg-isbn13",
+    "note": "ISBN-13 with hyphens.",
+    "text": "The manual is catalogued as ISBN 978-3-16-148410-0 in the library.",
+    "entities": []
+  },
+  {
+    "id": "neg-uuid",
+    "note": "UUID in a request log.",
+    "text": "Request id 123e4567-e89b-12d3-a456-426614174000 was retried once.",
+    "entities": []
+  },
+  {
+    "id": "neg-date-slash",
+    "note": "Day-month-year date with slashes.",
+    "text": "The audit runs on 16/10/2026 at the usual time.",
+    "entities": []
+  },
+  {
+    "id": "neg-currency-amount",
+    "note": "Currency amount with thousands separators.",
+    "text": "Budget is USD 1,250,000.00 for the quarter.",
+    "entities": []
+  },
+  {
+    "id": "neg-ip-invalid-octet",
+    "note": "Dotted quad with an octet above 255; not an address.",
+    "text": "The config value 10.0.0.256 is a typo for the gateway.",
+    "entities": []
+  },
+  {
+    "id": "neg-version-rc",
+    "note": "Release candidate version string.",
+    "text": "Upgrade to v2.14.7-rc3 before the freeze.",
+    "entities": []
+  },
+  {
+    "id": "neg-port-number",
+    "note": "Port number in a sentence.",
+    "text": "Listen on port 9000 for the admin socket.",
+    "entities": []
+  },
+  {
+    "id": "neg-ticket-number",
+    "note": "Five-digit ticket reference.",
+    "text": "Ticket 48213 was closed by the on-call team.",
+    "entities": []
+  },
+  {
+    "id": "neg-card-luhn-fail",
+    "note": "Sixteen digits that fail the Luhn check.",
+    "text": "Reference 4111 1111 1111 1112 was mistyped in the form.",
+    "entities": []
+  },
+  {
+    "id": "neg-iban-placeholder-checksum",
+    "note": "IBAN-shaped placeholder with a failing check digit.",
+    "text": "Use DE00 3704 0044 0532 0130 00 as a placeholder.",
+    "entities": []
+  },
+  {
+    "id": "neg-phone-short-extension",
+    "note": "Short internal extension.",
+    "text": "Extension 5-0100 is free until noon.",
+    "entities": []
+  },
+  {
+    "id": "neg-mac-address",
+    "note": "MAC address with colons; six groups, not IPv6.",
+    "text": "Device 00:1A:2B:3C:4D:5E joined the VLAN.",
+    "entities": []
+  },
+  {
+    "id": "neg-time-range",
+    "note": "Clock range with colons.",
+    "text": "Shifts run 08:00-16:30 on weekdays.",
+    "entities": []
+  },
+  {
+    "id": "neg-version-three-part-ip-shaped",
+    "note": "Three-part version number, not an address.",
+    "text": "Set version 10.0.0 in the manifest before tagging.",
+    "entities": []
+  },
+  {
+    "id": "neg-model-number",
+    "note": "Alphanumeric model code.",
+    "text": "Replace the part with model XJ-2048-B immediately.",
+    "entities": []
+  },
+  {
+    "id": "neg-coordinates",
+    "note": "Decimal coordinates on a map note.",
+    "text": "The depot sits at 51.5072, -0.1276 on the map.",
+    "entities": []
+  },
+  {
+    "id": "neg-percentage",
+    "note": "Percentages and decimals.",
+    "text": "Revenue grew 12.5% to 4.2 million this year.",
+    "entities": []
+  },
+  {
+    "id": "pos-multi-phone-email",
+    "note": "Phone and email in one sentence, both labelled.",
+    "text": "Call Ana on 555-010-2100 or write to ana.p@example.org.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2100"
+      },
+      {
+        "type": "EMAIL",
+        "value": "ana.p@example.org"
+      }
+    ]
+  },
+  {
+    "id": "pos-multi-ssn-card",
+    "note": "SSN and card in one form line.",
+    "text": "The form lists SSN 234-56-7890 and card 4111 1111 1111 1111.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "234-56-7890"
+      },
+      {
+        "type": "CREDIT_CARD",
+        "value": "4111 1111 1111 1111"
+      }
+    ]
+  },
+  {
+    "id": "pos-multi-ip-url",
+    "note": "IP address and URL in one incident note.",
+    "text": "Logs show 10.1.1.5 hitting https://api.example.com/v2/health repeatedly.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.1.1.5"
+      },
+      {
+        "type": "URL",
+        "value": "https://api.example.com/v2/health"
+      }
+    ]
+  },
+  {
+    "id": "pos-multi-iban-email",
+    "note": "IBAN followed by an address in a payment note.",
+    "text": "Pay DE89 3704 0044 0532 0130 00, then confirm to finance@example.com.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "DE89 3704 0044 0532 0130 00"
+      },
+      {
+        "type": "EMAIL",
+        "value": "finance@example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-multi-ip-phone",
+    "note": "IP address and international phone in an alert.",
+    "text": "Gateway 10.20.30.40 pages on-call at +44 20 5550 1234.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.20.30.40"
+      },
+      {
+        "type": "PHONE",
+        "value": "+44 20 5550 1234"
+      }
+    ]
+  },
+  {
+    "id": "pos-log-line-email-ip",
+    "note": "Structured log line with an email and a source address.",
+    "text": "2026-10-15 09:12:44 user=dana@example.com src=198.51.100.9 action=login",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "dana@example.com"
+      },
+      {
+        "type": "IP_ADDRESS",
+        "value": "198.51.100.9"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-with-email-query",
+    "note": "Unsubscribe URL that carries an address in its query. The URL is one span and wins the overlap.",
+    "text": "Unsubscribe at https://example.com/unsubscribe?email=pat@example.com today.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://example.com/unsubscribe?email=pat@example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-multi-two-cards-phone",
+    "note": "Two cards and a phone number in a support ticket.",
+    "text": "Card 4000 0566 5566 5556 failed; retry with 5105 1051 0510 5100 and call 555-010-2110.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4000 0566 5566 5556"
+      },
+      {
+        "type": "CREDIT_CARD",
+        "value": "5105 1051 0510 5100"
+      },
+      {
+        "type": "PHONE",
+        "value": "555-010-2110"
+      }
+    ]
+  },
+  {
+    "id": "pos-multi-ssn-phone-table",
+    "note": "SSN and phone in a row of a plain-text table.",
+    "text": "| 345-67-8902 | 555-010-2120 | Kim |",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "345-67-8902"
+      },
+      {
+        "type": "PHONE",
+        "value": "555-010-2120"
+      }
+    ]
+  },
+  {
+    "id": "pos-multi-ipv6-email",
+    "note": "IPv6 address and email in a bug report.",
+    "text": "Reported by lee@example.org from 2001:db8::5 on Tuesday.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "lee@example.org"
+      },
+      {
+        "type": "IP_ADDRESS",
+        "value": "2001:db8::5"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-in-brackets",
+    "note": "Address in square brackets.",
+    "text": "Recipients [chris.doe@example.net] were copied in.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "chris.doe@example.net"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-hyphen-tld",
+    "note": "Long multi-part country-code domain.",
+    "text": "Send the scan to records@clinic.example.com.au this week.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "records@clinic.example.com.au"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-underscore-local",
+    "note": "Underscore in the local part.",
+    "text": "Owner field: site_admin_2@example.org",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "site_admin_2@example.org"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-trunk-zero",
+    "note": "National format with a leading trunk zero and spaces, UK style.",
+    "text": "Ring 020 5550 1290 during opening hours.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "020 5550 1290"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-spaced-triple",
+    "note": "US number written with spaces.",
+    "text": "Office line 555 010 2130 is staffed.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555 010 2130"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-in-sentence-comma",
+    "note": "Phone followed by a comma.",
+    "text": "Leave a message on 555-010-2140, then wait.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2140"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-plus-spaced-groups",
+    "note": "International number with plus, country code, and spaced groups.",
+    "text": "Dial +33 1 5555 0100 from Paris.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+33 1 5555 0100"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-tab-separated-label",
+    "note": "SSN after a tab-separated label.",
+    "text": "SSN\t456-78-9013",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "456-78-9013"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-quoted",
+    "note": "SSN inside quotes.",
+    "text": "The field reads \"567-89-0124\" for this record.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "567-89-0124"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-in-brackets",
+    "note": "Address inside square brackets in a log.",
+    "text": "[10.0.0.44] connection reset by peer",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.0.0.44"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-cidr-host",
+    "note": "Host address with a CIDR suffix; the suffix is not in the label.",
+    "text": "Route 192.0.2.44/24 is announced by the edge.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "192.0.2.44"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-public-sentence",
+    "note": "Public-range address at the end of a sentence.",
+    "text": "The scanner came from 8.8.4.4.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "8.8.4.4"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-v6-compressed-mid",
+    "note": "Compressed IPv6 address in the middle of a sentence.",
+    "text": "Traffic from 2001:db8:0:1::7 was rate-limited.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "2001:db8:0:1::7"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-http-bare-path",
+    "note": "Plain HTTP URL with a path.",
+    "text": "Fetch http://files.example.com/pub/notes.txt for the appendix.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "http://files.example.com/pub/notes.txt"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-subdomain-deep",
+    "note": "URL on a deep subdomain.",
+    "text": "Staging is https://a.b.c.example.io/app/login now.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://a.b.c.example.io/app/login"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-encoded-query",
+    "note": "URL with percent-encoded query values.",
+    "text": "Track it at https://shop.example.com/orders?ref=ab%2012&s=2 soon.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://shop.example.com/orders?ref=ab%2012&s=2"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-visa-16-dashed-cvv",
+    "note": "Visa with a dashed number followed by a CVV label.",
+    "text": "Card 4012-8888-8888-1881 CVV 123 was entered.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4012-8888-8888-1881"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-mc-spaced-line",
+    "note": "Mastercard alone on a line.",
+    "text": "5555 5555 5555 4444\nexpired last month",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "5555 5555 5555 4444"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-amex-dashed",
+    "note": "Amex in 4-6-5 grouping with dashes.",
+    "text": "Amex 3782-822463-10005 was declined twice.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "3782-822463-10005"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-gb-spaced",
+    "note": "UK IBAN with the published example digits, spaced.",
+    "text": "Refund to GB82 WEST 1234 5698 7654 32 by Monday.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "GB82 WEST 1234 5698 7654 32"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-at-unspaced",
+    "note": "Austrian IBAN with no spaces, mid-sentence.",
+    "text": "Supplier AT611904300234573201 is on the approved list.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "AT611904300234573201"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-ch-spaced-end",
+    "note": "Swiss IBAN in groups, at the end of a sentence.",
+    "text": "Pay the fee to CH93 0076 2011 6238 5295 7.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "CH93 0076 2011 6238 5295 7"
+      }
+    ]
+  },
+  {
+    "id": "pos-bitcoin-p2sh-prose",
+    "note": "P2SH address in a refund line.",
+    "text": "Refund to 3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy soon.",
+    "entities": [
+      {
+        "type": "BITCOIN",
+        "value": "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy"
+      }
+    ]
+  },
+  {
+    "id": "pos-bitcoin-bech32-upper",
+    "note": "Upper-case bech32 address.",
+    "text": "Pay to BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ today.",
+    "entities": [
+      {
+        "type": "BITCOIN",
+        "value": "BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ"
+      }
+    ]
+  },
+  {
+    "id": "neg-invoice-code",
+    "note": "Invoice code with hyphenated digits.",
+    "text": "Invoice INV-2026-0931 covers the March run.",
+    "entities": []
+  },
+  {
+    "id": "neg-sku-hyphenated",
+    "note": "Product SKU with digit groups.",
+    "text": "SKU 4410-2219-B ships in two weeks.",
+    "entities": []
+  },
+  {
+    "id": "neg-tracking-alnum",
+    "note": "Courier tracking code.",
+    "text": "Tracking 1Z999AA10123456784 shows delivered.",
+    "entities": []
+  },
+  {
+    "id": "neg-measurement-units",
+    "note": "Lengths and masses with units.",
+    "text": "The beam is 4.75 m long and 320 kg in weight.",
+    "entities": []
+  },
+  {
+    "id": "neg-recipe-quantities",
+    "note": "Recipe quantities.",
+    "text": "Add 250 g flour, 3 eggs and 1.5 cups milk.",
+    "entities": []
+  },
+  {
+    "id": "neg-semver-three-part",
+    "note": "Three-part library version in a dependency line.",
+    "text": "Pin the library to 1.22.0 in go.mod.",
+    "entities": []
+  },
+  {
+    "id": "neg-section-number",
+    "note": "Three-part section number.",
+    "text": "Section 3.2.1 covers the rollback steps.",
+    "entities": []
+  },
+  {
+    "id": "neg-sort-code",
+    "note": "UK sort code style branch number.",
+    "text": "Branch code 12-34-56 is printed on the cheque.",
+    "entities": []
+  },
+  {
+    "id": "neg-time-with-millis",
+    "note": "Time with fractional seconds.",
+    "text": "Logs at 23:59:59.999 were trimmed by the job.",
+    "entities": []
+  },
+  {
+    "id": "neg-hex-digest",
+    "note": "Thirty-two hex digits; a digest, not a card.",
+    "text": "Checksum 9f86d081884c7d659a2feaa0c55ad015 matches the release.",
+    "entities": []
+  },
+  {
+    "id": "neg-sixteen-digits-luhn-fail",
+    "note": "Sixteen-digit batch number that fails Luhn.",
+    "text": "Batch 1234567890123456 was split across two shipments.",
+    "entities": []
+  },
+  {
+    "id": "neg-handle-no-domain",
+    "note": "A social handle, which has no domain.",
+    "text": "Follow @acme_support on the forum for updates.",
+    "entities": []
+  },
+  {
+    "id": "neg-price-at-sign",
+    "note": "An at-sign used for unit price.",
+    "text": "Apples cost 3 @ 1.20 each at the stall.",
+    "entities": []
+  },
+  {
+    "id": "neg-filename",
+    "note": "Configuration file name, not a URL.",
+    "text": "The file config.yaml sits in the project root.",
+    "entities": []
+  },
+  {
+    "id": "neg-ratio-two-part",
+    "note": "Two-part ratio with a dot.",
+    "text": "The mix was a ratio of 192.168 to 1 by weight.",
+    "entities": []
+  },
+  {
+    "id": "neg-year-range",
+    "note": "Year range.",
+    "text": "The contract ran from 2019-2024 with two renewals.",
+    "entities": []
+  },
+  {
+    "id": "neg-order-with-date",
+    "note": "Order number next to a date.",
+    "text": "Order 7741-0092 was placed on 2026-03-14 and shipped.",
+    "entities": []
+  },
+  {
+    "id": "neg-card-prefix-short",
+    "note": "Card-like prefix with too few digits.",
+    "text": "The prefix 4111 1111 was used for the test batch.",
+    "entities": []
+  },
+  {
+    "id": "neg-iban-prefix-only",
+    "note": "Country code and check digits with no account.",
+    "text": "Model GB82 is the lamp code only.",
+    "entities": []
+  },
+  {
+    "id": "neg-url-scheme-word",
+    "note": "The word http in prose, with no address.",
+    "text": "Text the word http in the field to test the filter.",
+    "entities": []
+  },
+  {
+    "id": "neg-phone-date-like",
+    "note": "Date-shaped digit group that is not a phone.",
+    "text": "Set the timer to 10-10-2026 for the filing.",
+    "entities": []
+  },
+  {
+    "id": "neg-coords-dms",
+    "note": "Degree-minute-second coordinates.",
+    "text": "The survey point is at 51°30'26\"N 0°7'39\"W on site.",
+    "entities": []
+  },
+  {
+    "id": "neg-stock-ticker",
+    "note": "Ticker with digits.",
+    "text": "Shares of ACME3 closed at 42.10 yesterday.",
+    "entities": []
+  },
+  {
+    "id": "pos-email-paragraph-middle",
+    "note": "Address in the middle of a multi-sentence paragraph.",
+    "text": "The vendor onboarding checklist is attached. Questions should go to procure@example.com before the Monday review, and the team will answer within a day.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "procure@example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-hyphen-subdomain",
+    "note": "Hyphenated local part and a hyphenated domain.",
+    "text": "Mail us at hello-team@my-shop.example.co for orders.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "hello-team@my-shop.example.co"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-cc-semicolon",
+    "note": "Two addresses separated by a semicolon.",
+    "text": "CC: a.bond@example.org; b.jones@example.org",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "a.bond@example.org"
+      },
+      {
+        "type": "EMAIL",
+        "value": "b.jones@example.org"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-long-domain",
+    "note": "Address on a long multi-label domain.",
+    "text": "Send to records-office@north.regional-health.example.org today.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "records-office@north.regional-health.example.org"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-numeric-local",
+    "note": "Numeric local part.",
+    "text": "Badge 40211 belongs to 40211@staff.example.com.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "40211@staff.example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-paragraph-two",
+    "note": "Two dashed numbers in one paragraph.",
+    "text": "Hospital switchboard 555-010-2150 is open all night. Relatives can also ring the ward on 555-010-2151.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2150"
+      },
+      {
+        "type": "PHONE",
+        "value": "555-010-2151"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-in-brackets",
+    "note": "Space-separated number in square brackets.",
+    "text": "Contact [555 010 2160] for the depot.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555 010 2160"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-plus-dotted",
+    "note": "Plus-prefixed US number, dotted.",
+    "text": "Reach +1.555.010.2170 from abroad.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+1.555.010.2170"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-fax-label",
+    "note": "Dashed number after a fax label.",
+    "text": "Fax: 555-010-2190",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2190"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-end-of-line",
+    "note": "Number at the end of a line.",
+    "text": "Ask for Lee at 555-010-2200\nafter lunch",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2200"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-with-extension",
+    "note": "Number followed by an extension; the extension is not part of the label.",
+    "text": "Desk 555-010-2210 ext 45 is the one by the door.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2210"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-table-row",
+    "note": "SSN in a labelled record next to a date of birth; the date is not labelled.",
+    "text": "Name: Ruiz | SSN: 678-90-1235 | DOB: 1984-03-02",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "678-90-1235"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-json-value",
+    "note": "SSN as a JSON string value.",
+    "text": "{\"ssn\": \"789-01-2346\"}",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "789-01-2346"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-two-lines",
+    "note": "Two SSNs, one per line, with role labels.",
+    "text": "Applicant: 890-12-3457\nSpouse: 901-23-4568",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "890-12-3457"
+      },
+      {
+        "type": "SSN",
+        "value": "901-23-4568"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-dependant-line",
+    "note": "SSN with a leading zero in the area number.",
+    "text": "Form lists 012-34-5678 for the dependant.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "012-34-5678"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-connection-line",
+    "note": "Two addresses with ports in a connection log; the ports are not labelled.",
+    "text": "conn 10.4.8.12:443 -> 10.4.8.99:52114 established",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.4.8.12"
+      },
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.4.8.99"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-json-host",
+    "note": "Address as a JSON string, with a port number after it.",
+    "text": "{\"host\": \"172.20.4.10\", \"port\": 8080}",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "172.20.4.10"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-ipv6-host",
+    "note": "URL with a bracketed IPv6 host. The URL wins the overlap, so the URL is the label.",
+    "text": "Dashboard http://[2001:db8::10]:8080/ is internal only.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "http://[2001:db8::10]:8080/"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-public-mid",
+    "note": "Public address in the middle of a sentence.",
+    "text": "Blocked 185.199.108.153 after the scan.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "185.199.108.153"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-v6-ula",
+    "note": "Unique-local IPv6 address over a VPN.",
+    "text": "Client fd00::1234 connected over the VPN.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "fd00::1234"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-cgnat",
+    "note": "Shared-address-space IPv4 address on an allowlist.",
+    "text": "Allowlist entry 100.64.0.9 (carrier NAT) was added.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "100.64.0.9"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-path-query-period",
+    "note": "URL with a query and a path, followed by a full stop.",
+    "text": "Read https://example.org/a/b?x=1&y=2.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://example.org/a/b?x=1&y=2"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-export-query",
+    "note": "URL with two query parameters.",
+    "text": "Export with https://reports.example.net/export?format=csv&range=30d now.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://reports.example.net/export?format=csv&range=30d"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-upper-scheme",
+    "note": "Upper-case scheme and host.",
+    "text": "See HTTPS://DOCS.EXAMPLE.COM/START first.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "HTTPS://DOCS.EXAMPLE.COM/START"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-paragraph-two",
+    "note": "Two cards in a billing paragraph, one dashed and one spaced.",
+    "text": "Please bill the Visa 4111-1111-1111-1111 on the next invoice, or the backup card 5105 1051 0510 5100 if it fails.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4111-1111-1111-1111"
+      },
+      {
+        "type": "CREDIT_CARD",
+        "value": "5105 1051 0510 5100"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-discover-dashed",
+    "note": "Discover in dashed groups.",
+    "text": "Discover 6011-1111-1111-1117 expired in March.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "6011-1111-1111-1117"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-amex-bare-15",
+    "note": "Amex as a bare 15-digit run at the end of a sentence.",
+    "text": "Amex 378282246310005.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "378282246310005"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-with-expiry",
+    "note": "Card followed by an expiry date; the date is not labelled.",
+    "text": "Card 4012888888881881 exp 09/29 on file.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4012888888881881"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-jcb-spaced",
+    "note": "JCB in four-digit groups.",
+    "text": "JCB 3530 1113 3330 0000 was used.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "3530 1113 3330 0000"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-sentence-gb",
+    "note": "UK IBAN in a bank-details sentence.",
+    "text": "Our bank details are: account holder Northwind Ltd, IBAN GB29 NWBK 6016 1331 9268 19, and the usual reference.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "GB29 NWBK 6016 1331 9268 19"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-fr-letter-bban",
+    "note": "French IBAN with a letter in the account part.",
+    "text": "Virement vers FR14 2004 1010 0505 0001 3M02 606 pour le fournisseur.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "FR14 2004 1010 0505 0001 3M02 606"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-fi-short",
+    "note": "Finnish IBAN, short length, spaced.",
+    "text": "The Finnish account is FI21 1234 5600 0007 85 for the grant.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "FI21 1234 5600 0007 85"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-se-unspaced",
+    "note": "Swedish IBAN with no spaces.",
+    "text": "Pay SE4550000000058398257466 by Friday.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "SE4550000000058398257466"
+      }
+    ]
+  },
+  {
+    "id": "pos-bitcoin-genesis-prose",
+    "note": "Legacy address in a treasury note.",
+    "text": "Our treasury wallet 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa has not moved since 2009.",
+    "entities": [
+      {
+        "type": "BITCOIN",
+        "value": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+      }
+    ]
+  },
+  {
+    "id": "pos-bitcoin-bech32-end",
+    "note": "Bech32 address at the end of a sentence.",
+    "text": "Send change to bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh.",
+    "entities": [
+      {
+        "type": "BITCOIN",
+        "value": "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
+      }
+    ]
+  },
+  {
+    "id": "neg-shipping-paragraph",
+    "note": "Operational paragraph with counts, times and durations.",
+    "text": "Shipment 77 left the yard at 06:15 with 14 pallets and 3 trailers. Weather delayed the second leg by 40 minutes, and the crew logged 2.5 hours of overtime.",
+    "entities": []
+  },
+  {
+    "id": "neg-config-snippet",
+    "note": "Configuration assignments with small integers.",
+    "text": "Set timeout = 30 and retries = 4 in config.toml, then restart the worker.",
+    "entities": []
+  },
+  {
+    "id": "neg-employee-id-short",
+    "note": "Four-digit internal identifier.",
+    "text": "Employee ID 4471 is on leave until April.",
+    "entities": []
+  },
+  {
+    "id": "neg-price-decimal",
+    "note": "A price with a decimal point and no phone shape.",
+    "text": "The bundle costs 555.00 and ships in 10 days.",
+    "entities": []
+  },
+  {
+    "id": "neg-iso-date-range",
+    "note": "Date range in ISO form.",
+    "text": "Valid 2026-01-01 to 2026-12-31 only.",
+    "entities": []
+  },
+  {
+    "id": "neg-firmware-hyphen",
+    "note": "Firmware string with a hyphen, not an address.",
+    "text": "Firmware 2.0.1-1 is current on every site.",
+    "entities": []
+  },
+  {
+    "id": "neg-hex-ids",
+    "note": "Hex identifiers with letters.",
+    "text": "Commit a1b2c3d4e5f6 and blob 0123456789abcdef are unrelated.",
+    "entities": []
+  },
+  {
+    "id": "neg-account-ref-luhn-fail",
+    "note": "Sixteen-digit account reference that fails Luhn.",
+    "text": "Account reference 1000200030004001 was archived in 2024.",
+    "entities": []
+  },
+  {
+    "id": "neg-words-example-docs",
+    "note": "Ordinary words that often appear in URLs.",
+    "text": "The words example and docs appear in the heading.",
+    "entities": []
+  },
+  {
+    "id": "neg-at-sign-in-title",
+    "note": "The at-sign mentioned as a symbol, not an address.",
+    "text": "Use the at-sign in the title, not the email field.",
+    "entities": []
+  },
+  {
+    "id": "neg-currency-codes",
+    "note": "Currency codes with amounts.",
+    "text": "Transfer USD 500 and EUR 420.50 this quarter.",
+    "entities": []
+  },
+  {
+    "id": "neg-dates-mm-dd",
+    "note": "Two dates with month first.",
+    "text": "Dates 12-31-2025 and 01-02-2026 were booked.",
+    "entities": []
+  },
+  {
+    "id": "neg-catalog-code-4-2-4",
+    "note": "Catalogue code with a four-digit first group.",
+    "text": "Reference 1234-56-7890 is a catalogue code.",
+    "entities": []
+  },
+  {
+    "id": "neg-seven-digit-number",
+    "note": "Seven-digit local number with no area code.",
+    "text": "Call 555-0147 for the lab.",
+    "entities": []
+  },
+  {
+    "id": "neg-short-iban-lookalike",
+    "note": "Two letters and digits too short to be an IBAN.",
+    "text": "Code DE12 3456 is a parts code.",
+    "entities": []
+  },
+  {
+    "id": "neg-port-numbers",
+    "note": "Port numbers in a firewall note.",
+    "text": "Open port 443 and port 80 on the firewall.",
+    "entities": []
+  },
+  {
+    "id": "neg-timestamp-offset",
+    "note": "Timestamp with a numeric time-zone offset.",
+    "text": "Logged 2026-10-16T08:00:00+01:00 by the cron job.",
+    "entities": []
+  },
+  {
+    "id": "neg-lottery-balls",
+    "note": "A list of small numbers.",
+    "text": "The lottery draw used balls 7, 14, 22, 31, 38 and 40.",
+    "entities": []
+  },
+  {
+    "id": "neg-sdk-versions",
+    "note": "Patch versions in prose.",
+    "text": "Use v3.2.10 of the SDK, not v3.2.1.",
+    "entities": []
+  },
+  {
+    "id": "neg-uptime-percent",
+    "note": "Percentages with two decimals.",
+    "text": "Uptime was 99.95% for September and 99.90% for October.",
+    "entities": []
+  },
+  {
+    "id": "neg-case-ids",
+    "note": "Case identifiers with a word prefix.",
+    "text": "Case CASE-100245 and CASE-100246 were merged.",
+    "entities": []
+  },
+  {
+    "id": "neg-scores-list",
+    "note": "Scores out of a round.",
+    "text": "Scores: 88, 91, 79, and 94 across four rounds.",
+    "entities": []
+  },
+  {
+    "id": "neg-serial-letters",
+    "note": "Serial with letters and digits.",
+    "text": "Serial AB-1234-CD was recalled in June.",
+    "entities": []
+  },
+  {
+    "id": "neg-stock-count",
+    "note": "Inventory counts in a sentence.",
+    "text": "We hold 1200 units of part 7741 and 45 spares.",
+    "entities": []
+  },
+  {
+    "id": "neg-measurement-decimal-pair",
+    "note": "Two decimal measurements.",
+    "text": "The cable is 12.5 m long and rated at 3.25 kN.",
+    "entities": []
+  },
+  {
+    "id": "pos-email-japanese-sentence",
+    "note": "Address in a Japanese sentence, with a space before it.",
+    "text": "連絡先は yamada.taro@example.co.jp です。",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "yamada.taro@example.co.jp"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-autolink",
+    "note": "Address in angle brackets, as in a mail header.",
+    "text": "Docs: <help@example.com>",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "help@example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-json-array",
+    "note": "Two addresses in a JSON array.",
+    "text": "[\"ana@example.net\", \"ben@example.net\"]",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "ana@example.net"
+      },
+      {
+        "type": "EMAIL",
+        "value": "ben@example.net"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-code-comment",
+    "note": "Address in a code comment.",
+    "text": "# owner: platform-team@example.dev",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "platform-team@example.dev"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-after-handle",
+    "note": "Address after a chat handle, which is not labelled.",
+    "text": "ping @mira or write mira.k@example.org",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "mira.k@example.org"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-tab-separated",
+    "note": "Address as a tab-separated field.",
+    "text": "name\temail\nRaj\traj@example.in",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "raj@example.in"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-upper-domain",
+    "note": "Upper-case domain.",
+    "text": "Forward it to Desk@EXAMPLE.ORG.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "Desk@EXAMPLE.ORG"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-exclamation",
+    "note": "Address followed by an exclamation mark.",
+    "text": "Urgent! alerts@example.com!",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "alerts@example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-japanese-line",
+    "note": "Phone number in a Japanese sentence.",
+    "text": "電話は 555-010-2220 です。",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2220"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-code-comment",
+    "note": "Phone in a code comment.",
+    "text": "// on-call pager 555-010-2230",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2230"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-json-plus",
+    "note": "Plus-prefixed number as a JSON value.",
+    "text": "{\"phone\": \"+1 555 010 2240\"}",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+1 555 010 2240"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-csv-field",
+    "note": "Dashed number as a CSV field.",
+    "text": "Lee,555-010-2250,Berlin",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2250"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-markdown-bold",
+    "note": "Number after a bold label.",
+    "text": "**Support:** 555-010-2260",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2260"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-plus-dashed-line",
+    "note": "Plus-prefixed dashed number at the end of a line.",
+    "text": "Call +1-555-010-2270\nbefore noon",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+1-555-010-2270"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-paren-no-space",
+    "note": "Parenthesised area code with no space before the line number.",
+    "text": "Reception (555)010-2280 forwards calls.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "(555)010-2280"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-uk-manchester",
+    "note": "UK-style number with a plus, synthetic digits.",
+    "text": "Manchester office +44 161 555 0190 opens at nine.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+44 161 555 0190"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-xml-tag",
+    "note": "SSN inside an XML element.",
+    "text": "<ssn>901-23-4569</ssn>",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "901-23-4569"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-markdown-table",
+    "note": "SSN in a Markdown table cell.",
+    "text": "| SSN | 012-34-5679 |",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "012-34-5679"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-csv-row",
+    "note": "SSN as a CSV field.",
+    "text": "Ada,Lovelace,123-45-6791,Analyst",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "123-45-6791"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-body-sentence",
+    "note": "SSN in an email body sentence.",
+    "text": "Your SSN 123-45-6790 was updated on Tuesday.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "123-45-6790"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-syslog-accept",
+    "note": "Source address in a syslog line; the port is not labelled.",
+    "text": "Oct 16 09:02:11 gw sshd[411]: Accepted key from 10.9.8.7 port 22",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.9.8.7"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-access-log-first",
+    "note": "Client address at the start of an access-log line.",
+    "text": "203.0.113.50 - - [16/Oct/2026:09:02:11 +0000] \"GET / HTTP/1.1\" 200",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "203.0.113.50"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-in-code-string",
+    "note": "Address with a port inside a code string.",
+    "text": "client := net.Dial(\"tcp\", \"10.0.0.7:9000\")",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.0.0.7"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-v6-ula-lab",
+    "note": "Unique-local IPv6 address on a lab VLAN.",
+    "text": "ULA fd12:3456:789a::1 sits on the lab VLAN.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "fd12:3456:789a::1"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-dns-answer",
+    "note": "Address in a DNS answer, from the benchmark range.",
+    "text": "The A record resolves to 198.18.0.25 for the test zone.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "198.18.0.25"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-markdown-link",
+    "note": "URL inside a Markdown link; the link text is not labelled.",
+    "text": "See [status page](https://status.example.com/incidents/2026) for details.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://status.example.com/incidents/2026"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-json-callback",
+    "note": "URL as a JSON string value.",
+    "text": "{\"callback\": \"https://hooks.example.com/notify/77\"}",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://hooks.example.com/notify/77"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-dev-port-path",
+    "note": "Development URL with a port and an API path.",
+    "text": "Dev server http://dev.example.com:3000/api/v1/users is up today.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "http://dev.example.com:3000/api/v1/users"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-code-string",
+    "note": "Card as a string literal in source code.",
+    "text": "card := \"4111111111111111\"",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4111111111111111"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-csv-field",
+    "note": "Card in a CSV row with a date field after it.",
+    "text": "Ada,4000 0566 5566 5556,12/29",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4000 0566 5566 5556"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-japanese-sentence",
+    "note": "Card number in a Japanese sentence.",
+    "text": "カード番号 4012 8888 8888 1881 で決済した。",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4012 8888 8888 1881"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-markdown-bold",
+    "note": "Bare card after a bold label.",
+    "text": "**Card:** 5555555555554444",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "5555555555554444"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-tab-groups",
+    "note": "Mastercard in four groups separated by tabs.",
+    "text": "5555\t5555\t5555\t4444",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "5555\t5555\t5555\t4444"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-amex-dotted",
+    "note": "Amex in 4-6-5 grouping with dots.",
+    "text": "Amex 3782.822463.10005 was used.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "3782.822463.10005"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-unspaced-label",
+    "note": "Dutch IBAN with no spaces after a colon label.",
+    "text": "IBAN:NL91ABNA0417164300",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "NL91ABNA0417164300"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-json-value",
+    "note": "German IBAN as a JSON value.",
+    "text": "{\"iban\": \"DE89370400440532013000\"}",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "DE89370400440532013000"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-de-spaced-kto",
+    "note": "German IBAN in groups after a label.",
+    "text": "Kto IBAN DE44 5001 0517 5407 3249 31 für die Überweisung.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "DE44 5001 0517 5407 3249 31"
+      }
+    ]
+  },
+  {
+    "id": "pos-bitcoin-json-value",
+    "note": "Legacy address as a JSON value.",
+    "text": "{\"btc\": \"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"}",
+    "entities": [
+      {
+        "type": "BITCOIN",
+        "value": "12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX"
+      }
+    ]
+  },
+  {
+    "id": "neg-chat-no-pii",
+    "note": "Casual chat with a time of day.",
+    "text": "lol that was the best meeting ever, see you tomorrow at 10",
+    "entities": []
+  },
+  {
+    "id": "neg-json-counters",
+    "note": "JSON with small integer counters.",
+    "text": "{\"count\": 42, \"limit\": 100, \"offset\": 0}",
+    "entities": []
+  },
+  {
+    "id": "neg-http-status-words",
+    "note": "HTTP status and backoff numbers in a log message.",
+    "text": "HTTP 404 returned for /missing, retry after 503 backoff",
+    "entities": []
+  },
+  {
+    "id": "neg-code-constants",
+    "note": "Numeric constants in source code.",
+    "text": "const maxRetries = 5; const timeoutMs = 2500",
+    "entities": []
+  },
+  {
+    "id": "neg-issue-numbers",
+    "note": "Issue and pull request numbers.",
+    "text": "Fixed #1234 and #5678; closes issue 91011.",
+    "entities": []
+  },
+  {
+    "id": "neg-hostnames-no-dots",
+    "note": "Node names with a number suffix.",
+    "text": "Host node-17 and node-18 rebooted overnight.",
+    "entities": []
+  },
+  {
+    "id": "neg-runtime-versions",
+    "note": "Language runtime versions.",
+    "text": "Requires Python 3.12 or later and Go 1.25.",
+    "entities": []
+  },
+  {
+    "id": "neg-score-fraction",
+    "note": "A score written as a fraction.",
+    "text": "Score 8/10 for the demo.",
+    "entities": []
+  },
+  {
+    "id": "neg-multiplier",
+    "note": "Speed multipliers.",
+    "text": "Ran 3x faster than before, 2.5x on average.",
+    "entities": []
+  },
+  {
+    "id": "neg-chess-move",
+    "note": "Chess move notation.",
+    "text": "Move 24. Qxf7+ wins the game.",
+    "entities": []
+  },
+  {
+    "id": "neg-serial-seven-digits",
+    "note": "Seven digits in a serial, not a phone number.",
+    "text": "Serial 555 0100 is shown on the back.",
+    "entities": []
+  },
+  {
+    "id": "neg-ssn-shape-short",
+    "note": "Two-three-three digit shape, not an SSN.",
+    "text": "Code 12-345-678 is a legacy label.",
+    "entities": []
+  },
+  {
+    "id": "neg-iban-field-words",
+    "note": "Field names with no account number.",
+    "text": "Use the IBAN field and the BIC field on the form.",
+    "entities": []
+  },
+  {
+    "id": "neg-hex-colours-digits",
+    "note": "Six-digit hex colour codes.",
+    "text": "The button uses #123456 and the text uses #654321.",
+    "entities": []
+  },
+  {
+    "id": "neg-document-id",
+    "note": "Document identifier with date-like groups.",
+    "text": "Document DOC-2026-10-16-0042 was archived.",
+    "entities": []
+  },
+  {
+    "id": "neg-japanese-no-pii",
+    "note": "Japanese sentence with a time, no personal data.",
+    "text": "会議は明日の午後三時に始まります。",
+    "entities": []
+  },
+  {
+    "id": "neg-japanese-order-number",
+    "note": "Japanese sentence with an order number.",
+    "text": "注文番号は 12345 です。",
+    "entities": []
+  },
+  {
+    "id": "neg-thai-no-pii",
+    "note": "Thai sentence about a meeting time.",
+    "text": "ประชุมพรุ่งนี้เวลาสิบโมง",
+    "entities": []
+  },
+  {
+    "id": "neg-field-names-email-phone",
+    "note": "Field names without values.",
+    "text": "Email and phone fields are optional on the form.",
+    "entities": []
+  },
+  {
+    "id": "neg-site-words",
+    "note": "Words about a site, no address.",
+    "text": "Visit the site home page for more.",
+    "entities": []
+  },
+  {
+    "id": "neg-coordinates-pair",
+    "note": "Decimal latitude and longitude.",
+    "text": "Latitude 35.6762 and longitude 139.6503 mark the shrine.",
+    "entities": []
+  },
+  {
+    "id": "neg-placeholder-dots",
+    "note": "Letters in a dotted pattern.",
+    "text": "Version a.b.c.d is a placeholder in the template.",
+    "entities": []
+  },
+  {
+    "id": "neg-spaced-totals",
+    "note": "Grouped totals with spaces.",
+    "text": "Totals: 12 345 678 units across 3 sites.",
+    "entities": []
+  },
+  {
+    "id": "neg-epoch-micros",
+    "note": "Sixteen-digit epoch in microseconds that fails Luhn.",
+    "text": "Epoch 1760605200123456 in microseconds.",
+    "entities": []
+  },
+  {
+    "id": "pos-email-comma-wrapped",
+    "note": "Address set off by commas in a sentence.",
+    "text": "Please cc the auditor, m.okafor@example.org, on the final sign-off.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "m.okafor@example.org"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-two-hyphen-pair",
+    "note": "Two addresses on one line, each ending in a full stop at the end.",
+    "text": "Contacts: west-ops@example.net and east-ops@example.net.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "west-ops@example.net"
+      },
+      {
+        "type": "EMAIL",
+        "value": "east-ops@example.net"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-museum-tld",
+    "note": "Unusual top-level domain with underscores and digits in the local part.",
+    "text": "Email: first_last-99@example.museum",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "first_last-99@example.museum"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-plus-invoices",
+    "note": "Plus-tag for a billing mailbox.",
+    "text": "The mailbox billing+invoices@example.com receives the PDFs.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "billing+invoices@example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-from-header",
+    "note": "Address in angle brackets after a display name.",
+    "text": "From: Sofia Costa <sofia.costa@example.pt>",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "sofia.costa@example.pt"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-signed-off-by",
+    "note": "Address in a sign-off trailer line.",
+    "text": "Signed-off-by: Dev Patel <dev.patel@example.in>",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "dev.patel@example.in"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-short-verb",
+    "note": "Dashed number after a short verb.",
+    "text": "Rang 555-010-2300 twice.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2300"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-toll-free",
+    "note": "Toll-free number with a leading 1 and a hyphen.",
+    "text": "Hotline: 1-800-555-0100 (toll-free).",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "1-800-555-0100"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-mobile-office-pair",
+    "note": "Two space-separated numbers with labels.",
+    "text": "Mobile: 555 010 2310, office: 555 010 2311.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555 010 2310"
+      },
+      {
+        "type": "PHONE",
+        "value": "555 010 2311"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-au-plus",
+    "note": "Australian number with a plus prefix and spaces.",
+    "text": "+61 2 5550 1000 is the Sydney number.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+61 2 5550 1000"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-de-plus-city",
+    "note": "German number with a plus prefix and a city label.",
+    "text": "Telefon: +49 30 555 0101 (Berlin).",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+49 30 555 0101"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-paren-pair",
+    "note": "Two parenthesised numbers in one line.",
+    "text": "Phone (555) 010-2320 or (555) 010-2321.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "(555) 010-2320"
+      },
+      {
+        "type": "PHONE",
+        "value": "(555) 010-2321"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-fax-dotted",
+    "note": "Dotted fax number in a back-office note.",
+    "text": "The fax line 555.010.2330 rings in the back office.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555.010.2330"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-applicant-line",
+    "note": "SSN in an applicant line with a date of birth omitted.",
+    "text": "Applicant SSN 234-56-7892, date of birth omitted.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "234-56-7892"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-social-security-label",
+    "note": "SSN after a long label.",
+    "text": "Social security: 345-67-8903",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "345-67-8903"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-two-slash",
+    "note": "Two SSNs separated by a slash.",
+    "text": "Two ids: 456-78-9014 / 567-89-0125",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "456-78-9014"
+      },
+      {
+        "type": "SSN",
+        "value": "567-89-0125"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-with-ein-nearby",
+    "note": "SSN beside an employer identification number, which is not an SSN.",
+    "text": "SSN 678-90-1236; employer EIN 12-3456789 is separate.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "678-90-1236"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-traffic-sentence",
+    "note": "Address at the middle of an operations sentence.",
+    "text": "Traffic from 198.51.100.77 spiked at noon.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "198.51.100.77"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-source-destination",
+    "note": "Source and destination addresses in one line.",
+    "text": "Source: 10.200.1.5, destination: 10.200.9.12",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.200.1.5"
+      },
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.200.9.12"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-v6-compressed-middle",
+    "note": "IPv6 address with a compressed middle group.",
+    "text": "IPv6 2001:db8:85a3::8a2e:370:7334 appears in the trace.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "2001:db8:85a3::8a2e:370:7334"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-key-value",
+    "note": "Address as a key-value pair; the region name is not labelled.",
+    "text": "host=172.31.0.4 region=eu-west-1",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "172.31.0.4"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-listener",
+    "note": "Address followed by a port in prose.",
+    "text": "A 192.0.2.200 listener answers on 8443.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "192.0.2.200"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-redirect-port",
+    "note": "Address with a port in a redirect message.",
+    "text": "Redirect to 203.0.113.99:8080 failed.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "203.0.113.99"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-login-next",
+    "note": "URL with a percent-encoded next parameter.",
+    "text": "Open https://example.com/login?next=%2Fhome to continue.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://example.com/login?next=%2Fhome"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-api-fragment",
+    "note": "URL with a path and a fragment.",
+    "text": "Ref: https://docs.example.dev/api/reference#auth-tokens",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://docs.example.dev/api/reference#auth-tokens"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-short-host",
+    "note": "Short URL on a single-label custom domain.",
+    "text": "http://short.example/abc123 expires soon",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "http://short.example/abc123"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-asset-path",
+    "note": "URL to a versioned asset file.",
+    "text": "Mirror https://cdn.example.net/assets/app.v2.js loads slowly.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://cdn.example.net/assets/app.v2.js"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-visa-test-label",
+    "note": "Visa test number in parentheses.",
+    "text": "Visa 4111 1111 1111 1111 (test).",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4111 1111 1111 1111"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-mc-dashed-time",
+    "note": "Mastercard in dashed groups followed by a time.",
+    "text": "Charged 5105-1051-0510-5100 at 10:14.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "5105-1051-0510-5100"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-full-after-ending",
+    "note": "Full card number after a last-four reference; the reference is not labelled.",
+    "text": "Card ending in 5100, full number 5105 1051 0510 5100 on file.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "5105 1051 0510 5100"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-two-bare",
+    "note": "Two bare 16-digit cards in one sentence.",
+    "text": "Two payments: 4012888888881881 and 4000056655665556.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4012888888881881"
+      },
+      {
+        "type": "CREDIT_CARD",
+        "value": "4000056655665556"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-amex-bare-end",
+    "note": "Bare 15-digit Amex at the end of a sentence.",
+    "text": "Amex: 378282246310005 (15 digits).",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "378282246310005"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-discover-bare",
+    "note": "Bare 16-digit Discover number.",
+    "text": "Discover 6011111111111117 was declined.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "6011111111111117"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-be-payroll",
+    "note": "Belgian IBAN in groups, for payroll.",
+    "text": "IBAN BE68 5390 0754 7034 is for payroll.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "BE68 5390 0754 7034"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-es-with-reference",
+    "note": "Spanish IBAN followed by a reference number, which is not labelled.",
+    "text": "Account ES91 2100 0418 4502 0005 1332, reference 778.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "ES91 2100 0418 4502 0005 1332"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-it-unspaced",
+    "note": "Italian IBAN with no spaces.",
+    "text": "Use IT60X0542811101000000123456 for the supplier.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "IT60X0542811101000000123456"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-pl-unspaced",
+    "note": "Polish IBAN with no spaces, ending the sentence.",
+    "text": "The vendor account is PL61109010140000071219812874.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "PL61109010140000071219812874"
+      }
+    ]
+  },
+  {
+    "id": "neg-bus-schedule",
+    "note": "Bus route and stop numbers.",
+    "text": "Bus 42 leaves at 7:45 from stop 9.",
+    "entities": []
+  },
+  {
+    "id": "neg-reading-counts",
+    "note": "Book counts in a reading list.",
+    "text": "Reading list: 14 chapters, 320 pages, 2 appendices.",
+    "entities": []
+  },
+  {
+    "id": "neg-seating-counts",
+    "note": "Seat counts per row.",
+    "text": "Maximum 8 seats per row in row 17.",
+    "entities": []
+  },
+  {
+    "id": "neg-electrical-ratings",
+    "note": "Electrical ratings with units.",
+    "text": "Power draw 230V at 16A; cable rated 3 kW.",
+    "entities": []
+  },
+  {
+    "id": "neg-build-retries",
+    "note": "Build numbers and retry counts.",
+    "text": "Build 5521 passed after 3 retries in 14 minutes.",
+    "entities": []
+  },
+  {
+    "id": "neg-incident-priority",
+    "note": "Incident reference with a priority number.",
+    "text": "Ticket INC-443210 has priority 2.",
+    "entities": []
+  },
+  {
+    "id": "neg-room-code",
+    "note": "Room code with a letter and digits.",
+    "text": "Meeting room B-204 is on floor 2.",
+    "entities": []
+  },
+  {
+    "id": "neg-timber-quantities",
+    "note": "Dimensions and quantities for a job.",
+    "text": "We need 2 x 4 timber and 16 nails.",
+    "entities": []
+  },
+  {
+    "id": "neg-reply-deadline",
+    "note": "Clock time and date in a deadline.",
+    "text": "Please reply by 17:30 on 16/10 with the figures.",
+    "entities": []
+  },
+  {
+    "id": "neg-targets-numbers",
+    "note": "Targets with a thousands separator and a percentage.",
+    "text": "Our 2026 targets: 1,000 units and 25% growth.",
+    "entities": []
+  },
+  {
+    "id": "neg-repeated-zeros",
+    "note": "Six zeros as a placeholder code.",
+    "text": "The code 000000 was typed into the app twice.",
+    "entities": []
+  },
+  {
+    "id": "neg-sample-id-date",
+    "note": "Sample identifier that starts with a date.",
+    "text": "The lab sample ID 20241016-7781 was labelled.",
+    "entities": []
+  },
+  {
+    "id": "neg-dashboard-code",
+    "note": "Eight-digit code shown on a dashboard.",
+    "text": "Use the 8-digit code 12345678 shown on the dashboard.",
+    "entities": []
+  },
+  {
+    "id": "neg-dotted-date",
+    "note": "Dotted year-month-day date.",
+    "text": "The date 2026.10.16 appears in the log.",
+    "entities": []
+  },
+  {
+    "id": "neg-kb-article",
+    "note": "Knowledge-base article number.",
+    "text": "Patch KB5034441 fixed the issue on the older build.",
+    "entities": []
+  },
+  {
+    "id": "neg-hex-bytes",
+    "note": "Hex byte values.",
+    "text": "Telemetry frames 0x7F 0x00 0x1A arrived in order.",
+    "entities": []
+  },
+  {
+    "id": "neg-ratio-colon",
+    "note": "A mixing ratio written with a colon.",
+    "text": "Mix 1:3 with water before use.",
+    "entities": []
+  },
+  {
+    "id": "neg-clock-seconds",
+    "note": "Times with seconds.",
+    "text": "Times 12:34:56 and 01:02:03 match the schedule.",
+    "entities": []
+  },
+  {
+    "id": "neg-japanese-weather",
+    "note": "Japanese weather sentence, no personal data.",
+    "text": "明日は雨が降るでしょう。",
+    "entities": []
+  },
+  {
+    "id": "neg-serial-sixteen-luhn-fail",
+    "note": "Sixteen digits in dashed groups that fail Luhn.",
+    "text": "Serial 1234-5678-9012-3456 is printed on the box.",
+    "entities": []
+  },
+  {
+    "id": "neg-lookup-words",
+    "note": "Words only, with a numeric heading.",
+    "text": "Section 4 covers tuples, lists and sets.",
+    "entities": []
+  },
+  {
+    "id": "neg-measurement-pair",
+    "note": "Two units in one sentence.",
+    "text": "The rod is 1.2 m and the weight is 40 kg.",
+    "entities": []
+  },
+  {
+    "id": "pos-email-escalation-line",
+    "note": "Address in an escalation sentence.",
+    "text": "Escalate to the vendor at vendor-escalations@example.com or the regional lead.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "vendor-escalations@example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-name-then-address",
+    "note": "Labelled name and address on separate fields.",
+    "text": "Name: Omar Haddad / Email: omar.haddad@example.ae",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "omar.haddad@example.ae"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-subject-follows",
+    "note": "Address followed by a subject label.",
+    "text": "Mail to customer.care@example.co.in, subject: refund.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "customer.care@example.co.in"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-bridge-forward",
+    "note": "Address that a chat bridge forwards to.",
+    "text": "The Slack bridge forwards to ops-bridge@example.io when the channel is quiet.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "ops-bridge@example.io"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-retired-address",
+    "note": "Retired address with digits, mentioned as history.",
+    "text": "The old address jdoe1987@example.org was retired in May.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "jdoe1987@example.org"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-jobs-tld",
+    "note": "Address on a long new top-level domain.",
+    "text": "The hiring mailbox careers@example.jobs is monitored daily.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "careers@example.jobs"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-two-with-plus",
+    "note": "Plus-tag and a plain address in one sentence.",
+    "text": "Leads land at leads+web@example.com, not sales@example.com.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "leads+web@example.com"
+      },
+      {
+        "type": "EMAIL",
+        "value": "sales@example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-upper-overnight",
+    "note": "Upper-case address in a report.",
+    "text": "The customer wrote from SHOUTY.CASE@EXAMPLE.NET overnight.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "SHOUTY.CASE@EXAMPLE.NET"
+      }
+    ]
+  },
+  {
+    "id": "pos-email-owner-label",
+    "note": "Short address with a parenthetical note.",
+    "text": "Owner: ceo@example.com (on leave).",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "value": "ceo@example.com"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-night-desk",
+    "note": "Dashed number with a menu option in brackets.",
+    "text": "Night desk: 555-010-2400 (press 2).",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2400"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-pharmacy-plus",
+    "note": "Plus-prefixed number, spaced, followed by a status.",
+    "text": "Pharmacy line +1 555 010 2410 is open late.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+1 555 010 2410"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-dotted-urgent",
+    "note": "Dotted number in a sentence about urgent issues.",
+    "text": "Cell 555.010.2420 for urgent issues.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555.010.2420"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-lab-results",
+    "note": "Parenthesised area code and a time after.",
+    "text": "Lab results by phone at (555) 010-2430 after 3pm.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "(555) 010-2430"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-dial-quote",
+    "note": "Spaced number after an imperative verb.",
+    "text": "Please dial 555 010 2440 and quote the reference.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555 010 2440"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-dublin-plus",
+    "note": "Irish number with a plus prefix and a city label.",
+    "text": "+353 1 555 0150 (Dublin office).",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+353 1 555 0150"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-tokyo-plus",
+    "note": "Japanese number with a plus prefix.",
+    "text": "+81 3 5555 0160 is the Tokyo number.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "+81 3 5555 0160"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-emergency-dashed",
+    "note": "Dashed emergency line.",
+    "text": "Emergency line 555-010-2470.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2470"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-leading-one-spaced",
+    "note": "US number with a spaced leading 1 and no plus.",
+    "text": "Ring 1 555 010 2480 after lunch.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "1 555 010 2480"
+      }
+    ]
+  },
+  {
+    "id": "pos-phone-warehouse-dock",
+    "note": "Dashed number followed by a dock reference.",
+    "text": "Warehouse 555-010-2490, dock 4.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "value": "555-010-2490"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-claim-reviewed",
+    "note": "SSN in a claim sentence.",
+    "text": "Claim SSN 789-01-2347 was reviewed by Priya.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "789-01-2347"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-two-records",
+    "note": "Two SSNs in one line, comma-separated.",
+    "text": "Two records: 890-12-3458, 901-23-4570.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "890-12-3458"
+      },
+      {
+        "type": "SSN",
+        "value": "901-23-4570"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-tab-after-label",
+    "note": "SSN after a tab following the label.",
+    "text": "SSN\t234-56-7893",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "234-56-7893"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-w2-sentence",
+    "note": "SSN on a tax form description.",
+    "text": "The W-2 shows SSN 345-67-8904 for the employee.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "345-67-8904"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssn-dependant-schedule",
+    "note": "SSN of a dependant listed on a schedule.",
+    "text": "Dependant 567-89-0126 is listed on schedule A.",
+    "entities": [
+      {
+        "type": "SSN",
+        "value": "567-89-0126"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-admin-session",
+    "note": "Address in an administrative session note.",
+    "text": "Admin session from 10.50.0.25 was terminated.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.50.0.25"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-replica-lag",
+    "note": "Address of a replica in a lag report.",
+    "text": "Replica at 10.50.0.26 lagged by 40 seconds.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "10.50.0.26"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-dig-answer",
+    "note": "Documentation-range address in a dig answer.",
+    "text": "dig reports 198.51.100.34 for the test domain.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "198.51.100.34"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-peer-asn",
+    "note": "Address followed by an AS number, which is not labelled.",
+    "text": "Peer 203.0.113.200 (ASN 64500) announced the prefix.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "203.0.113.200"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-rate-limit-time",
+    "note": "Address followed by a time.",
+    "text": "Rate limit hit by 172.16.9.9 at 02:14.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "172.16.9.9"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-proxy-forwarded",
+    "note": "Address in a forwarded-for note.",
+    "text": "Forwarded for 192.168.100.200 through the proxy.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "192.168.100.200"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-v6-sensor",
+    "note": "IPv6 address of a sensor.",
+    "text": "IPv6 2001:db8::ff00:42:8329 is the sensor.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "2001:db8::ff00:42:8329"
+      }
+    ]
+  },
+  {
+    "id": "pos-ip-v6-tunnel",
+    "note": "Unique-local IPv6 tunnel endpoint.",
+    "text": "Tunnel endpoint fd00:dead:beef::5 is internal.",
+    "entities": [
+      {
+        "type": "IP_ADDRESS",
+        "value": "fd00:dead:beef::5"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-gist-team",
+    "note": "URL to a team gist.",
+    "text": "Gist at https://gist.example.com/team/9f2c is archived.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://gist.example.com/team/9f2c"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-invoice-path",
+    "note": "URL with an invoice number in the path.",
+    "text": "Pay here: https://pay.example.org/invoice/INV-2026-0931",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://pay.example.org/invoice/INV-2026-0931"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-webhook-query",
+    "note": "Webhook URL with a query parameter.",
+    "text": "Webhook https://ci.example.dev/hooks/deploy?env=prod fires on merge.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://ci.example.dev/hooks/deploy?env=prod"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-internal-tld",
+    "note": "HTTP URL on an internal top-level domain.",
+    "text": "Config at http://config.example.internal/app.yaml loads at boot.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "http://config.example.internal/app.yaml"
+      }
+    ]
+  },
+  {
+    "id": "pos-url-archive-txt",
+    "note": "URL to a text archive file.",
+    "text": "Mail archive https://lists.example.net/pipermail/dev/2026-October.txt today.",
+    "entities": [
+      {
+        "type": "URL",
+        "value": "https://lists.example.net/pipermail/dev/2026-October.txt"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-on-file-line",
+    "note": "Spaced Mastercard on a file line.",
+    "text": "Card on file: 5555 5555 5555 4444.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "5555 5555 5555 4444"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-gift-reissued",
+    "note": "Spaced Visa on a gift card.",
+    "text": "The gift card 4000 0566 5566 5556 was reissued.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4000 0566 5566 5556"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-discover-dashed-2",
+    "note": "Discover in dashed groups, second example.",
+    "text": "Discover: 6011-0009-9013-9424",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "6011-0009-9013-9424"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-jcb-bare-counter",
+    "note": "Bare JCB at the counter.",
+    "text": "Bare 3530111333300000 at the counter",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "3530111333300000"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-amex-holder",
+    "note": "Amex with a card holder name after it.",
+    "text": "AMEX 378282246310005, card holder John.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "378282246310005"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-mc-retry",
+    "note": "Bare Mastercard on a retry note.",
+    "text": "Charge 5105105105105100 on retry.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "5105105105105100"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-visa-13-test",
+    "note": "Thirteen-digit Visa test number.",
+    "text": "Visa test 4222222222222 (13 digits).",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4222222222222"
+      }
+    ]
+  },
+  {
+    "id": "pos-card-visa-expiry-after",
+    "note": "Card followed by a year-month expiry; the expiry is not labelled.",
+    "text": "Visa 4012 8888 8888 1881 ends 1229 on the statement.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4012 8888 8888 1881"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-gb-unspaced-settle",
+    "note": "UK IBAN with no spaces in a settlement note.",
+    "text": "Settlement to GB29NWBK60161331926819 today.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "GB29NWBK60161331926819"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-de-test-label",
+    "note": "German IBAN in groups after a test label.",
+    "text": "IBAN DE89 3704 0044 0532 0130 00 (test).",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "DE89 3704 0044 0532 0130 00"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-nl-by-friday",
+    "note": "Dutch IBAN in groups before a deadline.",
+    "text": "Transfer to NL91 ABNA 0417 1643 00 by Friday.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "NL91 ABNA 0417 1643 00"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-ie-groups",
+    "note": "Irish IBAN in groups.",
+    "text": "Payroll IBAN IE29 AIBK 9311 5212 3456 78 is current.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "IE29 AIBK 9311 5212 3456 78"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-lu-account",
+    "note": "Luxembourg IBAN in groups after an account label.",
+    "text": "Account: LU28 0019 4006 4475 0000",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "LU28 0019 4006 4475 0000"
+      }
+    ]
+  },
+  {
+    "id": "pos-iban-pt-groups",
+    "note": "Portuguese IBAN in groups.",
+    "text": "IBAN PT50 0002 0123 1234 5678 9015 4 for the supplier.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "value": "PT50 0002 0123 1234 5678 9015 4"
+      }
+    ]
+  },
+  {
+    "id": "pos-bitcoin-payout-line",
+    "note": "Legacy address in a payout line.",
+    "text": "Pay out to 12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX.",
+    "entities": [
+      {
+        "type": "BITCOIN",
+        "value": "12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX"
+      }
+    ]
+  },
+  {
+    "id": "neg-lunch-schedule",
+    "note": "Clock times and head counts.",
+    "text": "Lunch at 12:30 with 4 colleagues, back by 13:45.",
+    "entities": []
+  },
+  {
+    "id": "neg-revenue-figures",
+    "note": "Financial figures with units.",
+    "text": "Quarterly revenue 4.2 bn, up 3% on last year.",
+    "entities": []
+  },
+  {
+    "id": "neg-hall-stand-aisle",
+    "note": "Venue location codes.",
+    "text": "Hall 3, stand 214, aisle 7.",
+    "entities": []
+  },
+  {
+    "id": "neg-deck-cards",
+    "note": "The word cards with a count, no card numbers.",
+    "text": "Cards are sorted by suit; the deck has 52 cards.",
+    "entities": []
+  },
+  {
+    "id": "neg-latency-ms",
+    "note": "Latency in milliseconds.",
+    "text": "Ping the server to check latency; 10 ms is fine.",
+    "entities": []
+  },
+  {
+    "id": "neg-cut-lengths",
+    "note": "Cut lengths with units.",
+    "text": "Cut 3 pieces of 1.5 m each from the 6 m board.",
+    "entities": []
+  },
+  {
+    "id": "neg-season-years",
+    "note": "Year range for a season.",
+    "text": "The 2025-2026 season starts in September.",
+    "entities": []
+  },
+  {
+    "id": "neg-item-codes-letters",
+    "note": "Item codes with letters and digits.",
+    "text": "Item codes A1-B2-C3 are not serials.",
+    "entities": []
+  },
+  {
+    "id": "neg-three-part-tag",
+    "note": "Three-part release tag.",
+    "text": "Version 12.04.2 is a Ubuntu-style tag.",
+    "entities": []
+  },
+  {
+    "id": "neg-decimal-comma-price",
+    "note": "Decimal-comma price.",
+    "text": "Price per kg: 4,99 EUR this week.",
+    "entities": []
+  },
+  {
+    "id": "neg-flight-segments",
+    "note": "Segment numbers in a list.",
+    "text": "Flight segments 3, 4 and 5 are delayed.",
+    "entities": []
+  },
+  {
+    "id": "neg-gauge-reading",
+    "note": "Pressure reading with a decimal.",
+    "text": "The gauge reads 0.5 MPa at idle.",
+    "entities": []
+  },
+  {
+    "id": "neg-hex-hash-label",
+    "note": "Mixed hex digest on a label.",
+    "text": "Hash 1f2e3d4c5b6a7980 printed on the label.",
+    "entities": []
+  },
+  {
+    "id": "neg-test-flags",
+    "note": "Command-line flags.",
+    "text": "Run tests with -count=1 -race on CI.",
+    "entities": []
+  },
+  {
+    "id": "neg-manual-reference",
+    "note": "Chapter and verse reference.",
+    "text": "Chapter 9, verse 12 of the manual.",
+    "entities": []
+  },
+  {
+    "id": "neg-payment-terms",
+    "note": "Payment terms with days and a discount.",
+    "text": "Payment terms: net 30 days, 2% discount.",
+    "entities": []
+  },
+  {
+    "id": "neg-temperature-decimal",
+    "note": "Room temperature.",
+    "text": "Room temperature is 21.5 degrees.",
+    "entities": []
+  },
+  {
+    "id": "neg-unicode-code-points",
+    "note": "Unicode code point notation.",
+    "text": "Code points U+1F600 and U+00E9 differ.",
+    "entities": []
+  },
+  {
+    "id": "neg-queue-count",
+    "note": "Queue size with a thousands separator.",
+    "text": "The ticket queue has 1,024 open items.",
+    "entities": []
+  },
+  {
+    "id": "neg-tram-frequency",
+    "note": "Tram route and frequency.",
+    "text": "Tram 9 runs every 7 minutes after 18:00.",
+    "entities": []
+  },
+  {
+    "id": "neg-backup-code-length",
+    "note": "Backup code length.",
+    "text": "Two-factor backup codes are 10 characters long.",
+    "entities": []
+  },
+  {
+    "id": "neg-pin-length-only",
+    "note": "PIN length, no PIN value.",
+    "text": "Use the 4-digit PIN from the welcome letter.",
+    "entities": []
+  },
+  {
+    "id": "neg-japanese-day-off",
+    "note": "Japanese sentence about a day off.",
+    "text": "今日は休みです。明日は出勤します。",
+    "entities": []
+  },
+  {
+    "id": "neg-japanese-order-thanks",
+    "note": "Japanese thank-you line, no personal data.",
+    "text": "ご注文ありがとうございます。",
+    "entities": []
+  },
+  {
+    "id": "neg-chinese-meeting",
+    "note": "Chinese sentence with a time.",
+    "text": "会议定于下午三点开始。",
+    "entities": []
+  },
+  {
+    "id": "neg-arabic-meeting",
+    "note": "Arabic sentence about a meeting time.",
+    "text": "الاجتماع غدا في الساعة العاشرة.",
+    "entities": []
+  },
+  {
+    "id": "neg-cyrillic-meeting",
+    "note": "Russian sentence about a meeting time.",
+    "text": "Совещание начнется в десять.",
+    "entities": []
+  },
+  {
+    "id": "neg-isbn10-hyphenated",
+    "note": "ISBN-10 with hyphens.",
+    "text": "The ISBN 0-306-40615-2 is in the catalogue.",
+    "entities": []
+  },
+  {
+    "id": "neg-road-codes",
+    "note": "Road codes with letters and digits.",
+    "text": "Road A1 is closed; B2 is open.",
+    "entities": []
+  },
+  {
+    "id": "neg-half-time-score",
+    "note": "A score with a hyphen.",
+    "text": "The score was 3-2 at half time.",
+    "entities": []
+  },
+  {
+    "id": "neg-single-digit-dial",
+    "note": "A single digit as an instruction.",
+    "text": "Dial 0 for an outside line, then wait.",
+    "entities": []
   }
 ]

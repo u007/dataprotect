@@ -1,7 +1,7 @@
 ---
 type: Concept
 title: piiscrub — Usage & Quick Start
-description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum and 5 national-ID and passport recognizers, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 81-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
+description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum and 5 national-ID and passport recognizers, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 491-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
 tags:
   - pii
   - go
@@ -30,10 +30,10 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 - **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`)
 - **Measured, not claimed** — a hand-labelled seed dataset, an on-demand corpus
   measurement over the fetched corpora, and a scoring runner
-  gate accuracy in CI. Current baseline over 81 cases: exact-span
-  P=0.9811 R=1.0000, overlap P=0.9811 R=1.0000. Run `scripts/benchmark.sh`.
-  The seed set is far from the ~500 cases the accuracy targets assume, so treat
-  the numbers as a floor rather than a result.
+  gate accuracy in CI. Current baseline over 491 cases: exact-span
+  P=0.9941 R=0.9855, overlap P=0.9971 R=0.9884. Run `scripts/benchmark.sh`.
+  The seed set is close to the ~500 cases the accuracy targets assume, but it is
+  hand-written, so treat the numbers as a floor rather than a result.
 - **Zero external dependencies** — stdlib only
 - **~100-200 MB RAM** — vs Presidio's 4 GB
 
@@ -126,8 +126,8 @@ The map holds the original values in plain text. Protect it as you would the inp
 
 ## Testing & dataset coverage
 
-Accuracy here is measured, not asserted. `testdata/golden/seed.json` holds 81
-hand-labelled cases (51 positive, 30 negative), and `golden/accuracy_test.go`
+Accuracy here is measured, not asserted. `testdata/golden/seed.json` holds 491
+hand-labelled cases (314 positive, 177 negative), and `golden/accuracy_test.go`
 gates on the exact measured baseline, so a regression fails the build instead of
 drifting silently. Labels are written from the text, never copied from detector
 output — a dataset derived from the detector's own predictions cannot fail and
@@ -160,7 +160,7 @@ The numbers are not perfect. Batch 2 exposed two detector defects. The URL one,
 a sentence-final period kept, is fixed. The other, a four-part version string
 read as an IP, is still open; that case stays labelled as written and is in
 TODO.md. The seed set
-is 81 cases, far from the ~500 the accuracy targets assume, so read every
+is 491 cases, close to the ~500 the accuracy targets assume, so read every
 number above as a floor rather than a result. This baseline was
 reached by fixing the phone recognizer's dropped leading `(` on parenthesised
 area codes — until that fix it was the single false positive and the single

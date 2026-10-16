@@ -115,7 +115,10 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
       scrubber over every negative case: the only detection left is
       `neg-ip-version-four-part`. `pos-url-http` now describes a https URL with
       a path followed by prose, not a sentence period it never had.
-- [ ] **Golden dataset is an 81-case seed set, not the ~500 SPEC.md calls for.** SPEC is the source of truth, so the target stands: expand with synthetic data only.
+- [ ] **URL: an upper-case scheme is missed.** `HTTPS://DOCS.EXAMPLE.COM/START` is not matched. RFC 3986 makes the scheme case-insensitive. Gold case `pos-url-upper-scheme`. Not fixed: the recognizer change is small but needs its own decision and commit.
+- [ ] **BITCOIN: all-caps bech32 is missed.** `BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ` is a valid bech32 string under BIP-173, which says decoders must not accept mixed case and whose test vectors include upper-case strings. Gold case `pos-bitcoin-bech32-upper`. Not fixed.
+- [ ] **CREDIT_CARD: tab-separated groups are missed.** The card separator set is space, dash and dot (`recognizers/checksum/checksum.go`), so `5555<TAB>5555<TAB>5555<TAB>4444` is not reported. Gold case `pos-card-tab-groups`. Not fixed.
+- [x] **Golden dataset: 81 to 491 cases toward the ~500 SPEC.md calls for. Done 2026-10-16.** SPEC is the source of truth. The expansion used synthetic data only, typed from the text, in six batches (gold values checked for uniqueness, Luhn for cards, mod-97 for IBANs). The batch notes live in `golden/accuracy_test.go`.
       `testdata/golden/seed.json` and the `golden` runner now exist and are
       tested, so the ">99% precision/recall" claim is at last measurable, but
       the seed set is far too small to support that number. Batch 2 (13 cases)
@@ -129,8 +132,7 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
       the parenthesised-phone fix moved 12/13 to 13/13 on the 18-case seed, and
       wiring the checksum validators lifted exact P from 0.8571 and cleared all
       six negatives.
-      **Remaining:** grow toward ~500 cases and re-tighten the thresholds each
-      time; the real corpora are the intended source. **Licence review is DONE —
+      **Status 2026-10-16:** 491 cases (314 positive, 177 negative). Exact P=0.9941 R=0.9855 (tp=339 fp=2 fn=5), overlap P=0.9971 R=0.9884 (tp=340 fp=1 fn=4), 176 of 177 negatives clean. Thresholds are the exact counts. The five exact misses are recorded, not relabelled: the card-window defect, the UK national phone (out of scope), and the three entries above. This is one author's hand labels in common forms, so the corpora remain the stronger test. **Licence review is DONE —
       see DATASET_LICENSES.md.** It corrected a wrong claim here: ai4privacy is
       NOT CC-BY-SA, it is a custom dual-tier licence (free for individuals,
       for-profits of ≤3 staff, non-profits, or evaluation; larger profit-oriented

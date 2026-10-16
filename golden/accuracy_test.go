@@ -19,19 +19,47 @@ const datasetDir = "../testdata/golden"
 // moves recall by a large fraction — so a shrinking dataset would silently
 // weaken the gate rather than fail it. Ratcheted with each batch: it tracks the
 // current seed count, so any drop below it fails.
-const minCases = 91
+const minCases = 491
 
 // Gate thresholds.
 //
-// These are the MEASURED baseline, not a target. The seed set is 77 cases, far
-// too small to claim SPEC.md's ">99% precision/recall"; claiming it here would
+// These are the MEASURED baseline, not a target. The seed set is 491 cases, close to
+// short of the ~500 SPEC.md calls for; claiming ">99% precision/recall" here would
 // make the gate a rubber stamp. Each constant is the EXACT measured value, so
 // any regression fails immediately and any improvement is a deliberate
 // threshold bump in this file rather than a silent drift.
 //
-// One defect remains and is recorded, not relabelled:
+// Defects remain and are recorded, not relabelled:
 //   - neg-ip-version-four-part: "3.10.2.7" has valid IPv4 octets and is read as
 //     an IP address (one negative case not clean). See TODO.md.
+//   - pos-card-then-year: the card window takes the trailing year, so the exact
+//     span is "4111 1111 1111 1111 2024" (one exact FP, one exact FN). Overlap
+//     recall is unaffected. See the card-window entry in TODO.md.
+//   - pos-bitcoin-bech32-upper: an all-caps bech32 address is valid under BIP-173
+//     and is missed. See TODO.md (bitcoin coverage).
+//   - pos-phone-trunk-zero: a UK national number (`020 5550 1290`) is missed. The
+//     national formats are out of scope by decision (TODO.md, phone).
+//   - pos-url-upper-scheme: `HTTPS://DOCS.EXAMPLE.COM/START` is missed. RFC 3986
+//     makes the scheme case-insensitive. See TODO.md (URL).
+//   - pos-card-tab-groups: a card in tab-separated groups is missed. The card
+//     separator set is space, dash and dot. See TODO.md (card separators).
+//
+// Batch 9 added 81 hand-written cases over the mainstream types: email, phone,
+// SSN, IPv4 and IPv6, URL, card, IBAN and bitcoin, each with a negative
+// neighbour. Labels were typed from the text. No case was dropped for missing the
+// detector, except two SSN negatives (area 000 and 666) that assumed a validity
+// rule the project rejects: SSN is shape-only by decision (TODO.md). Batch 10
+// added 57 more, mixing types in one text and adding negatives that look like PII
+// shapes (order codes, digests, section numbers). Batch 11 added 60 more: a
+// paragraph-length case per type, and negatives built from counts, times and
+// config values. Its one new miss is the upper-case URL scheme listed above.
+// Batch 12 added 62 more: Japanese and Thai sentences, JSON, CSV, Markdown and
+// code-string placements, and negatives built from counters, versions and
+// multipliers. Its one new miss is the tab-separated card listed above. Batch 13
+// added 59 more: multi-address lines, toll-free and international numbers, and
+// negatives built from schedules, ratings and codes. It added no new miss. Batch
+// 14 added 83 more across all types, with non-Latin negatives, and added no new
+// miss.
 //
 // Batch 3 added the national IDs (SG NRIC/FIN, MY MyKad, TH citizen ID). All
 // eight positives were detected and the five invalid-checksum negatives stayed
@@ -44,13 +72,13 @@ const minCases = 91
 // bitcoin (taproot and P2SH positives, two bad-checksum negatives): all four
 // behaved as expected. The one defect above is still the only false positive.
 //
-// The measured baseline is exact P=0.9811 R=1.0000 (tp=52 fp=1 fn=0), overlap
-// P=0.9811 R=1.0000 (tp=52 fp=1 fn=0), and 29 of 30 negative cases clean. These
+// The measured baseline is exact P=0.9941 R=0.9855 (tp=339 fp=2 fn=5), overlap
+// P=0.9971 R=0.9884 (tp=340 fp=1 fn=4), and 176 of 177 negative cases clean. These
 // numbers describe this hand-labelled seed set, NOT the detector in general —
 // SPEC.md's ">99%" needs a ~500-case hand-labelled set. The corpora in
 // testdata/external are scored by `make corpus` but are not that set (see
-// TODO.md). With 53 predictions one flipped case moves precision by ~2%, so
-// the number is coarse; it is kept exact so a regression fails immediately.
+// TODO.md). With 341 predictions one flipped case moves precision by under 1%,
+// so the number is kept exact so a regression fails immediately.
 //
 // An earlier baseline (exact P=0.8571 R=0.9231, tp=12 fp=2 fn=1) preceded the
 // checksum-validator wiring. CREDIT_CARD went from P=0.7500 to P=1.0000 and all
@@ -71,9 +99,9 @@ const minCases = 91
 // pos-card-then-year now reports "4111 1111 1111 1111 2024" against gold
 // "4111 1111 1111 1111". Overlap recall stays 1.0; exact bounds are re-measured.
 const (
-	minExactPrecision = 60.0 / 62.0 // tp=60 fp=2   -> 60/62 (see note)
-	minExactRecall    = 60.0 / 61.0 // tp=60 fn=1   -> 60/61 (see note)
-	minOverlapRecall  = 1.0         // tp=61 fn=0   -> 61/61
+	minExactPrecision = 339.0 / 341.0 // tp=339 fp=2 -> 339/341 (see note)
+	minExactRecall    = 339.0 / 344.0 // tp=339 fn=5 -> 339/344 (see note)
+	minOverlapRecall  = 340.0 / 344.0 // tp=340 fn=4 -> 340/344 (see note)
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled
