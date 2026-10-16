@@ -36,7 +36,7 @@ func WithMinConfidence(confidence float64) Option {
 // type appear in the surrounding text (e.g. the word "email" next to an address).
 // It is off by default because boosting changes overlap-resolution outcomes, so
 // it is an explicit opt-in rather than a silent behaviour change. A span inside a
-// URL is never boosted (see applyContextBoost).
+// URL that survives the threshold is not boosted (see applyContextBoost).
 func WithContextBoost() Option {
 	return func(a *Analyzer) {
 		a.contextBoost = true
@@ -103,7 +103,7 @@ func (a *Analyzer) Analyze(ctx context.Context, text string) ([]recognizers.Enti
 	quantiseEntities(allEntities)
 
 	if a.contextBoost {
-		allEntities = applyContextBoost(text, allEntities)
+		allEntities = applyContextBoost(text, allEntities, a.minConfidence)
 	}
 
 	// Filter by confidence
@@ -169,31 +169,41 @@ func quantiseEntities(entities []recognizers.Entity) {
 // surrounding text. Confidence is clamped to 1.0 so a boost can never push an
 // entity above the maximum of the scale.
 //
-// A span inside a URL is not boosted. The boost could lift the inner entity above
-// the URL that contains it, and overlap resolution would then keep the inner span,
-// leaving the URL's path and query visible.
-func applyContextBoost(text string, entities []recognizers.Entity) []recognizers.Entity {
+// URLs are boosted first. A span that overlaps a URL surviving minConfidence is
+// not boosted: the boost could lift it above that URL, and overlap resolution
+// would then keep the inner span, leaving the URL's path and query visible. A URL
+// below minConfidence is dropped by the filter anyway, so it protects nothing and
+// the spans it overlaps are boosted as usual.
+func applyContextBoost(text string, entities []recognizers.Entity, minConfidence float64) []recognizers.Entity {
 	for i := range entities {
-		if insideURL(entities[i], entities) {
+		if entities[i].Type == recognizers.EntityURL {
+			boostEntity(text, &entities[i])
+		}
+	}
+	for i := range entities {
+		if entities[i].Type == recognizers.EntityURL || overlapsSurvivingURL(entities[i], entities, minConfidence) {
 			continue
 		}
-		boost := ctxconf.BoostConfidence(text, entities[i].Type, entities[i].Start, entities[i].End)
-		if boost == 0 {
-			continue
-		}
-		entities[i].Confidence = roundConfidence(entities[i].Confidence + boost)
+		boostEntity(text, &entities[i])
 	}
 	return entities
 }
 
-// insideURL reports whether e lies within a URL entity in entities. A URL is not
-// inside itself, so it is never reported as enclosed.
-func insideURL(e recognizers.Entity, entities []recognizers.Entity) bool {
-	if e.Type == recognizers.EntityURL {
-		return false
+// boostEntity adds the context boost for e's type, if any, to its confidence.
+func boostEntity(text string, e *recognizers.Entity) {
+	boost := ctxconf.BoostConfidence(text, e.Type, e.Start, e.End)
+	if boost == 0 {
+		return
 	}
+	e.Confidence = roundConfidence(e.Confidence + boost)
+}
+
+// overlapsSurvivingURL reports whether e overlaps, at any point, a URL entity in
+// entities whose confidence is at least minConfidence. A URL is not guarded
+// against itself.
+func overlapsSurvivingURL(e recognizers.Entity, entities []recognizers.Entity, minConfidence float64) bool {
 	for _, u := range entities {
-		if u.Type == recognizers.EntityURL && e.Start >= u.Start && e.End <= u.End {
+		if u.Type == recognizers.EntityURL && u.Confidence >= minConfidence && e.Start < u.End && u.Start < e.End {
 			return true
 		}
 	}

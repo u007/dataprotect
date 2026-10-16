@@ -452,3 +452,52 @@ func TestContextBoostDoesNotLiftSpanInsideURL(t *testing.T) {
 		t.Fatalf("got %+v, want the URL alone", got)
 	}
 }
+
+// A boost must not lift a span that only partly overlaps a URL either. The IP
+// starts inside the "ip address:" context, before the URL, and runs into it.
+// Unguarded, its boost takes it above the URL, and overlap resolution keeps the
+// IP and drops the URL.
+func TestContextBoostDoesNotLiftSpanOverlappingURL(t *testing.T) {
+	text := "ip address: http://192.168.1.100:8080/status"
+	a := New(WithContextBoost())
+	a.AddRecognizer(&fixedConfidenceRecognizer{
+		name: "url", entityType: recognizers.EntityURL,
+		text: "http://192.168.1.100:8080/status", confidence: 0.99,
+	})
+	a.AddRecognizer(&fixedConfidenceRecognizer{
+		name: "ip", entityType: recognizers.EntityIP,
+		text: "address: http://192.168", confidence: 0.95,
+	})
+
+	got, err := a.Analyze(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0].Type != recognizers.EntityURL {
+		t.Fatalf("got %+v, want the URL alone", got)
+	}
+}
+
+// A URL below minConfidence is dropped by the filter, so it protects nothing. The
+// IP inside it must still be boosted, or the threshold removes an IP that the
+// context would have kept.
+func TestContextBoostIgnoresURLDroppedByThreshold(t *testing.T) {
+	text := "ip address: http://192.168.1.100:8080/status"
+	a := New(WithContextBoost(), WithMinConfidence(0.5))
+	a.AddRecognizer(&fixedConfidenceRecognizer{
+		name: "url", entityType: recognizers.EntityURL,
+		text: "http://192.168.1.100:8080/status", confidence: 0.30,
+	})
+	a.AddRecognizer(&fixedConfidenceRecognizer{
+		name: "ip", entityType: recognizers.EntityIP,
+		text: "192.168.1.100", confidence: 0.45,
+	})
+
+	got, err := a.Analyze(context.Background(), text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0].Type != recognizers.EntityIP {
+		t.Fatalf("got %+v, want the boosted IP alone", got)
+	}
+}
