@@ -67,11 +67,23 @@ by naming the dataset and its version in the report, not by redistributing it.
 ## Provenance of `testdata/golden/seed.json`
 
 The committed seed set is authored in this repository from synthetic example
-text. Every identifier is either reserved-for-documentation
-(`example.com`, `example.net`, RFC 2606) or a well-known public test value
-(`4111 1111 1111 1111`, `123-45-6789`, `192.168.10.42`). No text was copied or
-derived from any corpus listed above, so the seed set carries no third-party
-terms and is safe to commit under the repository's own licence.
+text. Every identifier is one of these:
+
+- reserved for documentation: `example.com`, `example.net`, `example.org` and the
+  `.example` TLD (RFC 2606); IPv4 `192.0.2.0/24`, `198.51.100.0/24` and
+  `203.0.113.0/24` (RFC 5737); IPv6 `2001:db8::/32` (RFC 3849);
+- a fiction number: the `555` area code, and the Ofcom London drama block
+  `020 7946 0000`–`0999` for international numbers, as Ofcom's drama-numbers page
+  lists it (the page itself returned 403 when checked; the listing was read from
+  a search excerpt);
+- a value reported as reserved for advertising: SSN `987-65-4320` to `4329`
+  (checked against secondary sources only; ssa.gov returned 403);
+- a published test or specimen value: test card numbers, specimen IBANs and
+  bitcoin addresses from standards and tutorials, and `123-45-6789`.
+
+No text was copied or derived from any corpus listed above, so the seed set
+carries no third-party terms and is safe to commit under the repository's own
+licence.
 
 This matters: it is the reason the CI gate can run on every commit without a
 licence obligation, and the reason a future contributor can add cases without

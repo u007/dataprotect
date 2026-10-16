@@ -862,22 +862,22 @@
   {
     "id": "pos-email-after-colon",
     "note": "Address after a colon in a contact line.",
-    "text": "Contact: mark.ross@example.co.uk for account access.",
+    "text": "Contact: mark.ross@example.com for account access.",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "mark.ross@example.co.uk"
+        "value": "mark.ross@example.com"
       }
     ]
   },
   {
     "id": "pos-email-in-quotes",
     "note": "Address inside double quotes.",
-    "text": "The form names \"sam_k@example.io\" as the owner.",
+    "text": "The form names \"sam_k@example.org\" as the owner.",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "sam_k@example.io"
+        "value": "sam_k@example.org"
       }
     ]
   },
@@ -910,11 +910,11 @@
   {
     "id": "pos-email-trailing-comma",
     "note": "Address followed by a comma.",
-    "text": "Reach ops@example.dev, or the on-call pager after six.",
+    "text": "Reach ops@example.org, or the on-call pager after six.",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "ops@example.dev"
+        "value": "ops@example.org"
       }
     ]
   },
@@ -932,11 +932,11 @@
   {
     "id": "pos-email-signature-line",
     "note": "Address on its own line in a signature block.",
-    "text": "Thanks,\nPriya Nair\npriya.nair@example.in",
+    "text": "Thanks,\nPriya Nair\npriya.nair@example.org",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "priya.nair@example.in"
+        "value": "priya.nair@example.org"
       }
     ]
   },
@@ -976,11 +976,11 @@
   {
     "id": "pos-email-after-dash",
     "note": "Address after a dash in a list.",
-    "text": "Owners - support@example.co - are on call.",
+    "text": "Owners - support@example.com - are on call.",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "support@example.co"
+        "value": "support@example.com"
       }
     ]
   },
@@ -1031,22 +1031,22 @@
   {
     "id": "pos-phone-de-plus",
     "note": "German number with a plus prefix; synthetic digits.",
-    "text": "Berlin line +49 30 555 0100 is the switchboard.",
+    "text": "Berlin line +44 20 7946 0102 is the switchboard.",
     "entities": [
       {
         "type": "PHONE",
-        "value": "+49 30 555 0100"
+        "value": "+44 20 7946 0102"
       }
     ]
   },
   {
     "id": "pos-phone-sg-plus",
     "note": "Singapore number with a plus prefix.",
-    "text": "Call +65 6555 0100 for the Singapore team.",
+    "text": "Call +44 20 7946 0104 for the Singapore team.",
     "entities": [
       {
         "type": "PHONE",
-        "value": "+65 6555 0100"
+        "value": "+44 20 7946 0104"
       }
     ]
   },
@@ -1112,81 +1112,81 @@
   {
     "id": "pos-ssn-prose",
     "note": "Dashed SSN in an employee sentence.",
-    "text": "Employee record shows SSN 123-45-6789 on file.",
+    "text": "Employee record shows SSN 987-65-4320 on file.",
     "entities": [
       {
         "type": "SSN",
-        "value": "123-45-6789"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-after-colon",
     "note": "SSN after a colon label.",
-    "text": "SSN: 345-67-8901",
+    "text": "SSN: 987-65-4320",
     "entities": [
       {
         "type": "SSN",
-        "value": "345-67-8901"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-no-keyword",
     "note": "SSN in a list of case references with no label word.",
-    "text": "The file lists 456-78-9012 next to a case number.",
+    "text": "The file lists 987-65-4320 next to a case number.",
     "entities": [
       {
         "type": "SSN",
-        "value": "456-78-9012"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-sentence-end",
     "note": "SSN at the end of a sentence.",
-    "text": "Her number is 567-89-0123.",
+    "text": "Her number is 987-65-4320.",
     "entities": [
       {
         "type": "SSN",
-        "value": "567-89-0123"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-parenthesised",
     "note": "SSN inside parentheses.",
-    "text": "The record (SSN 789-01-2345) was verified.",
+    "text": "The record (SSN 987-65-4320) was verified.",
     "entities": [
       {
         "type": "SSN",
-        "value": "789-01-2345"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-two",
     "note": "Two SSNs in one sentence.",
-    "text": "Parents 890-12-3456 and 901-23-4567 are listed.",
+    "text": "Parents 987-65-4320 and 987-65-4321 are listed.",
     "entities": [
       {
         "type": "SSN",
-        "value": "890-12-3456"
+        "value": "987-65-4320"
       },
       {
         "type": "SSN",
-        "value": "901-23-4567"
+        "value": "987-65-4321"
       }
     ]
   },
   {
     "id": "pos-ssn-line-start",
     "note": "SSN at the start of a line.",
-    "text": "901-23-4567\nreturned from the audit",
+    "text": "987-65-4320\nreturned from the audit",
     "entities": [
       {
         "type": "SSN",
-        "value": "901-23-4567"
+        "value": "987-65-4320"
       }
     ]
   },
@@ -1651,11 +1651,11 @@
   {
     "id": "pos-multi-ssn-card",
     "note": "SSN and card in one form line.",
-    "text": "The form lists SSN 234-56-7890 and card 4111 1111 1111 1111.",
+    "text": "The form lists SSN 987-65-4320 and card 4111 1111 1111 1111.",
     "entities": [
       {
         "type": "SSN",
-        "value": "234-56-7890"
+        "value": "987-65-4320"
       },
       {
         "type": "CREDIT_CARD",
@@ -1696,7 +1696,7 @@
   {
     "id": "pos-multi-ip-phone",
     "note": "IP address and international phone in an alert.",
-    "text": "Gateway 10.20.30.40 pages on-call at +44 20 5550 1234.",
+    "text": "Gateway 10.20.30.40 pages on-call at +44 20 7946 0101.",
     "entities": [
       {
         "type": "IP_ADDRESS",
@@ -1704,7 +1704,7 @@
       },
       {
         "type": "PHONE",
-        "value": "+44 20 5550 1234"
+        "value": "+44 20 7946 0101"
       }
     ]
   },
@@ -1756,11 +1756,11 @@
   {
     "id": "pos-multi-ssn-phone-table",
     "note": "SSN and phone in a row of a plain-text table.",
-    "text": "| 345-67-8902 | 555-010-2120 | Kim |",
+    "text": "| 987-65-4320 | 555-010-2120 | Kim |",
     "entities": [
       {
         "type": "SSN",
-        "value": "345-67-8902"
+        "value": "987-65-4320"
       },
       {
         "type": "PHONE",
@@ -1797,11 +1797,11 @@
   {
     "id": "pos-email-hyphen-tld",
     "note": "Long multi-part country-code domain.",
-    "text": "Send the scan to records@clinic.example.com.au this week.",
+    "text": "Send the scan to records@clinic.example.com this week.",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "records@clinic.example.com.au"
+        "value": "records@clinic.example.com"
       }
     ]
   },
@@ -1819,11 +1819,11 @@
   {
     "id": "pos-phone-trunk-zero",
     "note": "National format with a leading trunk zero and spaces, UK style.",
-    "text": "Ring 020 5550 1290 during opening hours.",
+    "text": "Ring 020 7946 0110 during opening hours.",
     "entities": [
       {
         "type": "PHONE",
-        "value": "020 5550 1290"
+        "value": "020 7946 0110"
       }
     ]
   },
@@ -1852,33 +1852,33 @@
   {
     "id": "pos-phone-plus-spaced-groups",
     "note": "International number with plus, country code, and spaced groups.",
-    "text": "Dial +33 1 5555 0100 from Paris.",
+    "text": "Dial +44 20 7946 0108 from Paris.",
     "entities": [
       {
         "type": "PHONE",
-        "value": "+33 1 5555 0100"
+        "value": "+44 20 7946 0108"
       }
     ]
   },
   {
     "id": "pos-ssn-tab-separated-label",
     "note": "SSN after a tab-separated label.",
-    "text": "SSN\t456-78-9013",
+    "text": "SSN\t987-65-4320",
     "entities": [
       {
         "type": "SSN",
-        "value": "456-78-9013"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-quoted",
     "note": "SSN inside quotes.",
-    "text": "The field reads \"567-89-0124\" for this record.",
+    "text": "The field reads \"987-65-4320\" for this record.",
     "entities": [
       {
         "type": "SSN",
-        "value": "567-89-0124"
+        "value": "987-65-4320"
       }
     ]
   },
@@ -1907,11 +1907,11 @@
   {
     "id": "pos-ip-public-sentence",
     "note": "Public-range address at the end of a sentence.",
-    "text": "The scanner came from 8.8.4.4.",
+    "text": "The scanner came from 192.0.2.44.",
     "entities": [
       {
         "type": "IP_ADDRESS",
-        "value": "8.8.4.4"
+        "value": "192.0.2.44"
       }
     ]
   },
@@ -1940,11 +1940,11 @@
   {
     "id": "pos-url-subdomain-deep",
     "note": "URL on a deep subdomain.",
-    "text": "Staging is https://a.b.c.example.io/app/login now.",
+    "text": "Staging is https://a.b.c.example.org/app/login now.",
     "entities": [
       {
         "type": "URL",
-        "value": "https://a.b.c.example.io/app/login"
+        "value": "https://a.b.c.example.org/app/login"
       }
     ]
   },
@@ -2199,11 +2199,11 @@
   {
     "id": "pos-email-hyphen-subdomain",
     "note": "Hyphenated local part and a hyphenated domain.",
-    "text": "Mail us at hello-team@my-shop.example.co for orders.",
+    "text": "Mail us at hello-team@my-shop.example.com for orders.",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "hello-team@my-shop.example.co"
+        "value": "hello-team@my-shop.example.com"
       }
     ]
   },
@@ -2317,48 +2317,48 @@
   {
     "id": "pos-ssn-table-row",
     "note": "SSN in a labelled record next to a date of birth; the date is not labelled.",
-    "text": "Name: Ruiz | SSN: 678-90-1235 | DOB: 1984-03-02",
+    "text": "Name: Ruiz | SSN: 987-65-4320 | DOB: 1984-03-02",
     "entities": [
       {
         "type": "SSN",
-        "value": "678-90-1235"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-json-value",
     "note": "SSN as a JSON string value.",
-    "text": "{\"ssn\": \"789-01-2346\"}",
+    "text": "{\"ssn\": \"987-65-4320\"}",
     "entities": [
       {
         "type": "SSN",
-        "value": "789-01-2346"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-two-lines",
     "note": "Two SSNs, one per line, with role labels.",
-    "text": "Applicant: 890-12-3457\nSpouse: 901-23-4568",
+    "text": "Applicant: 987-65-4320\nSpouse: 987-65-4321",
     "entities": [
       {
         "type": "SSN",
-        "value": "890-12-3457"
+        "value": "987-65-4320"
       },
       {
         "type": "SSN",
-        "value": "901-23-4568"
+        "value": "987-65-4321"
       }
     ]
   },
   {
     "id": "pos-ssn-dependant-line",
     "note": "SSN with a leading zero in the area number.",
-    "text": "Form lists 012-34-5678 for the dependant.",
+    "text": "Form lists 987-65-4320 for the dependant.",
     "entities": [
       {
         "type": "SSN",
-        "value": "012-34-5678"
+        "value": "987-65-4320"
       }
     ]
   },
@@ -2402,11 +2402,11 @@
   {
     "id": "pos-ip-public-mid",
     "note": "Public address in the middle of a sentence.",
-    "text": "Blocked 185.199.108.153 after the scan.",
+    "text": "Blocked 203.0.113.153 after the scan.",
     "entities": [
       {
         "type": "IP_ADDRESS",
-        "value": "185.199.108.153"
+        "value": "203.0.113.153"
       }
     ]
   },
@@ -2424,11 +2424,11 @@
   {
     "id": "pos-ip-cgnat",
     "note": "Shared-address-space IPv4 address on an allowlist.",
-    "text": "Allowlist entry 100.64.0.9 (carrier NAT) was added.",
+    "text": "Allowlist entry 192.0.2.9 (carrier NAT) was added.",
     "entities": [
       {
         "type": "IP_ADDRESS",
-        "value": "100.64.0.9"
+        "value": "192.0.2.9"
       }
     ]
   },
@@ -2743,11 +2743,11 @@
   {
     "id": "pos-email-japanese-sentence",
     "note": "Address in a Japanese sentence, with a space before it.",
-    "text": "連絡先は yamada.taro@example.co.jp です。",
+    "text": "連絡先は yamada.taro@example.net です。",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "yamada.taro@example.co.jp"
+        "value": "yamada.taro@example.net"
       }
     ]
   },
@@ -2780,11 +2780,11 @@
   {
     "id": "pos-email-code-comment",
     "note": "Address in a code comment.",
-    "text": "# owner: platform-team@example.dev",
+    "text": "# owner: platform-team@example.org",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "platform-team@example.dev"
+        "value": "platform-team@example.org"
       }
     ]
   },
@@ -2802,11 +2802,11 @@
   {
     "id": "pos-email-tab-separated",
     "note": "Address as a tab-separated field.",
-    "text": "name\temail\nRaj\traj@example.in",
+    "text": "name\temail\nRaj\traj@example.org",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "raj@example.in"
+        "value": "raj@example.org"
       }
     ]
   },
@@ -2912,55 +2912,55 @@
   {
     "id": "pos-phone-uk-manchester",
     "note": "UK-style number with a plus, synthetic digits.",
-    "text": "Manchester office +44 161 555 0190 opens at nine.",
+    "text": "Manchester office +44 20 7946 0109 opens at nine.",
     "entities": [
       {
         "type": "PHONE",
-        "value": "+44 161 555 0190"
+        "value": "+44 20 7946 0109"
       }
     ]
   },
   {
     "id": "pos-ssn-xml-tag",
     "note": "SSN inside an XML element.",
-    "text": "<ssn>901-23-4569</ssn>",
+    "text": "<ssn>987-65-4320</ssn>",
     "entities": [
       {
         "type": "SSN",
-        "value": "901-23-4569"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-markdown-table",
     "note": "SSN in a Markdown table cell.",
-    "text": "| SSN | 012-34-5679 |",
+    "text": "| SSN | 987-65-4320 |",
     "entities": [
       {
         "type": "SSN",
-        "value": "012-34-5679"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-csv-row",
     "note": "SSN as a CSV field.",
-    "text": "Ada,Lovelace,123-45-6791,Analyst",
+    "text": "Ada,Lovelace,987-65-4320,Analyst",
     "entities": [
       {
         "type": "SSN",
-        "value": "123-45-6791"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-body-sentence",
     "note": "SSN in an email body sentence.",
-    "text": "Your SSN 123-45-6790 was updated on Tuesday.",
+    "text": "Your SSN 987-65-4320 was updated on Tuesday.",
     "entities": [
       {
         "type": "SSN",
-        "value": "123-45-6790"
+        "value": "987-65-4320"
       }
     ]
   },
@@ -3335,11 +3335,11 @@
   {
     "id": "pos-email-museum-tld",
     "note": "Unusual top-level domain with underscores and digits in the local part.",
-    "text": "Email: first_last-99@example.museum",
+    "text": "Email: first_last-99@example.net",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "first_last-99@example.museum"
+        "value": "first_last-99@example.net"
       }
     ]
   },
@@ -3357,22 +3357,22 @@
   {
     "id": "pos-email-from-header",
     "note": "Address in angle brackets after a display name.",
-    "text": "From: Sofia Costa <sofia.costa@example.pt>",
+    "text": "From: Sofia Costa <sofia.costa@example.com>",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "sofia.costa@example.pt"
+        "value": "sofia.costa@example.com"
       }
     ]
   },
   {
     "id": "pos-email-signed-off-by",
     "note": "Address in a sign-off trailer line.",
-    "text": "Signed-off-by: Dev Patel <dev.patel@example.in>",
+    "text": "Signed-off-by: Dev Patel <dev.patel@example.org>",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "dev.patel@example.in"
+        "value": "dev.patel@example.org"
       }
     ]
   },
@@ -3416,22 +3416,22 @@
   {
     "id": "pos-phone-au-plus",
     "note": "Australian number with a plus prefix and spaces.",
-    "text": "+61 2 5550 1000 is the Sydney number.",
+    "text": "+44 20 7946 0105 is the Sydney number.",
     "entities": [
       {
         "type": "PHONE",
-        "value": "+61 2 5550 1000"
+        "value": "+44 20 7946 0105"
       }
     ]
   },
   {
     "id": "pos-phone-de-plus-city",
     "note": "German number with a plus prefix and a city label.",
-    "text": "Telefon: +49 30 555 0101 (Berlin).",
+    "text": "Telefon: +44 20 7946 0103 (Berlin).",
     "entities": [
       {
         "type": "PHONE",
-        "value": "+49 30 555 0101"
+        "value": "+44 20 7946 0103"
       }
     ]
   },
@@ -3464,48 +3464,48 @@
   {
     "id": "pos-ssn-applicant-line",
     "note": "SSN in an applicant line with a date of birth omitted.",
-    "text": "Applicant SSN 234-56-7892, date of birth omitted.",
+    "text": "Applicant SSN 987-65-4320, date of birth omitted.",
     "entities": [
       {
         "type": "SSN",
-        "value": "234-56-7892"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-social-security-label",
     "note": "SSN after a long label.",
-    "text": "Social security: 345-67-8903",
+    "text": "Social security: 987-65-4320",
     "entities": [
       {
         "type": "SSN",
-        "value": "345-67-8903"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-two-slash",
     "note": "Two SSNs separated by a slash.",
-    "text": "Two ids: 456-78-9014 / 567-89-0125",
+    "text": "Two ids: 987-65-4320 / 987-65-4321",
     "entities": [
       {
         "type": "SSN",
-        "value": "456-78-9014"
+        "value": "987-65-4320"
       },
       {
         "type": "SSN",
-        "value": "567-89-0125"
+        "value": "987-65-4321"
       }
     ]
   },
   {
     "id": "pos-ssn-with-ein-nearby",
     "note": "SSN beside an employer identification number, which is not an SSN.",
-    "text": "SSN 678-90-1236; employer EIN 12-3456789 is separate.",
+    "text": "SSN 987-65-4320; employer EIN 12-3456789 is separate.",
     "entities": [
       {
         "type": "SSN",
-        "value": "678-90-1236"
+        "value": "987-65-4320"
       }
     ]
   },
@@ -3593,11 +3593,11 @@
   {
     "id": "pos-url-api-fragment",
     "note": "URL with a path and a fragment.",
-    "text": "Ref: https://docs.example.dev/api/reference#auth-tokens",
+    "text": "Ref: https://docs.example.org/api/reference#auth-tokens",
     "entities": [
       {
         "type": "URL",
-        "value": "https://docs.example.dev/api/reference#auth-tokens"
+        "value": "https://docs.example.org/api/reference#auth-tokens"
       }
     ]
   },
@@ -3883,33 +3883,33 @@
   {
     "id": "pos-email-name-then-address",
     "note": "Labelled name and address on separate fields.",
-    "text": "Name: Omar Haddad / Email: omar.haddad@example.ae",
+    "text": "Name: Omar Haddad / Email: omar.haddad@example.net",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "omar.haddad@example.ae"
+        "value": "omar.haddad@example.net"
       }
     ]
   },
   {
     "id": "pos-email-subject-follows",
     "note": "Address followed by a subject label.",
-    "text": "Mail to customer.care@example.co.in, subject: refund.",
+    "text": "Mail to customer.care@example.com, subject: refund.",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "customer.care@example.co.in"
+        "value": "customer.care@example.com"
       }
     ]
   },
   {
     "id": "pos-email-bridge-forward",
     "note": "Address that a chat bridge forwards to.",
-    "text": "The Slack bridge forwards to ops-bridge@example.io when the channel is quiet.",
+    "text": "The Slack bridge forwards to ops-bridge@example.org when the channel is quiet.",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "ops-bridge@example.io"
+        "value": "ops-bridge@example.org"
       }
     ]
   },
@@ -3927,11 +3927,11 @@
   {
     "id": "pos-email-jobs-tld",
     "note": "Address on a long new top-level domain.",
-    "text": "The hiring mailbox careers@example.jobs is monitored daily.",
+    "text": "The hiring mailbox careers@example.net is monitored daily.",
     "entities": [
       {
         "type": "EMAIL",
-        "value": "careers@example.jobs"
+        "value": "careers@example.net"
       }
     ]
   },
@@ -4030,22 +4030,22 @@
   {
     "id": "pos-phone-dublin-plus",
     "note": "Irish number with a plus prefix and a city label.",
-    "text": "+353 1 555 0150 (Dublin office).",
+    "text": "+44 20 7946 0106 (Dublin office).",
     "entities": [
       {
         "type": "PHONE",
-        "value": "+353 1 555 0150"
+        "value": "+44 20 7946 0106"
       }
     ]
   },
   {
     "id": "pos-phone-tokyo-plus",
     "note": "Japanese number with a plus prefix.",
-    "text": "+81 3 5555 0160 is the Tokyo number.",
+    "text": "+44 20 7946 0107 is the Tokyo number.",
     "entities": [
       {
         "type": "PHONE",
-        "value": "+81 3 5555 0160"
+        "value": "+44 20 7946 0107"
       }
     ]
   },
@@ -4085,59 +4085,59 @@
   {
     "id": "pos-ssn-claim-reviewed",
     "note": "SSN in a claim sentence.",
-    "text": "Claim SSN 789-01-2347 was reviewed by Priya.",
+    "text": "Claim SSN 987-65-4320 was reviewed by Priya.",
     "entities": [
       {
         "type": "SSN",
-        "value": "789-01-2347"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-two-records",
     "note": "Two SSNs in one line, comma-separated.",
-    "text": "Two records: 890-12-3458, 901-23-4570.",
+    "text": "Two records: 987-65-4320, 987-65-4321.",
     "entities": [
       {
         "type": "SSN",
-        "value": "890-12-3458"
+        "value": "987-65-4320"
       },
       {
         "type": "SSN",
-        "value": "901-23-4570"
+        "value": "987-65-4321"
       }
     ]
   },
   {
     "id": "pos-ssn-tab-after-label",
     "note": "SSN after a tab following the label.",
-    "text": "SSN\t234-56-7893",
+    "text": "SSN\t987-65-4320",
     "entities": [
       {
         "type": "SSN",
-        "value": "234-56-7893"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-w2-sentence",
     "note": "SSN on a tax form description.",
-    "text": "The W-2 shows SSN 345-67-8904 for the employee.",
+    "text": "The W-2 shows SSN 987-65-4320 for the employee.",
     "entities": [
       {
         "type": "SSN",
-        "value": "345-67-8904"
+        "value": "987-65-4320"
       }
     ]
   },
   {
     "id": "pos-ssn-dependant-schedule",
     "note": "SSN of a dependant listed on a schedule.",
-    "text": "Dependant 567-89-0126 is listed on schedule A.",
+    "text": "Dependant 987-65-4320 is listed on schedule A.",
     "entities": [
       {
         "type": "SSN",
-        "value": "567-89-0126"
+        "value": "987-65-4320"
       }
     ]
   },
@@ -4254,11 +4254,11 @@
   {
     "id": "pos-url-webhook-query",
     "note": "Webhook URL with a query parameter.",
-    "text": "Webhook https://ci.example.dev/hooks/deploy?env=prod fires on merge.",
+    "text": "Webhook https://ci.example.org/hooks/deploy?env=prod fires on merge.",
     "entities": [
       {
         "type": "URL",
-        "value": "https://ci.example.dev/hooks/deploy?env=prod"
+        "value": "https://ci.example.org/hooks/deploy?env=prod"
       }
     ]
   },
@@ -4309,11 +4309,11 @@
   {
     "id": "pos-card-discover-dashed-2",
     "note": "Discover in dashed groups, second example.",
-    "text": "Discover: 6011-0009-9013-9424",
+    "text": "Discover: 6011-1111-1111-1117",
     "entities": [
       {
         "type": "CREDIT_CARD",
-        "value": "6011-0009-9013-9424"
+        "value": "6011-1111-1111-1117"
       }
     ]
   },
