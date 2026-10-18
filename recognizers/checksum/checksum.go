@@ -27,6 +27,7 @@ func (v *LuhnValidator) Validate(number string) bool {
 	number = strings.ReplaceAll(number, " ", "")
 	number = strings.ReplaceAll(number, "-", "")
 	number = strings.ReplaceAll(number, ".", "")
+	number = strings.ReplaceAll(number, "\t", "")
 
 	if len(number) < 13 || len(number) > 19 {
 		return false
@@ -278,7 +279,7 @@ func findCardCandidates(text string) []cardCandidate {
 }
 
 func isCardSeparator(c byte) bool {
-	return c == ' ' || c == '-' || c == '.'
+	return c == ' ' || c == '-' || c == '.' || c == '\t'
 }
 
 // IBANValidator validates IBANs using mod-97 checksum.

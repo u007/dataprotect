@@ -11,6 +11,7 @@ import (
 	"github.com/u007/dataprotect/recognizers/checksum"
 	"github.com/u007/dataprotect/recognizers/national"
 	"github.com/u007/dataprotect/recognizers/regex"
+	"github.com/u007/dataprotect/recognizers/secret"
 )
 
 // Scrubber provides a high-level API for PII detection and anonymization.
@@ -60,6 +61,7 @@ func newScrubber(opts ...analyzer.Option) *Scrubber {
 	a.AddRecognizer(national.NewTHIDRecognizer())
 	a.AddRecognizer(national.NewMYPassportRecognizer())
 	a.AddRecognizer(national.NewSGPassportRecognizer())
+	a.AddRecognizer(secret.NewSecretRecognizer())
 
 	an := anonymizer.New()
 	an.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
@@ -75,15 +77,13 @@ func newScrubber(opts ...analyzer.Option) *Scrubber {
 	an.SetOperator(recognizers.EntityTHID, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntityMYPassport, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntitySGPassport, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntitySecret, operators.NewRedactOperator())
 
 	return &Scrubber{
 		analyzer:   a,
 		anonymizer: an,
 	}
 }
-
-// thIDValidator decides whether a card span is a Thai citizen ID.
-var thIDValidator = national.NewTHIDValidator()
 
 // Analyze detects PII entities in text.
 //
@@ -96,7 +96,7 @@ func (s *Scrubber) Analyze(ctx context.Context, text string) ([]recognizers.Enti
 		return nil, err
 	}
 	for i := range entities {
-		if entities[i].Type == recognizers.EntityCreditCard && isThaiIDSpan(text, entities[i].Start, entities[i].End) {
+		if entities[i].Type == recognizers.EntityCreditCard && national.IsThaiIDSpan(text, entities[i].Start, entities[i].End) {
 			entities[i].Type = recognizers.EntityTHID
 		}
 	}
@@ -137,22 +137,4 @@ func (s *Scrubber) PseudonymizeAll(ctx context.Context, texts []string) ([]strin
 		entities[i] = found
 	}
 	return s.anonymizer.PseudonymizeAll(texts, entities)
-}
-
-// isThaiIDSpan reports whether text[start:end] is a Thai citizen ID, bounded the
-// way the Thai pattern's word boundaries bound it. A glued run stays a card.
-func isThaiIDSpan(text string, start, end int) bool {
-	if start > 0 && isWordByte(text[start-1]) {
-		return false
-	}
-	if end < len(text) && isWordByte(text[end]) {
-		return false
-	}
-	return thIDValidator.Validate(text[start:end])
-}
-
-// isWordByte matches the characters that Go's \b word boundary treats as word
-// characters.
-func isWordByte(c byte) bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'
 }

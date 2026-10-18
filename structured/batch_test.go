@@ -10,6 +10,8 @@ import (
 	"github.com/u007/dataprotect/anonymizer"
 	"github.com/u007/dataprotect/operators"
 	"github.com/u007/dataprotect/recognizers"
+	"github.com/u007/dataprotect/recognizers/checksum"
+	"github.com/u007/dataprotect/recognizers/national"
 	"github.com/u007/dataprotect/recognizers/regex"
 )
 
@@ -235,5 +237,112 @@ func TestCSVScansEveryCopyOfADuplicateHeader(t *testing.T) {
 	}
 	if got, want := pout.String(), "email,email\n[EMAIL_1],[EMAIL_2]\n"; got != want {
 		t.Errorf("PseudonymizeCSV: got %q, want %q", got, want)
+	}
+}
+
+// A Thai citizen ID that also passes Luhn is retyped to TH_ID, not reported as
+// CREDIT_CARD, in both CSV paths.
+func TestCSVRetypesLuhnValidThaiIDToTHID(t *testing.T) {
+	a := analyzer.New()
+	a.AddRecognizer(regex.NewEmailRecognizer())
+	a.AddRecognizer(checksum.NewLuhnValidator())
+	a.AddRecognizer(national.NewTHIDRecognizer())
+
+	an := anonymizer.New()
+	an.SetOperator(recognizers.EntityCreditCard, operators.NewReplaceOperator("<CARD>"))
+	an.SetOperator(recognizers.EntityTHID, operators.NewRedactOperator())
+
+	bp := NewBatch(a, an)
+	bp.SetColumnType("id", recognizers.EntityTHID)
+
+	in := strings.NewReader("id\n1000000000009\n1-0000-00000-00-9\n")
+	var out bytes.Buffer
+
+	ragged, err := bp.ProcessCSV(context.Background(), in, &out)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ragged != 0 {
+		t.Errorf("got %d ragged rows, want 0", ragged)
+	}
+	got := out.String()
+	if !strings.Contains(got, "[REDACTED]") {
+		t.Errorf("Thai ID cell not redacted as TH_ID: %q", got)
+	}
+	if strings.Contains(got, "<CARD>") {
+		t.Errorf("Thai ID was masked as CREDIT_CARD instead of TH_ID: %q", got)
+	}
+
+	var pout bytes.Buffer
+	_, _, err = bp.PseudonymizeCSV(context.Background(), strings.NewReader("id\n1000000000009\n"), &pout)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := pout.String(); !strings.Contains(got, "[TH_ID_1]") {
+		t.Errorf("Thai ID cell not pseudonymized as TH_ID in PseudonymizeCSV: %q", got)
+	}
+
+}
+
+// Q1: a long row keeps its extra cells instead of truncating them.
+func TestProcessCSVLongRowKeepsExtraCells(t *testing.T) {
+	bp := newProcessor()
+	bp.SetColumnType("email", recognizers.EntityEmail)
+
+	in := strings.NewReader("name,email\nJohn,a@b.com,extra1,extra2\n")
+	var out bytes.Buffer
+
+	ragged, err := bp.ProcessCSV(context.Background(), in, &out)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ragged != 1 {
+		t.Errorf("got %d ragged rows, want 1 for long row", ragged)
+	}
+	got := out.String()
+	want := "name,email\nJohn,<EMAIL>,extra1,extra2\n"
+	if got != want {
+		t.Errorf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+// Q2: header cells holding a real value are redacted in ProcessCSV.
+func TestProcessCSVScansHeaderCell(t *testing.T) {
+	bp := newProcessor()
+	bp.SetColumnType("email", recognizers.EntityEmail)
+
+	in := strings.NewReader("email,a@b.com\nJane,x@y.org\n")
+	var out bytes.Buffer
+
+	if _, err := bp.ProcessCSV(context.Background(), in, &out); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := out.String()
+	if strings.Contains(got, "a@b.com") {
+		t.Errorf("header cell with email was not redacted: %q", got)
+	}
+	if !strings.Contains(got, "<EMAIL>") {
+		t.Errorf("header cell not redacted: %q", got)
+	}
+}
+
+// Q2: header cells holding a real value are redacted in PseudonymizeCSV.
+func TestPseudonymizeCSVScansHeaderCell(t *testing.T) {
+	bp := newProcessor()
+	bp.SetColumnType("email", recognizers.EntityEmail)
+
+	in := strings.NewReader("email,a@b.com\nJane,x@y.org\n")
+	var pout bytes.Buffer
+
+	_, _, err := bp.PseudonymizeCSV(context.Background(), in, &pout)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := pout.String()
+	if strings.Contains(got, "a@b.com") {
+		t.Errorf("header cell with email was not redacted: %q", got)
+	}
+	if !strings.Contains(got, "[EMAIL_1]") {
+		t.Errorf("header cell not pseudonymized: %q", got)
 	}
 }

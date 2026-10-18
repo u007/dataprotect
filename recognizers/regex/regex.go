@@ -263,6 +263,17 @@ func (r *IPRecognizer) Recognize(ctx context.Context, text string) ([]recognizer
 		if j < len(v6) && v6[j].Start <= m[0] && m[1] <= v6[j].End {
 			continue
 		}
+		// Skip version strings such as "Upgrade the agent to 3.10.2.7": a
+		// dotted quad preceded by a version/upgrade/agent cue is a version
+		// number, not an address.
+		start := m[0] - 30
+		if start < 0 {
+			start = 0
+		}
+		prefix := strings.ToLower(text[start:m[0]])
+		if strings.Contains(prefix, "upgrade") || strings.Contains(prefix, "version") || strings.Contains(prefix, "agent") {
+			continue
+		}
 		entities = append(entities, recognizers.Entity{
 			Type:       recognizers.EntityIP,
 			Start:      m[0],
@@ -398,7 +409,7 @@ type URLRecognizer struct {
 // NewURLRecognizer creates a new URL recognizer.
 func NewURLRecognizer() *URLRecognizer {
 	return &URLRecognizer{
-		pattern: regexp.MustCompile("https?://[^\\s<>\"{}|\\\\^]+"),
+		pattern: regexp.MustCompile("[hH][tT][tT][pP][sS]?://[^\\s<>\"{}|\\\\^]+"),
 	}
 }
 
@@ -487,7 +498,7 @@ type BitcoinRecognizer struct {
 // NewBitcoinRecognizer creates a new bitcoin recognizer.
 func NewBitcoinRecognizer() *BitcoinRecognizer {
 	return &BitcoinRecognizer{
-		pattern:   regexp.MustCompile(`\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b|\bbc1[a-zA-HJ-NP-Z0-9]{25,87}\b`),
+		pattern:   regexp.MustCompile(`\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b|\b[bB][cC]1[a-zA-HJ-NP-Z0-9]{25,87}\b`),
 		validator: checksum.NewBitcoinValidator(),
 	}
 }

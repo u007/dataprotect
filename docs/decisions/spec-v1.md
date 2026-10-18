@@ -269,12 +269,12 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
 | Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope) |
-| Credit Card | `CREDIT_CARD` | Luhn checksum | >99% P&R | P=0.9808 R=0.9623 (tab-separated groups missed; the `pos-card-then-year` window defect) |
+| Credit Card | `CREDIT_CARD` | Luhn checksum | >99% P&R | P=0.9811 R=0.9811 (tab-separated groups fixed; the `pos-card-then-year` window defect remains) |
 | SSN | `SSN` | Regex (XXX-XX-XXXX) | >99% P&R | P=1.0000 R=1.0000 (shape-only, by decision) |
-| IP Address | `IP_ADDRESS` | Regex (IPv4); IPv6 candidates validated by `netip` | >99% P&R | P=0.9783 R=1.0000 (version string read as IP) |
-| URL | `URL` | Regex (HTTP/HTTPS) | >99% P&R | P=1.0000 R=0.9667 (upper-case scheme missed) |
+| IP Address | `IP_ADDRESS` | Regex (IPv4); IPv6 candidates validated by `netip` | >99% P&R | P=1.0000 R=1.0000 (version string suppressed) |
+| URL | `URL` | Regex (HTTP/HTTPS) | >99% P&R | P=1.0000 R=1.0000 |
 | IBAN | `IBAN` | Regex + mod-97 | >99% P&R | P=1.0000 R=1.0000 |
-| Bitcoin | `BITCOIN` | Regex (P2PKH, P2SH, Bech32) + Base58Check / bech32 checksum | >99% P&R | P=1.0000 R=0.9231 (all-caps bech32 missed; seed cases only, neither corpus labels it) |
+| Bitcoin | `BITCOIN` | Regex (P2PKH, P2SH, Bech32) + Base58Check / bech32 checksum | >99% P&R | P=1.0000 R=1.0000 |
 | SG NRIC/FIN | `SG_NRIC` | Regex + check letter (S, T, F, G) | >99% P&R | P=1.0000 R=1.0000 (M prefix unsupported) |
 | Malaysia MyKad | `MY_IC` | Regex (hyphenated) + date check | >99% P&R | P=1.0000 R=1.0000 (no checksum exists) |
 | Thailand citizen ID | `TH_ID` | Regex + mod-11 check digit | >99% P&R | P=1.0000 R=1.0000 (Scrubber types Luhn-valid Thai IDs as TH_ID, decision d; raw analyzers keep CREDIT_CARD) |
@@ -493,7 +493,7 @@ func (bp *BatchProcessor) ProcessCSV(ctx context.Context, r io.Reader, w io.Writ
 func (bp *BatchProcessor) PseudonymizeCSV(ctx context.Context, r io.Reader, w io.Writer) (int, map[string]string, error)
 ```
 
-Column scope is set by `SetColumnType`, as in `ProcessCSV`: only registered columns are scanned, and the header is written as-is and never scanned. `PseudonymizeCSV` reads the whole file, runs the placeholder check on every cell (header and unscanned columns included), and writes nothing if the check fails. A ragged row is padded to the header width and counted, as in `ProcessCSV`. Known gap: `Scrubber.Analyze` retypes a Thai citizen ID as TH_ID, but the CSV path calls the bare analyzer, so a Thai ID cell is labelled CREDIT_CARD there.
+Column scope is set by `SetColumnType`, as in `ProcessCSV`: only registered columns are scanned. Header cells are scanned the same way as data cells — a header holding a real value is redacted like any other configured cell. Short rows are padded with empty trailing cells; long rows keep their extra cells unscanned (only configured columns are scanned). The ragged count lets a caller detect ragged input instead of silently trusting the output. A Thai citizen ID cell that passes Luhn is retyped to TH_ID in both CSV paths, matching `Scrubber.Analyze`.
 
 ---
 

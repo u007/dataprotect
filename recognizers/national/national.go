@@ -346,3 +346,23 @@ func (r *MYPassportRecognizer) Recognize(ctx context.Context, text string) ([]re
 	}
 	return entities, nil
 }
+
+// IsThaiIDSpan reports whether text[start:end] is a Thai citizen ID, bounded the
+// way the Thai pattern's word boundaries bound it. A glued run stays a card.
+// It is the shared retyping rule used by piiscrub.Scrubber.Analyze and the
+// structured CSV path, so a Thai ID is never reported as CREDIT_CARD there.
+func IsThaiIDSpan(text string, start, end int) bool {
+	if start > 0 && isWordByte(text[start-1]) {
+		return false
+	}
+	if end < len(text) && isWordByte(text[end]) {
+		return false
+	}
+	return NewTHIDValidator().Validate(text[start:end])
+}
+
+// isWordByte matches the characters that Go's \b word boundary treats as word
+// characters.
+func isWordByte(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'
+}

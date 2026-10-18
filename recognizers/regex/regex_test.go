@@ -228,6 +228,30 @@ func TestIPRecognizer(t *testing.T) {
 	}
 }
 
+// A dotted quad preceded by a version/upgrade/agent cue is a version number,
+// not an address. Suppress it so "Upgrade the agent to 3.10.2.7" stays clean.
+func TestIPRecognizerIgnoresVersionString(t *testing.T) {
+	r := NewIPRecognizer()
+	ctx := context.Background()
+
+	entities, err := r.Recognize(ctx, "Upgrade the agent to 3.10.2.7 before Friday.")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 0 {
+		t.Fatalf("version string reported as IP: %+v", entities)
+	}
+
+	// A real IP next to prose is still detected.
+	entities, err = r.Recognize(ctx, "connect to 192.168.10.42 now")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 || entities[0].Text != "192.168.10.42" {
+		t.Fatalf("got %+v, want one IP 192.168.10.42", entities)
+	}
+}
+
 // IPv6 is reported only when the candidate parses as an address, so clock
 // times and MAC addresses, which have colons but are not addresses, stay out.
 func TestIPv6Recognizer(t *testing.T) {
@@ -291,6 +315,7 @@ func TestURLRecognizer(t *testing.T) {
 		{"http", "visit http://example.com", 1},
 		{"with path", "https://example.com/path?q=1", 1},
 		{"no scheme", "example.com", 0},
+		{"upper-case scheme", "visit HTTPS://EXAMPLE.COM/START today", 1},
 	}
 
 	r := NewURLRecognizer()
@@ -384,6 +409,7 @@ func TestURLRecognizerExactSpan(t *testing.T) {
 		{"trailing slash kept", "Root is https://example.com/ today", "https://example.com/"},
 		{"single quotes trimmed", "the 'https://example.com/q' page", "https://example.com/q"},
 		{"bare scheme drops out", "nothing at http://. here", ""},
+		{"upper-case scheme", "See HTTPS://DOCS.EXAMPLE.COM/START.", "HTTPS://DOCS.EXAMPLE.COM/START"},
 	}
 
 	r := NewURLRecognizer()

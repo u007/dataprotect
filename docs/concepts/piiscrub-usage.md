@@ -1,7 +1,7 @@
 ---
 type: Concept
 title: piiscrub — Usage & Quick Start
-description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum and 5 national-ID and passport recognizers, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 491-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
+description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum, 5 national-ID and passport recognizers, 1 secret recognizer, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 491-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
 tags:
   - pii
   - go
@@ -25,6 +25,7 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 - **2 checksum validators, wired into the default pipeline** — Luhn (credit
   cards), mod-97 (IBAN). Cards are detected by Luhn rather than by digit shape,
   so a long number that fails the checksum is not redacted as payment data.
+- **1 secret recognizer** — API keys, bearer/JWT tokens, PEM private keys and password assignments, with an entropy gate so plain words are not reported
 - **4 operators** — replace, mask, hash, redact
 - **Structured data** — CSV batch processing
 - **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`)
