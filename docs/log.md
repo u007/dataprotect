@@ -4,6 +4,11 @@
 
 
 
+## 2026-10-19
+
+* **Update**: piiscrub v1 Spec — secret JWT header under 32 characters and five-segment JWE matched, dot not counted as a character class ([decisions/spec-v1.md](/decisions/spec-v1.md))
+* **Update**: piiscrub v1 Spec and README — secret character-class rule removed (uniform values only), JSON-quoted and spaced labels, dotted tokens of any segment count, `dir` JWE with an empty segment; golden seed 518 to 530 cases ([decisions/spec-v1.md](/decisions/spec-v1.md))
+
 ## 2026-10-16
 
 * **Update**: piiscrub v1 Spec and README — golden seed expanded from 81 to 491 hand-labelled cases; measured table and known misses ([decisions/spec-v1.md](/decisions/spec-v1.md))

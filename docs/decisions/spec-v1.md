@@ -1,7 +1,7 @@
 ---
 type: Decision
 title: piiscrub v1 Spec — Scope, Architecture & Non-Goals
-description: 'Architecture decision record for piiscrub v1: why a dependency-free Go PII library instead of Python Presidio, the explicit non-goals, MVP scope versus v2+ phases, core interfaces (Recognizer, Operator, Analyzer, Anonymizer), the actual on-disk package layout, per-recognizer accuracy targets alongside measured results from the 518-case golden seed AND from a 2000-record sample of both fetched corpora (which fall well short of the >99% target, with every large gap explained), operator semantics, the CSV batch contract, pinned dependencies, and the testing/benchmark strategy.'
+description: 'Architecture decision record for piiscrub v1: why a dependency-free Go PII library instead of Python Presidio, the explicit non-goals, MVP scope versus v2+ phases, core interfaces (Recognizer, Operator, Analyzer, Anonymizer), the actual on-disk package layout, per-recognizer accuracy targets alongside measured results from the 530-case golden seed AND from a 2000-record sample of both fetched corpora (which fall well short of the >99% target, with every large gap explained), operator semantics, the CSV batch contract, pinned dependencies, and the testing/benchmark strategy.'
 tags:
   - pii
   - go
@@ -68,7 +68,7 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
   list is identical for every one of the 2000 cases in each corpus, and no URL span is lost.
   Still off by default.
 - **Structured data** — CSV batch processing
-- **Golden dataset** — 518-case hand-labelled seed set for CI, plus an
+- **Golden dataset** — 530-case hand-labelled seed set for CI, plus an
   on-demand corpus measurement over the fetched corpora (`make corpus`)
 
 ### Later (v2+):
@@ -266,7 +266,7 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 
 ## Recognizers (MVP)
 
-| Recognizer | Entity Type | Method | Target | Measured (518-case seed) |
+| Recognizer | Entity Type | Method | Target | Measured (530-case seed) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
 | Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope) |
@@ -281,10 +281,10 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 | Thailand citizen ID | `TH_ID` | Regex + mod-11 check digit | >99% P&R | P=1.0000 R=1.0000 (Scrubber types Luhn-valid Thai IDs as TH_ID, decision d; raw analyzers keep CREDIT_CARD) |
 | Malaysia passport | `MY_PASSPORT` | Regex (A/H/K + 8 digits) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Wikipedia and Purview, not PRADO) |
 | Singapore passport | `SG_PASSPORT` | Regex (E or K + 7 digits + letter) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Purview and the 2006 ICA BioPass description; K prefix and digit count not confirmed by PRADO) |
-| Secret | `SECRET` | Regex (API key, token, password assignment, PEM private key header) with a shape filter: two of four character classes on the value. Known tradeoff, accepted because the scrubber prefers over-redaction: `Password: Required` (two classes, 8 or more characters) is reported | >99% P&R | exact P=1.0000 R=1.0000 (tp=12 fp=0 fn=0); overlap P=1.0000 R=1.0000 on 12 positives, 8 negatives clean. The span covers the value only, and a JWT after `Bearer`, `token=` or `access_token=` is captured whole (see TODO.md, closed 2026-10-19) |
+| Secret | `SECRET` | Regex (API key, token, password assignment, PEM private key header). A label may be followed by a closing quote (JSON `"api_key": ...`) and by spaces before its separator. The value is kept unless it is uniform: every character the same, or one unit of up to four characters repeated at least twice. There is no character-class rule, so a lower-case passphrase or an all-digit token is reported once its shape's length floor is met. Known tradeoff, accepted because the scrubber prefers over-redaction: a plain word of 8 or more characters after a label, such as `Password: Required`, is reported | >99% P&R | exact P=1.0000 R=1.0000 (tp=20 fp=0 fn=0); overlap P=1.0000 R=1.0000 on 20 positives, 12 negatives clean. The span covers the value only, with the key name, separator, quotes and `Bearer ` outside it. A JWT or JWE with an `eyJ` header is captured whole at any header length, including a `dir` JWE with an empty second segment. A dotted token is captured to its end at any segment count, except that a single trailing dotted word stays visible, a residual shared with `Bearer <value>.Next step` prose (TODO.md) |
 
 **"Target" is a goal for a ~500-case dataset; "Measured" is what
-`scripts/benchmark.sh` reports today over the 518-case seed set.** Most measured
+`scripts/benchmark.sh` reports today over the 530-case seed set.** Most measured
 cells are 1.0. The cells below 1.0 are the defects listed in TODO.md. These cells
 are evidence only for this hand-labelled set, not for the detector in general.
 The Luhn and mod-97 validators are wired into the default pipeline.
@@ -301,8 +301,8 @@ the measured column is evidence.
 Note the aggregate is not an average of this table, and the per-type cells are
 coarse: `BITCOIN` rests on 13 gold spans, so one flipped case moves its recall by
 about 8 points. Aggregate exact precision/recall over the whole seed set is
-P=1.0000 R=0.9972 (tp=359 fp=0 fn=1), and overlap matching, which tolerates
-mis-sized spans, gives the same P=1.0000 R=0.9972 (tp=359 fp=0 fn=1). The one miss under
+P=1.0000 R=0.9973 (tp=367 fp=0 fn=1), and overlap matching, which tolerates
+mis-sized spans, gives the same P=1.0000 R=0.9973 (tp=367 fp=0 fn=1). The one miss under
 both is `pos-phone-trunk-zero`. Until 2026-10-19 the secret spans included the key name, so
 exact matching missed 10 secrets (TODO.md). Before the parenthesised-phone
 fix the exact aggregate was P=0.9231 R=0.9231 while overlap stayed at 1.0000; the
@@ -326,7 +326,7 @@ order, recorded in each `schema.json`).
 | **Exact** | P=0.8357 R=0.8916 F1=0.8627 (tp=2426 fp=477 fn=295) | P=0.3677 R=0.8201 F1=0.5078 (tp=652 fp=1121 fn=143) |
 | **Overlap** | P=0.8384 R=0.8945 F1=0.8656 (tp=2434 fp=469 fn=287) | P=0.3869 R=0.8629 F1=0.5343 (tp=686 fp=1087 fn=109) |
 | negatives clean | 472 of 600 | 1291 of 1497 |
-| out-of-schema (not scored) | IBAN=1, SECRET=37 | BITCOIN=21, URL=817, MY_PASSPORT=1, SECRET=11 |
+| out-of-schema (not scored) | IBAN=1, SECRET=47 | BITCOIN=21, URL=817, MY_PASSPORT=1, SECRET=12 |
 
 Per type (exact):
 
@@ -442,7 +442,8 @@ Measured before and after, on the same inputs:
 | nemotron and gretel, 2000 cases, exact, after the card separator and IBAN cut (2026-10-15) | nemotron P 0.8326 (fp 476), R 0.8699; CREDIT_CARD P 0.5106 (fp 23) | gretel P 0.3544 (fp 1111), R 0.7673; CREDIT_CARD P 0.4576 (fp 32); IBAN P 0.9556 (fp 2), R 0.9773 | recall unchanged; the new false positives are over-redaction from the separator and cut changes |
 | nemotron and gretel, 2000 cases, exact, after IPv6 detection (2026-10-15) | nemotron P 0.8354 (fp 478), R 0.8916; IP P 0.9884 (fp 2), R 0.9771 | gretel P 0.3673 (fp 1123), R 0.8201; IP P 0.8571 (fp 14), R 0.9767 | IPv6 adds recall; the new gretel false positives are EDIFACT `::` separators and full-form addresses the corpus leaves unlabelled |
 | nemotron and gretel, 2000 cases, exact, after the label and containment fixes (2026-10-15) | nemotron P 0.8345 (fp 481), R 0.8916; IP P 0.9716 (fp 5), R 0.9771 | gretel P 0.3669 (fp 1125), R 0.8201; IP P 0.8400 (fp 16), R 0.9767 | the new positives are unlabelled IPv6 addresses (nemotron), and EDIFACT `::` separators plus unlabelled addresses (gretel) |
-| nemotron and gretel, 2000 cases, exact, re-measured 2026-10-19 on the current tree | nemotron P 0.8357 (fp 477), R 0.8916; IP P 0.9828 (fp 3), R 0.9771 | gretel P 0.3677 (fp 1121), R 0.8201; IP P 0.8400 (fp 16), R 0.9767 | the drop from fp 481 to 477 came after the 2026-10-15 row and is not attributed here; SECRET is out of schema for both corpora (37 and 11 detections, not scored; nemotron rose from 32 on 2026-10-19 when secret spans became value-only and admitted five 8-to-19-character passwords that the whole-match floor had dropped; headline numbers did not change) |
+| nemotron and gretel, 2000 cases, exact, re-measured 2026-10-19 on the current tree | nemotron P 0.8357 (fp 477), R 0.8916; IP P 0.9828 (fp 3), R 0.9771 | gretel P 0.3677 (fp 1121), R 0.8201; IP P 0.8400 (fp 16), R 0.9767 | the drop from fp 481 to 477 came after the 2026-10-15 row and is not attributed here; SECRET is out of schema for both corpora (38 and 11 detections, not scored; nemotron rose from 32 on 2026-10-19 when secret spans became value-only and admitted five 8-to-19-character passwords that the whole-match floor had dropped, and from 37 to 38 when a JWT with a 20-character header (a jwt.io example token) was matched; headline numbers did not change) |
+| nemotron and gretel, 2000 cases, exact, after the secret class rule was removed and JSON-quoted and spaced labels were admitted (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 38 and 11 | same headline, every per-type cell unchanged; SECRET out of schema 47 (nemotron) and 12 (gretel) | the class rule adds no corpus detection (no corpus value failed the old rule). The 9 new nemotron and 1 new gretel SECRET detections are labels with a quoted key (`"api_key": "..."`, `"Password": "..."`, `"TokenSecret": "..."`) or spaces before the separator (`password = ...`). SECRET is out of schema, so these are not scored |
 | Presidio credit_card | tp 13, fp 1, fn 3 (exact R 0.8125) | tp 14, fp 2, fn 2 exact (R 0.8750); overlap 15, 1, 1 (R 0.9375) | the merged cluster covers two adjacent gold cards |
 | Presidio iban | tp 155, fp 0, fn 3 | tp 158, fp 0, fn 0 | country-length table (2026-10-16): tp 158, fp 0, fn 0, P 1.0000, R 1.0000 (dash separators first gave tp 158, fp 3) |
 
@@ -517,10 +518,10 @@ Column scope is set by `SetColumnType`, as in `ProcessCSV`: only registered colu
 ## Testing Strategy
 
 ### Golden Dataset
-- ~500 hand-labeled samples — **518 exist** in `testdata/golden/seed.json`
-  (328 positive, 190 negative), past the ~500 target
+- ~500 hand-labeled samples — **530 exist** in `testdata/golden/seed.json`
+  (336 positive, 194 negative), past the ~500 target
 - CI regression testing on every commit: `golden/accuracy_test.go` gates on
-  precision/recall thresholds and fails if the dataset drops below 518 cases (ratcheted with each batch)
+  precision/recall thresholds and fails if the dataset drops below 530 cases (ratcheted with each batch)
 - Precision/recall/F1 per entity type, plus aggregate, under two matching
   policies (exact span and byte overlap)
 
@@ -553,7 +554,7 @@ proves nothing.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 518-case seed (past the ~500 target); the corpora are measured on demand instead |
+| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 530-case seed (past the ~500 target); the corpora are measured on demand instead |
 | 2 | NLP recognizer (prose) | Later |
 | 3 | Secret recognizers (patterns + entropy) | SHIPPED |
 | 4 | FPE operator | Later |
@@ -565,8 +566,8 @@ proves nothing.
 ## Success Criteria (MVP)
 
 - [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT
-      MET, now measured.** The seed set reads exact P=1.0000 R=0.9972 and overlap
-      P=1.0000 R=0.9972 over 518 cases, but not every per-recognizer cell is above
+      MET, now measured.** The seed set reads exact P=1.0000 R=0.9973 and overlap
+      P=1.0000 R=0.9973 over 530 cases, but not every per-recognizer cell is above
       0.99: PHONE recall is 0.9828 (the `pos-phone-trunk-zero` miss). The corpora are
       now measurable and do not come close: exact aggregate
       P=0.8357 R=0.8916 (nemotron) and P=0.3677 R=0.8201 (gretel) over 2000 records
