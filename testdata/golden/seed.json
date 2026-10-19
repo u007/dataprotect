@@ -4694,5 +4694,185 @@
     "note": "M-prefix FIN is not supported (check table not confirmed against ICA spec).",
     "text": "Foreigner FIN M4332674T was processed.",
     "entities": []
+  },
+  {
+    "id": "pos-secret-api-key-env",
+    "note": "API key assignment in a deploy note; the label is the value after api_key=.",
+    "text": "Set api_key=Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys on the staging worker before deploying.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-api-key-yaml",
+    "note": "Quoted API key in a YAML block with a colon separator.",
+    "text": "service:\n  api_key: \"FAKEfixture0123456789xyz\"\n  region: eu-west-1",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "FAKEfixture0123456789xyz"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-access-token",
+    "note": "Access token assignment in a shell snippet.",
+    "text": "export access_token=fixture-token-A7b9C2d4E6f8G0h1J3 && ./sync.sh",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "fixture-token-A7b9C2d4E6f8G0h1J3"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-bearer-header",
+    "note": "Bearer token in an HTTP Authorization header; the label is the token, not the scheme word.",
+    "text": "GET /v2/orders HTTP/1.1\nAuthorization: Bearer Hk2Mw9Qe4Rt7Yu1Io6Pa3Sd8Fg5Hj0Kl2Zx4C",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Hk2Mw9Qe4Rt7Yu1Io6Pa3Sd8Fg5Hj0Kl2Zx4C"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-token-ci-variable",
+    "note": "Token assignment for a CI variable; the key is ci_token.",
+    "text": "Pipeline variable ci_token=Vb4Nm8Qw2Er6Ty0Ui3Op7As1Df5Gh9Jk2Lz6Xc is masked in logs.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Vb4Nm8Qw2Er6Ty0Ui3Op7As1Df5Gh9Jk2Lz6Xc"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-pem-rsa-header",
+    "note": "RSA private key PEM header inside a config snippet; the body is a placeholder.",
+    "text": "The tls block below was pasted by mistake:\n-----BEGIN RSA PRIVATE KEY-----\nFIXTUREONLYNOTAKEY\n-----END RSA PRIVATE KEY-----",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "-----BEGIN RSA PRIVATE KEY-----"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-pem-openssh-header",
+    "note": "OpenSSH private key header in a chat message.",
+    "text": "Here is the deploy key, do not share it:\n-----BEGIN OPENSSH PRIVATE KEY-----\nFIXTUREONLYNOTAKEY",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "-----BEGIN OPENSSH PRIVATE KEY-----"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-password-config",
+    "note": "Password assignment on a connection line; the label is the value after password=.",
+    "text": "DB_HOST=db.internal.example DB_USER=svc password=Tr0ub4dor&Fixture",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Tr0ub4dor&Fixture"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-password-yaml",
+    "note": "Password under a YAML key that ends in password; the separator is a colon.",
+    "text": "database:\n  db_password: Fixture-Pass-2024!\n  pool: 5",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Fixture-Pass-2024!"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-database-password-env",
+    "note": "Upper-case environment assignment ending in PASSWORD.",
+    "text": "Compose file sets DATABASE_PASSWORD=Qw8Er3Ty6Ui1Op9As for the test stack.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Qw8Er3Ty6Ui1Op9As"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-secret-key",
+    "note": "Secret key assignment; the secret_key form is a documented key name.",
+    "text": "Rotate the app secret_key=Fx8Lm3Qr6Tv9Wy2Zb5Ne1Hc4Jd7Ks0 after the audit.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Fx8Lm3Qr6Tv9Wy2Zb5Ne1Hc4Jd7Ks0"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-apikey-prose",
+    "note": "Compact apikey spelling in running prose.",
+    "text": "The partner integration uses apikey: qW3rT6yU9iO2pA5sD8fG1hJ4 for auth.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "qW3rT6yU9iO2pA5sD8fG1hJ4"
+      }
+    ]
+  },
+  {
+    "id": "neg-secret-prose-password-reset",
+    "note": "Password as a noun in prose, no assignment.",
+    "text": "Reset your password from the account page; the link expires in one hour.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-prose-token-secret-words",
+    "note": "Token and secret as ordinary nouns in policy prose.",
+    "text": "The authentication token rotates every hour, and the secret handling policy is in the wiki.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-password-policy-prose",
+    "note": "Password policy heading with a colon but no value attached.",
+    "text": "Password policy: at least twelve characters, rotated every year.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-short-password-value",
+    "note": "Password assignment whose value is too short to be a credential.",
+    "text": "The linter rejected password=abc in the example config.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-short-api-key-value",
+    "note": "API key label with a short placeholder value.",
+    "text": "Use api_key=test in the local sandbox only.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-uuid-bare",
+    "note": "A bare UUID in a log line is a request identifier, not a credential.",
+    "text": "Request 3f2b8c1e-9a7d-4e6b-8f0a-1c2d3e4f5a6b failed with status 502.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-git-sha",
+    "note": "A git commit SHA cited in prose is not a secret.",
+    "text": "Reverted in commit 9fceb02d0ae598e95dc970b74767f19372d61af8 on Friday.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-sha256-digest",
+    "note": "An image digest is a public hash, not a credential.",
+    "text": "Image digest sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 verified.",
+    "entities": []
   }
 ]
