@@ -289,8 +289,10 @@ func (r *IPRecognizer) Recognize(ctx context.Context, text string) ([]recognizer
 
 // ipv6Spans returns the IPv6 addresses in text, in order. A candidate that is not
 // an address gets one retry from just after its first single colon, so an address
-// after a label (id:fe80::1) is not lost to the label. The scan resumes after the
-// candidate either way, so a long run is read once.
+// after a label (id:fe80::1) is not lost to the label. The retry is skipped when
+// the text before the colon ends in a digit — that means the colon is glued to a
+// longer token (text2001:db8::1), not a label separator (id:fe80::1). The scan
+// resumes after the candidate either way, so a long run is read once.
 func ipv6Spans(text string) []recognizers.Entity {
 	var spans []recognizers.Entity
 	from := 0
@@ -302,7 +304,7 @@ func ipv6Spans(text string) []recognizers.Entity {
 		start, end := from+m[0], from+m[1]
 		if e, ok := ipv6Span(text, start, end); ok {
 			spans = append(spans, e)
-		} else if k := firstSingleColon(text, start, end); k >= 0 {
+		} else if k := firstSingleColon(text, start, end); k >= 0 && k > start && !isDigitByte(text[k-1]) {
 			if e, ok := ipv6Span(text, k+1, end); ok {
 				spans = append(spans, e)
 			}
@@ -310,6 +312,11 @@ func ipv6Spans(text string) []recognizers.Entity {
 		from = end
 	}
 	return spans
+}
+
+// isDigitByte reports whether c is an ASCII digit.
+func isDigitByte(c byte) bool {
+	return c >= '0' && c <= '9'
 }
 
 // ipv6Span returns text[start:end] as an IPv6 entity when it is a standalone

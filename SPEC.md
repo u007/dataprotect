@@ -30,12 +30,13 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
 - Core interfaces: `Recognizer`, `Operator`, `Analyzer`, `Anonymizer`
 - **Regex recognizers** — email, phone, credit card, SSN, IP, URL, IBAN, bitcoin
 - **Checksum recognizers** — Luhn (credit cards), IBAN mod-97
-- **National ID recognizers** — Singapore NRIC/FIN (check letter, prefixes S/T/F/G),
-  Malaysia MyKad (hyphenated form, real date of birth; no checksum exists),
-  Thailand citizen ID (mod-11 check digit). Malaysia passports (one letter A/H/K
-  and eight digits, matched only next to a passport keyword). Singapore passports
-  (E or K, seven digits, one letter, same keyword gate; shape not confirmed by PRADO).
-  Thailand passports and the M prefix are not covered yet; see TODO.md.
+- **National ID recognizers** — Singapore NRIC/FIN (check letter, prefixes S/T/F/G;
+  the M prefix launched 1 January 2022 is NOT supported: its check-letter table has
+  not been confirmed against an official ICA/PRADO spec — see TODO.md). Malaysia
+  MyKad (hyphenated form, real date of birth; no checksum exists). Thailand citizen
+  ID (mod-11 check digit). Malaysia passports (one letter A/H/K and eight digits,
+  matched only next to a passport keyword). Singapore passports (E or K, seven
+  digits, one letter, same keyword gate; shape not confirmed by PRADO).
   Thailand passports stay uncovered by decision (2026-10-15): the only sourced shape
   is the expired 2012 booklet's, which overlaps Japan's. National IDs need a word
   boundary before them, so an ID glued to a letter is not redacted (for example
@@ -259,7 +260,7 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 | URL | `URL` | Regex (HTTP/HTTPS) | >99% P&R | P=1.0000 R=1.0000 |
 | IBAN | `IBAN` | Regex + mod-97 | >99% P&R | P=1.0000 R=1.0000 |
 | Bitcoin | `BITCOIN` | Regex (P2PKH, P2SH, Bech32) + Base58Check / bech32 checksum | >99% P&R | P=1.0000 R=1.0000 |
-| SG NRIC/FIN | `SG_NRIC` | Regex + check letter (S, T, F, G) | >99% P&R | P=1.0000 R=1.0000 (M prefix unsupported) |
+| SG NRIC/FIN | `SG_NRIC` | Regex + check letter (S, T, F, G) | >99% P&R | P=1.0000 R=0.6000 (M prefix NOT supported — check table unconfirmed against ICA; see TODO.md) |
 | Malaysia MyKad | `MY_IC` | Regex (hyphenated) + date check | >99% P&R | P=1.0000 R=1.0000 (no checksum exists) |
 | Thailand citizen ID | `TH_ID` | Regex + mod-11 check digit | >99% P&R | P=1.0000 R=1.0000 (Scrubber types Luhn-valid Thai IDs as TH_ID, decision d; raw analyzers keep CREDIT_CARD) |
 | Malaysia passport | `MY_PASSPORT` | Regex (A/H/K + 8 digits) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Wikipedia and Purview, not PRADO) |
@@ -395,15 +396,15 @@ Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. I
 
 | Module | Cases | Negatives | Exact P / R (tp, fp, fn) | Overlap P / R |
 |--------|-------|-----------|--------------------------|---------------|
-| email | 8 | 2 | 0.8571 / 0.8571 (6, 1, 1) | 1.0000 / 1.0000 |
-| ip | 112 | 29 | 0.7738 / 0.7386 (65, 19, 23) | 0.9762 / 0.9318 (82, 2, 6) |
+| email | 8 | 2 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
+| ip | 112 | 29 | 0.8049 / 0.7500 (66, 16, 22) | 1.0000 / 0.9318 (82, 0, 6) |
 | url | 16 | 3 | 0.7500 / 0.6429 (9, 3, 5) | 0.9167 / 0.7857 |
 | iban | 330 | 173 | 1.0000 / 1.0000 (158, 0, 0) | 1.0000 / 1.0000 |
 | crypto (BITCOIN) | 9 | 3 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
-| credit_card | 19 | 5 | 0.8750 / 0.8750 (14, 2, 2) | 0.9375 / 0.9375 (15, 1, 1) |
+| credit_card | 19 | 5 | 0.9412 / 1.0000 (16, 1, 0) | 0.9412 / 1.0000 (16, 1, 0) |
 | phone | 19 | 0 | 0.7917 / 0.6786 (19, 5, 9) | 1.0000 / 0.8571 |
 | us_ssn | 28 | 12 | 0.5769 / 0.8824 (15, 11, 2) | 0.5769 / 0.8824 |
-| th_tnin (TH_ID) | 39 | 26 | 0.7647 / 1.0000 (13, 4, 0) | 0.7647 / 1.0000 |
+| th_tnin (TH_ID) | 39 | 26 | 0.8125 / 1.0000 (13, 3, 0) | 0.8125 / 1.0000 |
 | sg_fin (SG_NRIC) | 10 | 1 | 1.0000 / 0.5000 (5, 0, 5) | 1.0000 / 0.5000 |
 
 Totals: 590 cases from 601 rows. 11 rows set aside (3 IP count-only, 6 phone leniency, 2 empty-text). The overlap column counts a span that touches a gold span as a match, so it is an upper bound.

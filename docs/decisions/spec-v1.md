@@ -46,12 +46,13 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
 - Core interfaces: `Recognizer`, `Operator`, `Analyzer`, `Anonymizer`
 - **Regex recognizers** — email, phone, credit card, SSN, IP, URL, IBAN, bitcoin
 - **Checksum recognizers** — Luhn (credit cards), IBAN mod-97
-- **National ID recognizers** — Singapore NRIC/FIN (check letter, prefixes S/T/F/G),
-  Malaysia MyKad (hyphenated form, real date of birth; no checksum exists),
-  Thailand citizen ID (mod-11 check digit). Malaysia passports (one letter A/H/K
-  and eight digits, matched only next to a passport keyword). Singapore passports
-  (E or K, seven digits, one letter, same keyword gate; shape not confirmed by PRADO).
-  Thailand passports and the M prefix are not covered yet; see TODO.md.
+- **National ID recognizers** — Singapore NRIC/FIN (check letter, prefixes S/T/F/G;
+  the M prefix launched 1 January 2022 is NOT supported: its check-letter table has
+  not been confirmed against an official ICA/PRADO spec — see TODO.md). Malaysia
+  MyKad (hyphenated form, real date of birth; no checksum exists). Thailand citizen
+  ID (mod-11 check digit). Malaysia passports (one letter A/H/K and eight digits,
+  matched only next to a passport keyword). Singapore passports (E or K, seven
+  digits, one letter, same keyword gate; shape not confirmed by PRADO).
   Thailand passports stay uncovered by decision (2026-10-15): the only sourced shape
   is the expired 2012 booklet's, which overlaps Japan's. National IDs need a word
   boundary before them, so an ID glued to a letter is not redacted (for example
@@ -275,7 +276,7 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 | URL | `URL` | Regex (HTTP/HTTPS) | >99% P&R | P=1.0000 R=1.0000 |
 | IBAN | `IBAN` | Regex + mod-97 | >99% P&R | P=1.0000 R=1.0000 |
 | Bitcoin | `BITCOIN` | Regex (P2PKH, P2SH, Bech32) + Base58Check / bech32 checksum | >99% P&R | P=1.0000 R=1.0000 |
-| SG NRIC/FIN | `SG_NRIC` | Regex + check letter (S, T, F, G) | >99% P&R | P=1.0000 R=1.0000 (M prefix unsupported) |
+| SG NRIC/FIN | `SG_NRIC` | Regex + check letter (S, T, F, G) | >99% P&R | P=1.0000 R=0.6000 (M prefix NOT supported — check table unconfirmed against ICA; see TODO.md) |
 | Malaysia MyKad | `MY_IC` | Regex (hyphenated) + date check | >99% P&R | P=1.0000 R=1.0000 (no checksum exists) |
 | Thailand citizen ID | `TH_ID` | Regex + mod-11 check digit | >99% P&R | P=1.0000 R=1.0000 (Scrubber types Luhn-valid Thai IDs as TH_ID, decision d; raw analyzers keep CREDIT_CARD) |
 | Malaysia passport | `MY_PASSPORT` | Regex (A/H/K + 8 digits) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Wikipedia and Purview, not PRADO) |

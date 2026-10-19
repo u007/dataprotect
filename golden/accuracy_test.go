@@ -64,11 +64,21 @@ const minCases = 491
 // bitcoin (taproot and P2SH positives, two bad-checksum negatives): all four
 // behaved as expected.
 //
-// The measured baseline is exact P=0.9971 R=0.9942 (tp=342 fp=1 fn=2), overlap
-// P=1.0000 R=0.9971 (tp=343 fp=0 fn=1), and 177 of 177 negative cases clean.
+// Batch 15 added 7 cases: a Thai ID with a leading zero (rejected by the new
+// first-digit rule), IPv6 glued to text (text2001:db8::1) and to digits
+// (12345:db8::1), an IPv6 after a label colon (id:fe80::1), two credit cards in
+// mixed formats separated by spaces (not merged into one span), a bare domain
+// without scheme (microsoft.com), and an M-prefix FIN (not supported, check table
+// unconfirmed against ICA). These close Presidio-measured gaps for IP gluing,
+// credit-card merging, URL scheme policy, SG-FIN M-prefix, and TH-TNIN leading
+// zero. The one remaining exact miss is pos-phone-trunk-zero (UK national phone,
+// documented scope decision).
+//
+// The measured baseline is exact P=1.0000 R=0.9971 (tp=347 fp=0 fn=1), overlap
+// P=1.0000 R=0.9971 (tp=347 fp=0 fn=1), and 182 of 182 negative cases clean.
 // These numbers describe this hand-labelled seed set, NOT the detector in general —
 // testdata/external are scored by `make corpus` but are not that set (see
-// TODO.md). With 341 predictions one flipped case moves precision by under 1%,
+// TODO.md). With 347 predictions one flipped case moves precision by under 1%,
 // so the number is kept exact so a regression fails immediately.
 //
 // An earlier baseline (exact P=0.8571 R=0.9231, tp=12 fp=2 fn=1) preceded the
@@ -90,9 +100,9 @@ const minCases = 491
 // pos-card-then-year now reports "4111 1111 1111 1111 2024" against gold
 // "4111 1111 1111 1111". Overlap recall stays 1.0; exact bounds are re-measured.
 const (
-	minExactPrecision = 342.0 / 343.0 // tp=342 fp=1 -> 342/343 (see note)
-	minExactRecall    = 342.0 / 344.0 // tp=342 fn=2 -> 342/344 (see note)
-	minOverlapRecall  = 343.0 / 344.0 // tp=343 fn=1 -> 343/344 (see note)
+	minExactPrecision = 347.0 / 347.0 // tp=347 fp=0 -> 347/347 (see note)
+	minExactRecall    = 347.0 / 348.0 // tp=347 fn=1 -> 347/348 (see note)
+	minOverlapRecall  = 347.0 / 348.0 // tp=347 fn=1 -> 347/348 (see note)
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled

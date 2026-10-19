@@ -99,6 +99,22 @@ const maxCardDigits = 19
 // A single group must sit between separators (space, hyphen or dot) or the
 // candidate's edges. A 13 to 19 digit group that passes Luhn is a card whatever
 // joins it, so a card next to a CVV joined by `-` or `.` is reported.
+// validCardPrefix reports whether the first digit of a card number is a valid
+// major card network prefix. Digits 0, 1, 7, 8, 9 are not used by any major
+// network, so a number starting with one of them cannot be a card even if it
+// passes Luhn by chance (for example 1748503543012, which passes Luhn but is
+// not a card).
+func validCardPrefix(number string) bool {
+	if len(number) == 0 {
+		return false
+	}
+	switch number[0] {
+	case '2', '3', '4', '5', '6':
+		return true
+	}
+	return false
+}
+
 func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) []cardCandidate {
 	if v.Validate(c.text) {
 		return []cardCandidate{c}
@@ -142,7 +158,8 @@ func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) [
 			if a == b && !boundedBySeparator(c.text, groups[a]) {
 				continue
 			}
-			if v.Validate(c.text[groups[a].start:groups[b].end]) {
+			windowText := c.text[groups[a].start:groups[b].end]
+			if v.Validate(windowText) && validCardPrefix(windowText) {
 				valid = append(valid, window{a, b})
 			}
 		}

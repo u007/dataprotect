@@ -26,6 +26,9 @@ var sgWeights = [7]int{2, 7, 6, 5, 4, 3, 2}
 
 // sgCheckTable maps (sum offset + weighted sum) mod 11 to the check letter for
 // each supported prefix. S and T share one table, F and G share another.
+// The M prefix (FIN series launched 1 January 2022) is NOT supported: its
+// check-letter table has not been confirmed against an official ICA/PRADO spec.
+// See TODO.md for the open follow-up.
 var sgCheckTable = map[byte]string{
 	'S': "JZIHGFEDCBA",
 	'T': "JZIHGFEDCBA",
@@ -208,12 +211,17 @@ func NewTHIDValidator() *THIDValidator { return &THIDValidator{} }
 
 // Validate reports whether id is a 13-digit Thai citizen ID, hyphenated or bare,
 // with a correct check digit. The check digit is (11 - sum mod 11) mod 10,
-// where sum weights the first 12 digits 13 down to 2.
+// where sum weights the first 12 digits 13 down to 2. A leading zero is not a
+// valid Thai citizen ID (the first digit is always 1-9), so reject those even
+// when mod-11 passes.
 func (v *THIDValidator) Validate(id string) bool {
 	if !thShape.MatchString(id) {
 		return false
 	}
 	digits := strings.ReplaceAll(id, "-", "")
+	if digits[0] == '0' {
+		return false
+	}
 	sum := 0
 	for i := 0; i < 12; i++ {
 		sum += int(digits[i]-'0') * (13 - i)

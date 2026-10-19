@@ -19,7 +19,7 @@ func TestSGNRICValidate(t *testing.T) {
 		{"G prefix", "G7654321L", true},
 		{"wrong check letter", "S1234567A", false},
 		{"wrong prefix for check table", "S1234567U", false},
-		{"unsupported M prefix", "M1234567K", false},
+		{"M prefix not supported", "M1234567K", false},
 		{"too few digits", "S123456D", false},
 	}
 	v := NewSGNRICValidator()
