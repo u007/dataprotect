@@ -1,7 +1,7 @@
 ---
 type: Concept
 title: piiscrub — Usage & Quick Start
-description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum, 5 national-ID and passport recognizers, 1 secret recognizer, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 536-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
+description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum, 5 national-ID and passport recognizers, 1 secret recognizer, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 537-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
 tags:
   - pii
   - go
@@ -31,9 +31,9 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 - **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`)
 - **Measured, not claimed** — a hand-labelled seed dataset, an on-demand corpus
   measurement over the fetched corpora, and a scoring runner
-  gate accuracy in CI. Current baseline over 536 cases: exact-span
+  gate accuracy in CI. Current baseline over 537 cases: exact-span
   P=1.0000 R=0.9973, overlap P=1.0000 R=0.9973. Run `scripts/benchmark.sh`.
-  The seed set is 536 cases, past the ~500 the accuracy targets assume, but it is
+  The seed set is 537 cases, past the ~500 the accuracy targets assume, but it is
   hand-written, so treat the numbers as a floor rather than a result.
 - **Zero external dependencies** — stdlib only
 - **~100-200 MB RAM** — vs Presidio's 4 GB
@@ -52,7 +52,6 @@ package main
 import (
     "context"
     "fmt"
-    "log"
 
     "github.com/u007/dataprotect/analyzer"
     "github.com/u007/dataprotect/anonymizer"
@@ -127,8 +126,8 @@ The map holds the original values in plain text. Protect it as you would the inp
 
 ## Testing & dataset coverage
 
-`testdata/golden/seed.json` holds 536
-hand-labelled cases (340 positive, 196 negative), and `golden/accuracy_test.go`
+`testdata/golden/seed.json` holds 537
+hand-labelled cases (341 positive, 196 negative), and `golden/accuracy_test.go`
 gates on the exact measured baseline, so a regression fails the build instead of
 drifting silently. Labels are written from the text, never copied from detector
 output — a dataset derived from the detector's own predictions cannot fail and
@@ -136,8 +135,8 @@ proves nothing. Run `scripts/benchmark.sh` for the full report.
 
 | Match policy | Precision | Recall | F1 | tp/fp/fn |
 |---|---|---|---|---|
-| exact span | 1.0000 | 0.9973 | 0.9987 | 371/0/1 |
-| byte overlap | 1.0000 | 0.9973 | 0.9987 | 371/0/1 |
+| exact span | 1.0000 | 0.9973 | 0.9987 | 372/0/1 |
+| byte overlap | 1.0000 | 0.9973 | 0.9987 | 372/0/1 |
 
 Coverage by entity type, counting the cases that carry each type:
 
@@ -156,13 +155,13 @@ Coverage by entity type, counting the cases that carry each type:
 | TH_ID | 4 |
 | MY_PASSPORT | 3 |
 | SG_PASSPORT | 2 |
-| SECRET | 20 (API key, token, password, PEM header) |
+| SECRET | 25 (API key, token, password, PEM header) |
 
 The numbers are not perfect. Batch 2 exposed two detector defects. The URL one,
 a sentence-final period kept, is fixed. The other, a four-part version string
 read as an IP, is still open; that case stays labelled as written and is in
 TODO.md. The seed set
-is 536 cases, past the ~500 the accuracy targets assume, so read every
+is 537 cases, past the ~500 the accuracy targets assume, so read every
 number above as a floor rather than a result. This baseline was
 reached by fixing the phone recognizer's dropped leading `(` on parenthesised
 area codes — until that fix it was the single false positive and the single

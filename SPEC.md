@@ -52,7 +52,7 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
   list is identical for every one of the 2000 cases in each corpus, and no URL span is lost.
   Still off by default.
 - **Structured data** — CSV batch processing
-- **Golden dataset** — 536-case hand-labelled seed set for CI, plus an
+- **Golden dataset** — 537-case hand-labelled seed set for CI, plus an
   on-demand corpus measurement over the fetched corpora (`make corpus`)
 
 ### Later (v2+):
@@ -249,7 +249,7 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 
 ## Recognizers (MVP)
 
-| Recognizer | Entity Type | Method | Target | Measured (536-case seed) |
+| Recognizer | Entity Type | Method | Target | Measured (537-case seed) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
 | Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope) |
@@ -264,10 +264,10 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 | Thailand citizen ID | `TH_ID` | Regex + mod-11 check digit | >99% P&R | P=1.0000 R=1.0000 (Scrubber types Luhn-valid Thai IDs as TH_ID, decision d; raw analyzers keep CREDIT_CARD) |
 | Malaysia passport | `MY_PASSPORT` | Regex (A/H/K + 8 digits) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Wikipedia and Purview, not PRADO) |
 | Singapore passport | `SG_PASSPORT` | Regex (E or K + 7 digits + letter) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Purview and the 2006 ICA BioPass description; K prefix and digit count not confirmed by PRADO) |
-| Secret | `SECRET` | Regex (API key, token, password assignment, PEM private key header). A label may be followed by a closing quote (JSON `"api_key": ...`) and by spaces before its separator. The value is kept unless it is uniform: every character the same, or one unit of up to four characters repeated at least twice. There is no character-class rule, so a lower-case passphrase or an all-digit token is reported once its shape's length floor is met. Known tradeoff, accepted because the scrubber prefers over-redaction: a plain word of 8 or more characters after a label, such as `Password: Required`, is reported | >99% P&R | exact P=1.0000 R=1.0000 (tp=24 fp=0 fn=0); overlap P=1.0000 R=1.0000 on 24 positives, 14 negatives clean. The span covers the value only, with the key name, separator, quotes and `Bearer ` outside it. A JWT or JWE with an `eyJ` header is captured whole at any header length, including a `dir` JWE with an empty second segment. A dotted token is captured to its end at any segment count. A single trailing dotted word is dropped only when whitespace follows it, so `Bearer <value>.Next step` keeps the value, while `token=<value>.abc` at the end of a text or before a quote is captured whole. A password drops one sentence-final `.` that is followed by whitespace or the end of text (`password: Rainbow@2025.` reports `Rainbow@2025`); `!`, `?` and `,` stay in the value. A short `pass` or `pwd` label needs a non-letter before it, so `bypass=kittenmitten` and `Route compass: northeastregion` are not passwords, while `db_pass=`, `db-pwd=` and `"pass": ` are; `password`, `passwd` and `secret` have no boundary, so `dbpassword=` and `mysecret=` match. Accepted cost: a letter directly before `pass` or `pwd` is no longer matched (`dbpass=x`, `rootpwd=x`) (TODO.md) |
+| Secret | `SECRET` | Regex (API key, token, password assignment, PEM private key header). A label may be followed by a closing quote (JSON `"api_key": ...`) and by spaces before its separator. The value is kept unless it is uniform: every character the same, or one unit of up to four characters repeated at least twice. There is no character-class rule, so a lower-case passphrase or an all-digit token is reported once its shape's length floor is met. Known tradeoff, accepted because the scrubber prefers over-redaction: a plain word of 8 or more characters after a label, such as `Password: Required`, is reported | >99% P&R | exact P=1.0000 R=1.0000 (tp=25 fp=0 fn=0); overlap P=1.0000 R=1.0000 on 25 positives, 14 negatives clean. The span covers the value only, with the key name, separator, quotes and `Bearer ` outside it. A JWT or JWE with an `eyJ` header is captured whole at any header length, including a `dir` JWE with an empty second segment. A dotted token is captured to its end at any segment count. A single trailing dotted word is dropped only when whitespace follows it, so `Bearer <value>.Next step` keeps the value, while `token=<value>.abc` at the end of a text or before a quote is captured whole. A password drops one sentence-final `.` that is followed by whitespace or the end of text (`password: Rainbow@2025.` reports `Rainbow@2025`); `!`, `?` and `,` stay in the value. A password also drops one trailing `)`, `]` or `}` that is followed by whitespace or the end of text when its value holds no matching opener (`(pass=Hunter2xyz)` reports `Hunter2xyz`; `Pa(ss)w0rd1` is kept whole). A short `pass` or `pwd` label needs a non-letter before it, so `bypass=kittenmitten` and `Route compass: northeastregion` are not passwords, while `db_pass=`, `db-pwd=` and `"pass": ` are; `password`, `passwd` and `secret` have no boundary, so `dbpassword=` and `mysecret=` match. Accepted cost: a letter directly before `pass` or `pwd` is no longer matched (`dbpass=x`, `rootpwd=x`) (TODO.md) |
 
 **"Target" is a goal for a ~500-case dataset; "Measured" is what
-`scripts/benchmark.sh` reports today over the 536-case seed set.** Most measured
+`scripts/benchmark.sh` reports today over the 537-case seed set.** Most measured
 cells are 1.0. The cells below 1.0 are the defects listed in TODO.md. These cells
 are evidence only for this hand-labelled set, not for the detector in general.
 The Luhn and mod-97 validators are wired into the default pipeline.
@@ -284,8 +284,8 @@ the measured column is evidence.
 Note the aggregate is not an average of this table, and the per-type cells are
 coarse: `BITCOIN` rests on 13 gold spans, so one flipped case moves its recall by
 about 8 points. Aggregate exact precision/recall over the whole seed set is
-P=1.0000 R=0.9973 (tp=371 fp=0 fn=1), and overlap matching, which tolerates
-mis-sized spans, gives the same P=1.0000 R=0.9973 (tp=371 fp=0 fn=1). The one miss under
+P=1.0000 R=0.9973 (tp=372 fp=0 fn=1), and overlap matching, which tolerates
+mis-sized spans, gives the same P=1.0000 R=0.9973 (tp=372 fp=0 fn=1). The one miss under
 both is `pos-phone-trunk-zero`. Until 2026-10-19 the secret spans included the key name, so
 exact matching missed 10 secrets (TODO.md). Before the parenthesised-phone
 fix the exact aggregate was P=0.9231 R=0.9231 while overlap stayed at 1.0000; the
@@ -337,11 +337,12 @@ bucket can't quietly move a number. Measured on the 2000-record samples:
   7, EMAIL on `name` 6 and `user_name` 4, IP_ADDRESS 1 on `credit_card_security_code`,
   PHONE 1); upper bound P=0.3717.
 
-An upper bound is not accuracy. The nemotron PHONE bucket is mostly ID-field
-values (`biometric_identifier`, `customer_id`, `account_number`, and others). Those
-are most likely detector false positives from the 10-digit phone branch, and the
-bucket can't separate them from real errors, so the PHONE bound should not be
-quoted as meaningful. See TODO.md.
+An upper bound is not accuracy. The nemotron PHONE bucket is ID-field values
+(`biometric_identifier`, `customer_id`, `account_number`, and others) that the
+bare 10-digit phone branch matches. The cause is confirmed in code and by a label
+scan, and 12 of the 408 spans were hand-checked, all in ID contexts. They are PII
+under the corpus's own labels and the scrubber redacts them today, so the PHONE
+bound is not quoted as a precision figure. See TODO.md (2026-10-19).
 
 **These numbers are far below the ">99%" target, and every large gap has been
 explained rather than assumed away:**
@@ -358,15 +359,28 @@ explained rather than assumed away:**
 - **PHONE on nemotron (P=0.5703)** — 408 of its 419 false positives sit on spans
   the source labels as an ID-type field: `biometric_identifier` 117,
   `customer_id` 83, `account_number` 79, `medical_record_number` 76,
-  `health_plan_beneficiary_number` 34. These are most likely detector false
-  positives: the phone pattern's bare 10-digit branch matches ID numbers. This
-  is not yet confirmed by hand. An earlier draft called it scope; that was
-  wrong. See TODO.md.
+  `health_plan_beneficiary_number` 34. The bare 10-digit phone branch matches
+  them (confirmed in code, by a full label scan and by a 12-span hand check). No
+  other entity in the scrubber's output overlaps these spans, and they are PII
+  under the corpus's labels, so narrowing the branch would stop redacting them. Five narrowing rules
+  were measured and none was adopted (TODO.md, 2026-10-19). The precision figure
+  is a label-scope artefact, not a measured detector error.
+- **PHONE on gretel (P=0.2766)** — 693 false positives. 679 sit on digit runs the
+  corpus leaves unlabelled: EDIFACT, SWIFT, XML and CSV values, placeholders such
+  as `1234567890`, and ID fields. About 40 are real-looking phone numbers the corpus
+  missed (`Phone:`, `call us at`, `Fax:`), so the true precision is higher than
+  measured. 10 are boundary misses against a gold PHONE, and 4 sit on other labelled
+  types. This is corpus-side and needs no recognizer change (TODO.md, 2026-10-19).
 - **CREDIT_CARD on nemotron (R=0.0945)** — all 230 false negatives fail the
   Luhn check, and exactly the 24 Luhn-valid ones are the true positives. The
-  validator is working as designed; the corpus's synthetic card numbers simply
-  are not card numbers. Whether that is the right benchmark target is an open
-  question, not a defect.
+  validator is working as designed. Re-verified 2026-10-19: all 254 gold card
+  spans carry a valid network prefix and every span is the whole digit run, but
+  only 24 of 254 (9.4%) pass Luhn, the rate a random check digit gives. So the
+  corpus cards are real-looking numbers with random check digits, not random
+  digits. A keyword-gated rule at 0.85 would recover 219 of the 230 and removes
+  no detection, but it contradicts the Luhn-only policy above, a seed negative,
+  a Go test and two Presidio negatives. It is not adopted; the decision is open (TODO.md,
+  2026-10-19).
 - **gretel EMAIL (P=0.3281)** — corpus-side, not detector-side. gretel labels
   the local part as `user_name` in some records (`lowe73@email.com` carries
   only `user_name 90..96 = 'lowe73'`), markdown `[addr](mailto:addr)` renders
@@ -429,7 +443,8 @@ Measured before and after, on the same inputs:
 | nemotron and gretel, 2000 cases, exact, after the secret class rule was removed and JSON-quoted and spaced labels were admitted (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 38 and 11 | same headline, every per-type cell unchanged; SECRET out of schema 47 (nemotron) and 12 (gretel) | the class rule adds no corpus detection (no corpus value failed the old rule). The 9 new nemotron and 1 new gretel SECRET detections are labels with a quoted key (`"api_key": "..."`, `"Password": "..."`, `"TokenSecret": "..."`) or spaces before the separator (`password = ...`). SECRET is out of schema, so these are not scored |
 | nemotron and gretel, 2000 cases, exact, after sentence-final password periods and trailing dotted tokens were handled (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 47 and 12 | same headline and per-type cells; SECRET out-of-schema counts unchanged; 7 SECRET spans changed: six password values lose a sentence-final `.` (five nemotron, one gretel), and one nemotron JWT followed by a fourth dotted segment is captured whole (before `; Path=/auth`). SECRET is out of schema, so these are not scored |
 | nemotron and gretel, 2000 cases, exact, after the short-label left boundary (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 47 and 12 | same headline and per-type cells; SECRET out-of-schema counts unchanged at 47 and 12. Raw SECRET spans, diffed per case before and after the boundary, are identical in both corpora, so the boundary drops no corpus secret |
-| Presidio credit_card | tp 13, fp 1, fn 3 (exact R 0.8125) | tp 14, fp 2, fn 2 exact (R 0.8750); overlap 15, 1, 1 (R 0.9375) | the merged cluster covers two adjacent gold cards |
+| nemotron and gretel, 2000 cases, exact, after a password's trailing closing bracket is dropped (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 47 and 12 | same headline and per-type cells; SECRET out-of-schema counts unchanged at 47 and 12. Raw SECRET spans, diffed per case against HEAD (356756a) over both corpora, change once: gretel `Password: ufmE%C9zdGiFo!o1)` now reports `ufmE%C9zdGiFo!o1`. SECRET is out of schema, so this is not scored |
+| Presidio credit_card (2026-10-15) | tp 13, fp 1, fn 3 (exact R 0.8125) | tp 14, fp 2, fn 2 exact (R 0.8750); overlap 15, 1, 1 (R 0.9375) | the merged cluster covers two adjacent gold cards |
 | Presidio iban | tp 155, fp 0, fn 3 | tp 158, fp 0, fn 0 | country-length table (2026-10-16): tp 158, fp 0, fn 0, P 1.0000, R 1.0000 (dash separators first gave tp 158, fp 3) |
 
 Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold that was missed (0 of the misses pass Luhn on their own), so the fix gains nothing on the corpora and costs nothing there. The differential over all sets (seed, 4000 corpus texts, 590 Presidio cases) loses no detection, and no case has overlapping detections. Anonymize runs without error over the seed, the corpora and every Presidio module.
@@ -442,7 +457,7 @@ Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold t
 
 **IPv6 span conventions and residuals, 2026-10-15.** An address after a label colon is reported (`IP:2001:db8::1`, `id:fe80::1`). Two residuals remain, and both are kept (decided 2026-10-16). First, an address glued to a word that ends in digits (`text2001:db8::1`) is read as label plus address, so the leading group stays visible. The same rule is what fixes `id:fe80::1`, so a fix must keep both. Second, a candidate that is not a valid address but whose suffix is (`2a02:4d60:1031:4c3f::85e1:79f2:9122:5234`, eight groups plus `::`) reports the suffix, so its first group stays visible. The whole-run rule that would fix the first case also swallows the label in `id:fe80::1`, since `netip` parses `d:fe80::1`. Against Presidio's IP cases, the exact-span misses are span conventions, not missed addresses: CIDR suffixes (`/24`) and zone IDs (`%eth0`) are outside our span; the unspecified `::` is not redacted by design; and a URL containing an IPv6 host wins the overlap, so the address is redacted inside the URL span. The IP scan is linear, and so is the card-versus-IBAN containment check (`checksum.inside`, binary search).
 
-**Dash- or dot-joined card, fixed 2026-10-15.** A single group is bounded by a space, hyphen or dot, so `4111111111111111-123`, `4111111111111111.123` and `123-4111111111111111` now report the card. Cost, measured: any Luhn-passing group of 13 to 19 digits joined by `-` or `.` is reported. Gretel CREDIT_CARD fp 26 to 32 (timestamps, EDI references, and a decimal such as `50.0000000000000000`). Nemotron CREDIT_CARD fp 22 to 23 (`88.01951444993813`). Card recall is unchanged on both corpora, and Presidio credit_card is unchanged (exact tp 14, fp 2, fn 2).
+**Dash- or dot-joined card, fixed 2026-10-15.** A single group is bounded by a space, hyphen or dot, so `4111111111111111-123`, `4111111111111111.123` and `123-4111111111111111` now report the card. Cost, measured: any Luhn-passing group of 13 to 19 digits joined by `-` or `.` is reported. Gretel CREDIT_CARD fp 26 to 32 (timestamps, EDI references, and a decimal such as `50.0000000000000000`). Nemotron CREDIT_CARD fp 22 to 23 (`88.01951444993813`). Card recall is unchanged on both corpora, and Presidio credit_card was exact tp 14, fp 2, fn 2 when this fix was measured (2026-10-15). The 2026-10-19 run is tp 16, fp 1, fn 0 (P 0.9412, R 1.0000), in the Presidio table above.
 
 **Other findings.** Every mismatch class is recorded in TODO.md under "Presidio test cases: open findings".
 
@@ -503,10 +518,10 @@ Column scope is set by `SetColumnType`, as in `ProcessCSV`: only registered colu
 ## Testing Strategy
 
 ### Golden Dataset
-- ~500 hand-labeled samples — **536 exist** in `testdata/golden/seed.json`
-  (340 positive, 196 negative), past the ~500 target
+- ~500 hand-labeled samples — **537 exist** in `testdata/golden/seed.json`
+  (341 positive, 196 negative), past the ~500 target
 - CI regression testing on every commit: `golden/accuracy_test.go` gates on
-  precision/recall thresholds and fails if the dataset drops below 536 cases (ratcheted with each batch)
+  precision/recall thresholds and fails if the dataset drops below 537 cases (ratcheted with each batch)
 - Precision/recall/F1 per entity type, plus aggregate, under two matching
   policies (exact span and byte overlap)
 
@@ -539,7 +554,7 @@ proves nothing.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 536-case seed (past the ~500 target); the corpora are measured on demand instead |
+| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 537-case seed (past the ~500 target); the corpora are measured on demand instead |
 | 2 | NLP recognizer (prose) | Later |
 | 3 | Secret recognizers (patterns + entropy) | SHIPPED |
 | 4 | FPE operator | Later |
@@ -552,7 +567,7 @@ proves nothing.
 
 - [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT
       MET, now measured.** The seed set reads exact P=1.0000 R=0.9973 and overlap
-      P=1.0000 R=0.9973 over 536 cases, but not every per-recognizer cell is above
+      P=1.0000 R=0.9973 over 537 cases, but not every per-recognizer cell is above
       0.99: PHONE recall is 0.9828 (the `pos-phone-trunk-zero` miss). The corpora are
       now measurable and do not come close: exact aggregate
       P=0.8357 R=0.8916 (nemotron) and

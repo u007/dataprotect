@@ -281,7 +281,7 @@ Packages: `analyzer/` (engine and overlap resolution), `anonymizer/` (operators 
 
 ## Datasets and measured results
 
-Measured on 2026-10-19 with `make benchmark`, `make corpus` and `make presidio`, run on the working tree at commit `7871d71` with uncommitted changes. The seed set is 536 cases; the committed seed at `7871d71` is 530. Every number in this section comes from those runs or is copied from [SPEC.md](SPEC.md) and [SOURCES.md](SOURCES.md).
+Measured on 2026-10-19 with `make benchmark`, `make corpus` and `make presidio`, run on the working tree at commit `356756a` with uncommitted changes. The seed set is 537 cases; the committed seed at `356756a` is 536. Every number in this section comes from those runs or is copied from [SPEC.md](SPEC.md) and [SOURCES.md](SOURCES.md).
 
 ### Sources
 
@@ -289,7 +289,7 @@ Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DAT
 
 | Dataset | Source | Pinned revision | Licence | Rows used | Local path | How to fetch |
 |---|---|---|---|---|---|---|
-| Golden seed set | `testdata/golden/seed.json`, authored in this repository from synthetic text | none; the working tree (see above) | none needed, authored here (DATASET_LICENSES.md, "Provenance") | 536 cases: 340 positive, 196 negative | `testdata/golden/` (committed) | nothing to fetch |
+| Golden seed set | `testdata/golden/seed.json`, authored in this repository from synthetic text | none; the working tree (see above) | none needed, authored here (DATASET_LICENSES.md, "Provenance") | 537 cases: 341 positive, 196 negative | `testdata/golden/` (committed) | nothing to fetch |
 | Nemotron-PII | [nvidia/Nemotron-PII](https://huggingface.co/datasets/nvidia/Nemotron-PII) | `b70ffaf5ff39e079776134c5bf4381f00a9fd1ed` | CC-BY-4.0 (attribution) | 2000 of 100000 rows, test split, file order | `testdata/external/nemotron-pii/` | `scripts/fetch-dataset.sh fetch nemotron-pii`, or `make download` |
 | Gretel synthetic PII finance (multilingual) | [gretelai/synthetic_pii_finance_multilingual](https://huggingface.co/datasets/gretelai/synthetic_pii_finance_multilingual) | `7b844d16738527a04264f50214cb426a4cea0897` | Apache-2.0 with NOTICE (attribution) | 2000 of 5596 rows, `combined_test` split only | `testdata/external/gretel-pii-finance/` | `scripts/fetch-dataset.sh fetch gretel-pii-finance`, or `make download` |
 | Microsoft Presidio test cases | [microsoft/presidio](https://github.com/microsoft/presidio) | `2523c7b74a469270c5c78bb253f140eafca21e31` | MIT | 590 cases from 601 rows, ten modules; 11 rows set aside | `testdata/external/presidio/` | `make presidio` (clones at the pin and extracts with `scripts/presidio_extract.py`) |
@@ -300,8 +300,8 @@ Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DAT
 
 | Dataset | Cases | Match | Precision | Recall | F1 | tp / fp / fn |
 |---|---|---|---|---|---|---|
-| Golden seed | 536 | exact span | 1.0000 | 0.9973 | 0.9987 | 371 / 0 / 1 |
-| Golden seed | 536 | byte overlap | 1.0000 | 0.9973 | 0.9987 | 371 / 0 / 1 |
+| Golden seed | 537 | exact span | 1.0000 | 0.9973 | 0.9987 | 372 / 0 / 1 |
+| Golden seed | 537 | byte overlap | 1.0000 | 0.9973 | 0.9987 | 372 / 0 / 1 |
 | Nemotron-PII | 2000 | exact span | 0.8357 | 0.8916 | 0.8627 | 2426 / 477 / 295 |
 | Nemotron-PII | 2000 | byte overlap | 0.8384 | 0.8945 | 0.8656 | 2434 / 469 / 287 |
 | Gretel PII finance | 2000 | exact span | 0.3677 | 0.8201 | 0.5078 | 652 / 1121 / 143 |
@@ -325,18 +325,18 @@ Exact span, per type. A dash means the corpus schema does not label that type. D
 | `URL` | 30 (30) | 1.0000 / 1.0000 (30 / 0 / 0) | 0.9900 / 0.9229 | - |
 | `IBAN` | 35 (35) | 1.0000 / 1.0000 (35 / 0 / 0) | - | 0.9556 / 0.9773 |
 | `BITCOIN` | 13 (13) | 1.0000 / 1.0000 (13 / 0 / 0) | - | - |
-| `SECRET` | 24 (24) | 1.0000 / 1.0000 (24 / 0 / 0) | - | - |
+| `SECRET` | 25 (25) | 1.0000 / 1.0000 (25 / 0 / 0) | - | - |
 | `SG_NRIC` | 5 (5) | 1.0000 / 1.0000 (5 / 0 / 0) | - | - |
 | `MY_IC` | 3 (3) | 1.0000 / 1.0000 (3 / 0 / 0) | - | - |
 | `TH_ID` | 4 (4) | 1.0000 / 1.0000 (4 / 0 / 0) | - | - |
 | `MY_PASSPORT` | 3 (3) | 1.0000 / 1.0000 (3 / 0 / 0) | - | - |
 | `SG_PASSPORT` | 2 (2) | 1.0000 / 1.0000 (2 / 0 / 0) | - | - |
 
-Upper bounds. The benchmark also reports precision with the set-aside detections left out. Nemotron-PII exact precision is 0.9914 (456 detections set aside) and overlap precision 0.9947. Gretel exact precision is 0.3717 (19 set aside) and overlap precision 0.3911. An upper bound is not accuracy. It assumes that every set-aside detection is correct, and the set-aside spans are the ones the corpus labels with a name we do not map to a type, so some of them could be real errors. SPEC.md says the Nemotron-PII PHONE bound should not be quoted as meaningful: 408 of its set-aside detections sit on ID-type fields that are most likely false positives of the bare 10-digit phone branch.
+Upper bounds. The benchmark also reports precision with the set-aside detections left out. Nemotron-PII exact precision is 0.9914 (456 detections set aside) and overlap precision 0.9947. Gretel exact precision is 0.3717 (19 set aside) and overlap precision 0.3911. An upper bound is not accuracy. It assumes that every set-aside detection is correct, and the set-aside spans are the ones the corpus labels with a name we do not map to a type, so some of them could be real errors. SPEC.md says the Nemotron-PII PHONE bound should not be quoted as meaningful: 408 of its set-aside detections sit on ID-type fields that the bare 10-digit phone branch matches. They are PII under the corpus labels and the scrubber redacts them, so this is a label-scope artefact, not a detector error.
 
 ### Why gretel precision is low
 
-Most of the gretel false positives are two types: EMAIL (383) and PHONE (693), out of 1121. For EMAIL, SPEC.md attributes the gap to the corpus. Some records label only the local part as `user_name`. A Markdown `mailto:` link renders the address twice while the corpus labels it once. In records that carry any email label, only 106 of 647 email-shaped strings are labelled `email`. For PHONE, the bare 10-digit branch of the phone pattern matches 10-digit account, transaction and reference numbers in EDI, JSON and invoice text. TODO.md records this two ways: one entry calls it a corpus scope artefact, and an open entry says it is not yet confirmed as a detector defect. The EMAIL attribution is also still open: TODO.md keeps "Corpus-side label quality depresses measured precision" unchecked.
+Most of the gretel false positives are two types: EMAIL (383) and PHONE (693), out of 1121. For EMAIL, SPEC.md attributes the gap to the corpus. Some records label only the local part as `user_name`. A Markdown `mailto:` link renders the address twice while the corpus labels it once. In records that carry any email label, only 106 of 647 email-shaped strings are labelled `email`. For PHONE, 679 of the 693 gretel false positives sit on digit runs the corpus leaves unlabelled: EDIFACT, SWIFT, XML and CSV values, placeholders such as `1234567890`, and ID fields. The bare 10-digit branch of the phone pattern matches them. About 40 are real-looking phone numbers the corpus missed, so the true precision is higher than measured. No narrowing rule was adopted, because each candidate either drops a gold phone or stops redacting numbers that could be phones (TODO.md, 2026-10-19). The EMAIL attribution is also still open: TODO.md keeps "Corpus-side label quality depresses measured precision" unchecked.
 
 ### Presidio test cases
 
@@ -374,7 +374,7 @@ Copied from [SOURCES.md](SOURCES.md) and [DATASET_LICENSES.md](DATASET_LICENSES.
 | secrets-patterns-db | no URL recorded (SPEC.md names GitHub) | No licence recorded | Not located. Not fetched |
 | CoNLL 2025 NER | no URL recorded (SPEC.md names Hugging Face) | Open question; the registry pins `conll2003` instead | Undecided |
 
-The secret recognizer has no external corpus. Its only scored data is the 24 SECRET cases in the seed set. Neither corpus labels secrets, so their SECRET detections are out of schema and not scored. Nothing from the Kaggle competition is used yet.
+The secret recognizer has no external corpus. Its only scored data is the 25 SECRET cases in the seed set. Neither corpus labels secrets, so their SECRET detections are out of schema and not scored. Nothing from the Kaggle competition is used yet.
 
 ## Known limits
 
@@ -387,8 +387,8 @@ Each item links to its open entry in [TODO.md](TODO.md) or to the rule in [SPEC.
 - **Merged card spans.** A span merged by the card-window search can cover two cards, or a card and a year. Its one placeholder restores as one original (TODO.md, "Merged card spans are one placeholder").
 - **Secret over-redaction.** A plain word of eight or more characters after a label is reported: `Password: Required` anonymizes to `Password: [REDACTED]`. Uniform values such as `00000000000000000000` are not reported. Dotted tails are kept or trimmed by a fixed rule (SPEC.md, "Recognizers", secret row).
 - **Label boundary, accepted cost.** `pass` and `pwd` need a non-letter before them, so `bypass=` and `compass:` are not reported. The same rule means `dbpass=x` and `rootpwd=x` are not reported either (TODO.md, secret section, 2026-10-19).
-- **Trailing parenthesis.** The password value keeps a closing `)`. `(pass=Hunter2xyz)` reports `Hunter2xyz)` and anonymizes to `(pass=[REDACTED]`. This is open and over-redacts one byte; it does not leak the value (TODO.md, secret section, 2026-10-19).
-- **Other open items.** Singapore M-prefix NRIC is not supported. Thai passports are not covered. BITCOIN is not labelled by either corpus, so it is unmeasured there. On Nemotron-PII, all 230 CREDIT_CARD false negatives fail the Luhn check, so the corpus's card numbers are mostly not valid cards. Whether that is the right benchmark target is an open question (SPEC.md, "Corpus measurement").
+- **Closing bracket after a password.** One trailing `)`, `]` or `}` is dropped when whitespace or the end of text follows it and the value has no opener for it, so `(pass=Hunter2xyz)` reports `Hunter2xyz`. A closing bracket followed by a quote (`"Hunter2xyz)"`) is kept and over-redacts one byte; it does not leak the value (TODO.md, secret section, 2026-10-19).
+- **Other open items.** Singapore M-prefix NRIC is not supported. Thai passports are not covered. BITCOIN is not labelled by either corpus, so it is unmeasured there. On Nemotron-PII, all 230 CREDIT_CARD false negatives fail the Luhn check. The corpus cards have valid network prefixes but random check digits (24 of 254 pass Luhn). Detecting them would mean reporting Luhn-invalid numbers, which the Luhn-only policy and the seed negatives rule out; the decision is open (SPEC.md, "Corpus measurement").
 
 ## License
 

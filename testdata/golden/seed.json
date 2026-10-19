@@ -5042,5 +5042,16 @@
         "value": "Hunter2xyz"
       }
     ]
+  },
+  {
+    "id": "pos-secret-password-closing-paren",
+    "note": "Password in a parenthesised aside. The closing paren is not part of the value, since the value has no opener inside it.",
+    "text": "The staging login (pass=Hunter2xyz) is in the vault note.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Hunter2xyz"
+      }
+    ]
   }
 ]

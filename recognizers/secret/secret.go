@@ -172,15 +172,28 @@ func tokenEnd(text string, m []int) int {
 	return end
 }
 
-// passwordEnd returns the end of a password value. A value whose last byte is `.`
-// with whitespace or the end of text after it has a sentence-final period, which
-// is dropped: `password: Rainbow@2025.` reports `Rainbow@2025`. Only one period is
-// dropped, and `!`, `?` and `,` are kept because a password may end with them. The
-// 8-character floor is checked on the match before this trim, so
-// `password: Abcdefg.` reports `Abcdefg`.
+// closerOpener maps each closing bracket that passwordEnd may drop to its opener.
+var closerOpener = map[byte]byte{')': '(', ']': '[', '}': '{'}
+
+// passwordEnd returns the end of a password value, when whitespace or the end of
+// text follows it. A last byte of `.` is a sentence-final period, which is dropped:
+// `password: Rainbow@2025.` reports `Rainbow@2025`. Only one period is dropped, and
+// `!`, `?` and `,` are kept because a password may end with them. A last byte that
+// closes a bracket is dropped when the value holds no opener for it, so
+// `(pass=Hunter2xyz)` reports `Hunter2xyz`, while `Pa(ss)w0rd1` keeps its balanced
+// parentheses and `password=abc)def12345` keeps its inner `)`. The 8-character
+// floor is checked on the match before this trim, so `password: Abcdefg.` reports
+// `Abcdefg`.
 func passwordEnd(text string, m []int) int {
 	end := m[3]
-	if text[end-1] == '.' && (end == len(text) || isSpaceByte(text[end])) {
+	if end < len(text) && !isSpaceByte(text[end]) {
+		return end
+	}
+	last := text[end-1]
+	if last == '.' {
+		return end - 1
+	}
+	if opener, ok := closerOpener[last]; ok && strings.IndexByte(text[m[2]:end-1], opener) < 0 {
 		return end - 1
 	}
 	return end

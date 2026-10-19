@@ -189,6 +189,25 @@ func TestSecretRecognizerValueSpan(t *testing.T) {
 		{"password period before closing quote is kept", `password: "Rainbow@2025."`, `Rainbow@2025.`},
 		{"password floor is checked before the period is dropped", `password: Abcdefg.`, `Abcdefg`},
 
+		// Password closing brackets. One trailing `)`, `]` or `}` before whitespace
+		// or the end of text is dropped when the value has no opener for it. A value
+		// with its own balanced brackets, or with a bracket inside, keeps them.
+		{"password closing paren at end of text is dropped", `(pass=Hunter2xyz)`, `Hunter2xyz`},
+		{"password closing paren before a newline is dropped", "password=Hunter2xyz)\nnext line", `Hunter2xyz`},
+		{"password closing paren after a colon is dropped", `password: Hunter2xyz)`, `Hunter2xyz`},
+		{"password closing paren mid text is dropped", `x (password=Hunter2xyz) y`, `Hunter2xyz`},
+		{"password closing paren floor is checked before the paren is dropped", `(pass=Abcdefg)`, `Abcdefg`},
+		{"password closing square bracket is dropped", `[pass=Hunter2xyz]`, `Hunter2xyz`},
+		{"password closing brace is dropped", `{password=Hunter2xyz}`, `Hunter2xyz`},
+		{"password with balanced parens is kept whole", `password: Pa(ss)w0rd1`, `Pa(ss)w0rd1`},
+		{"password with a paren inside is kept whole", `password=abc)def12345`, `abc)def12345`},
+		{"password with a trailing paren and an opener inside is kept", `password: Pa(ss)w0rd1)`, `Pa(ss)w0rd1)`},
+		{"password ending in a paren with no opener inside is trimmed once", `password: Hunter2xyz))`, `Hunter2xyz)`},
+		{"password with a balanced paren pair at the end is kept", `password=Hunter2(x)`, `Hunter2(x)`},
+		{"password with a balanced square bracket pair at the end is kept", `password=Hunter2[x]`, `Hunter2[x]`},
+		{"password with a square bracket inside is kept", `password: Pa[ss]w0rd1]`, `Pa[ss]w0rd1]`},
+		{"password closing paren before a closing quote is kept (known residual)", `password: "Hunter2xyz)"`, `Hunter2xyz)`},
+
 		// Short labels `pass` and `pwd` match at a non-letter boundary. `_`, `-`,
 		// start of text and a quote are separators. Long labels need no boundary.
 		{"pass label at start of text", `pass=Hunter2xyz`, `Hunter2xyz`},
@@ -254,6 +273,8 @@ func TestSecretRecognizerRejectsShortOrUniformValue(t *testing.T) {
 		{"key and separator on different lines", "api_key\n: Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys"},
 		{"password of short dotted words with a period", `password: a.b.c.`},
 		{"password uniform once its period is dropped", `password=aaaaaaa.`},
+		{"password uniform once its closing paren is dropped", `(password=aaaaaaaa)`},
+		{"password under the floor once its closing paren is dropped", `(pass=Abcdef)`},
 		{"pass label inside a word", `bypass=kittenmitten`},
 		{"pass label inside a word in prose", `Route compass: northeastregion`},
 		{"pwd label inside a word", `tripwd=abcdefghij`},
