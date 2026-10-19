@@ -4874,5 +4874,117 @@
     "note": "An image digest is a public hash, not a credential.",
     "text": "Image digest sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 verified.",
     "entities": []
+  },
+  {
+    "id": "pos-secret-lowercase-passphrase",
+    "note": "Lower-case passphrase after a PASSWORD key: no digit, no upper case, no symbol. Only the 8-character password floor applies, so it is reported.",
+    "text": "Set DB_PASSWORD=correcthorsebatterystaple in the staging .env before the migration.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "correcthorsebatterystaple"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-all-digit-token",
+    "note": "Token made only of digits, 32 characters. The token floor is met, so the character classes do not matter.",
+    "text": "Paste token=48213907561234807219564382019476 into the CI secret store before the sync.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "48213907561234807219564382019476"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-json-api-key",
+    "note": "API key as a JSON string value: the key name is quoted and followed by a colon. The span is the value without its quotes.",
+    "text": "{\"service\": \"billing\", \"api_key\": \"Ld5Hk9Rw3Tq7Yn1Bx6Ms2Vc\", \"region\": \"eu-west-1\"}",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Ld5Hk9Rw3Tq7Yn1Bx6Ms2Vc"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-json-password",
+    "note": "Password as a JSON string value; the closing quote of the key name sits before the colon.",
+    "text": "{\"user\": \"svc-reports\", \"password\": \"Lm4Tq8Wz2Xc6Vb0Nn\"}",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Lm4Tq8Wz2Xc6Vb0Nn"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-jwe-empty-segment",
+    "note": "JWE in the dir key management form: the encrypted-key segment is empty, so the token is header, two dots, then three segments. The 18-character header is under the 32-character bare-token floor, so only the eyJ form can match it.",
+    "text": "Authorization: Bearer eyJhbGciOiJkaXIifQ..aXZTZWNyZXQx.Y2lwaGVydGV4dA.dGFnVmFsdWUx sent by the export job.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "eyJhbGciOiJkaXIifQ..aXZTZWNyZXQx.Y2lwaGVydGV4dA.dGFnVmFsdWUx"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-four-segment-token",
+    "note": "Dotted token of four segments. The whole value is one secret; the fourth segment must not stay visible.",
+    "text": "Set token=Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq.a1B2c3D4.e5F6g7H8.i9J0k1L2 for the sync job.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq.a1B2c3D4.e5F6g7H8.i9J0k1L2"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-short-header-jwt",
+    "note": "JWT whose header is 20 characters, under the 32-character bare-token floor. The eyJ form has no header floor, so the whole token is reported.",
+    "text": "Authorization: Bearer eyJhbGciOiJIUzI0NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.Qm9ndXNTaWduYXR1cmU sent to the reports API.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "eyJhbGciOiJIUzI0NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.Qm9ndXNTaWduYXR1cmU"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-dotted-password",
+    "note": "Lower-case password joined by a dot. Before the class rule was dropped this was rejected.",
+    "text": "The replica account uses PGPASSWORD=river.canyon for the nightly dump.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "river.canyon"
+      }
+    ]
+  },
+  {
+    "id": "neg-secret-uniform-placeholder",
+    "note": "A template default made of one repeated character is a placeholder, not a credential.",
+    "text": "Template default api_key=00000000000000000000 is replaced by the deploy script.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-bearer-filename",
+    "note": "A file name after the word Bearer is not a token: the first word is under the 32-character floor.",
+    "text": "The loader reads Bearer example.config.yaml from the docs folder.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-password-no-value",
+    "note": "Password as a noun in prose, with no separator and no value after it.",
+    "text": "Store the database password in the team vault, never in the repository.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-short-token-value",
+    "note": "A token label with a 16-character value, under the 32-character token floor.",
+    "text": "The old token=Zq7Rt2vN9bLx4Wc8 expired last week.",
+    "entities": []
   }
 ]

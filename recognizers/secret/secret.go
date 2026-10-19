@@ -16,34 +16,49 @@ import (
 	"github.com/u007/dataprotect/recognizers"
 )
 
-// jwtTail is the optional part of a value that makes it a JWT: exactly two more
-// dot-joined base64url segments after the first. It is shared by apiKeyShape and
-// tokenShape so that `access_token=<JWT>` gives both shapes the same whole-JWT
-// span. Without it the value stops at the first `.`. A value with one dot or
-// three or more dots matches the first segment alone, as it always has.
-const jwtTail = `(?:\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+)?`
+// jwtSegment is one base64url segment of a JWT or JWE.
+const jwtSegment = `[A-Za-z0-9_\-]+`
+
+// dottedTail is the optional run of dot-joined segments after a value's first
+// segment. It needs at least two segments, so a value followed by one dotted word,
+// such as the `.Next` in `Bearer <value>.Next step`, stops at the value. It has no
+// upper bound, so a token of any segment count is captured to its end. Every
+// segment needs at least one character, so a sentence-final `.` is never taken.
+const dottedTail = `(?:(?:\.` + jwtSegment + `){2,})?`
+
+// jwtValue matches a JWT or JWE whose header starts with `eyJ`, the base64url of
+// `{"` that every JSON header begins with. It has no length floor on the header,
+// so a short header such as `eyJhbGciOiJIUzI1NiJ9` (20 characters) matches. The
+// base is a three-segment JWS, or a five-segment JWE whose second segment may be
+// empty (the `dir` key management form, `header..iv.ciphertext.tag`). The prefix is
+// case-sensitive: the shapes are `(?i)`, so the literal is written `(?-i:eyJ)`.
+const jwtValue = `(?:(?-i:eyJ)` + jwtSegment + `(?:\.\.` + jwtSegment + `\.` + jwtSegment + `\.` + jwtSegment + `|\.` + jwtSegment + `\.` + jwtSegment + `)` + dottedTail + `)`
+
+// labelSeparator is what may sit between a key name and its `=` or `:`. The key
+// name may be followed by a closing quote (JSON `"api_key": ...`), and spaces or
+// tabs may precede the separator. A newline does not, so the label stays on its line.
+const labelSeparator = `["']?[ \t]*[=:]`
 
 // apiKeyShape matches common API key formats: a prefix label followed by a
 // high-entropy value (e.g. `sk_live_...`, `AKIA...`, `xoxb-...`). Group 1 is the
-// value, optionally a JWT.
-var apiKeyShape = regexp.MustCompile(`(?i)(?:api[_-]?key|apikey|secret[_-]?key|access[_-]?token|auth[_-]?token)[=:]\s*["']?([A-Za-z0-9_\-]{20,}` + jwtTail + `)["']?`)
+// value: a JWT or JWE (jwtValue), or a bare value of 20 or more characters with
+// an optional dotted tail (dottedTail).
+var apiKeyShape = regexp.MustCompile(`(?i)(?:api[_-]?key|apikey|secret[_-]?key|access[_-]?token|auth[_-]?token)` + labelSeparator + `\s*["']?(` + jwtValue + `|[A-Za-z0-9_\-]{20,}` + dottedTail + `)["']?`)
 
 // tokenShape matches bearer/JWT-style tokens and long hex/base64 strings. Group 1
-// is the value, optionally a JWT.
-//
-// The 32-character floor applies to the first segment of a JWT, which is the
-// header. A JWT with a shorter header, such as `eyJhbGciOiJIUzI1NiJ9` (20
-// characters), matches neither the Bearer nor the token= form at all. That gap is
-// tracked in TODO.md.
-var tokenShape = regexp.MustCompile(`(?:Bearer\s+|token[=:]\s*["']?)([A-Za-z0-9_\-]{32,}` + jwtTail + `)["']?`)
+// is the value: a JWT or JWE (jwtValue), or a bare value of 32 or more characters
+// with an optional dotted tail (dottedTail). The 32-character floor applies only to
+// a value that is not a JWT, so a short-header JWT after `Bearer` or `token=` is
+// matched.
+var tokenShape = regexp.MustCompile(`(?:Bearer\s+|token` + labelSeparator + `\s*["']?)(` + jwtValue + `|[A-Za-z0-9_\-]{32,}` + dottedTail + `)["']?`)
 
 // privateKeyShape matches PEM private key blocks. It has no value part, so the
 // whole header is the span.
 var privateKeyShape = regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`)
 
 // passwordShape matches password assignments in config-like contexts. Group 1 is
-// the value.
-var passwordShape = regexp.MustCompile(`(?i)(?:password|passwd|pass|pwd|secret)[=:]\s*["']?([^\s"']{8,})["']?`)
+// the value: at least 8 characters with no space, quote or line break.
+var passwordShape = regexp.MustCompile(`(?i)(?:password|passwd|pass|pwd|secret)` + labelSeparator + `\s*["']?([^\s"']{8,})["']?`)
 
 // SecretRecognizer detects secrets in text.
 type SecretRecognizer struct {
@@ -71,9 +86,9 @@ func (r *SecretRecognizer) Name() string { return "secret" }
 // the `Bearer ` scheme. The PEM header is reported whole, since it has no value.
 //
 // Each (Start, End) is reported once. The apiKey and token shapes both match an
-// `access_token=` or `auth_token=` value of 32 or more characters and report the
-// same span, so the later duplicate is dropped and the first in emission order is
-// kept. The result is sorted by Start, with ties in emission order.
+// `access_token=` or `auth_token=` value that is a JWT, or 32 or more characters,
+// and report the same span, so the later duplicate is dropped and the first in
+// emission order is kept. The result is sorted by Start, with ties in emission order.
 func (r *SecretRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	var entities []recognizers.Entity
 
@@ -130,53 +145,40 @@ func secretEntity(text string, start, end int, confidence float64) recognizers.E
 	}
 }
 
-// isLikelySecret reports whether a captured value looks like credential material
-// rather than a plain word or a uniform placeholder. It receives the value only,
-// never the key name or separator.
+// maxUniformUnit is the longest repeated unit that still marks a value as a
+// uniform placeholder. `abab...` (unit 2) and `abcdabcd...` (unit 4) are rejected.
+const maxUniformUnit = 4
+
+// isLikelySecret reports whether a captured value is credential material rather
+// than a uniform placeholder. It receives the value only, never the key name or
+// separator.
 //
-// It has no length check of its own: each shape's quantifier already sets the
-// floor for its value (apiKey 20, token 32, password 8), so a password of 17
-// characters passes while an API key of 17 does not.
+// It has no character-class rule. Once a shape's length floor is met (apiKey 20,
+// token 32, password 8, JWT with no header floor), the value is reported, so a
+// lower-case passphrase, an all-digit token and a dotted lower-case password are
+// all reported. The only values rejected are uniform ones: every character
+// identical (`00000000000000000000`), or one repeated unit of up to
+// maxUniformUnit bytes, which needs at least two full repeats (`abababab`).
 //
-// It requires two of the four character classes. Three would reject real
-// credentials that use fewer classes: hex digests (digits and lower case) and AWS
-// access key IDs (upper case and digits). One class is what uniform placeholders
-// such as `00000000000000000000` or `aaaaaaaaaaaaaaaaaaaa` use, so that is what
-// it rejects.
-//
-// Known tradeoff, accepted because the scrubber prefers over-redaction: form-style
-// text such as `Password: Required` (two classes, 8 characters or more) is
-// reported.
+// Known tradeoff, accepted because the scrubber prefers over-redaction: a plain
+// word of 8 or more characters after a label, such as `Password: Required`, is
+// reported. The label is the only context; the value is not checked for shape.
 func isLikelySecret(value string) bool {
-	digit := false
-	upper := false
-	lower := false
-	special := false
-	for _, c := range value {
-		switch {
-		case c >= '0' && c <= '9':
-			digit = true
-		case c >= 'A' && c <= 'Z':
-			upper = true
-		case c >= 'a' && c <= 'z':
-			lower = true
-		default:
-			special = true
+	for unit := 1; unit <= maxUniformUnit && 2*unit <= len(value); unit++ {
+		if repeatsEvery(value, unit) {
+			return false
 		}
 	}
+	return true
+}
 
-	classes := 0
-	if digit {
-		classes++
+// repeatsEvery reports whether value is its first unit bytes repeated, with every
+// byte after the first unit equal to the byte unit positions earlier.
+func repeatsEvery(value string, unit int) bool {
+	for i := unit; i < len(value); i++ {
+		if value[i] != value[i-unit] {
+			return false
+		}
 	}
-	if upper {
-		classes++
-	}
-	if lower {
-		classes++
-	}
-	if special {
-		classes++
-	}
-	return classes >= 2
+	return true
 }
