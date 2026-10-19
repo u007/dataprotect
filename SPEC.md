@@ -52,7 +52,7 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
   list is identical for every one of the 2000 cases in each corpus, and no URL span is lost.
   Still off by default.
 - **Structured data** — CSV batch processing
-- **Golden dataset** — 537-case hand-labelled seed set for CI, plus an
+- **Golden dataset** — 549-case hand-labelled seed set for CI, plus an
   on-demand corpus measurement over the fetched corpora (`make corpus`)
 
 ### Later (v2+):
@@ -249,7 +249,7 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 
 ## Recognizers (MVP)
 
-| Recognizer | Entity Type | Method | Target | Measured (537-case seed) |
+| Recognizer | Entity Type | Method | Target | Measured (549-case seed) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
 | Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope) |
@@ -264,10 +264,10 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 | Thailand citizen ID | `TH_ID` | Regex + mod-11 check digit | >99% P&R | P=1.0000 R=1.0000 (Scrubber types Luhn-valid Thai IDs as TH_ID, decision d; raw analyzers keep CREDIT_CARD) |
 | Malaysia passport | `MY_PASSPORT` | Regex (A/H/K + 8 digits) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Wikipedia and Purview, not PRADO) |
 | Singapore passport | `SG_PASSPORT` | Regex (E or K + 7 digits + letter) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Purview and the 2006 ICA BioPass description; K prefix and digit count not confirmed by PRADO) |
-| Secret | `SECRET` | Regex (API key, token, password assignment, PEM private key header). A label may be followed by a closing quote (JSON `"api_key": ...`) and by spaces before its separator. The value is kept unless it is uniform: every character the same, or one unit of up to four characters repeated at least twice. There is no character-class rule, so a lower-case passphrase or an all-digit token is reported once its shape's length floor is met. Known tradeoff, accepted because the scrubber prefers over-redaction: a plain word of 8 or more characters after a label, such as `Password: Required`, is reported | >99% P&R | exact P=1.0000 R=1.0000 (tp=25 fp=0 fn=0); overlap P=1.0000 R=1.0000 on 25 positives, 14 negatives clean. The span covers the value only, with the key name, separator, quotes and `Bearer ` outside it. A JWT or JWE with an `eyJ` header is captured whole at any header length, including a `dir` JWE with an empty second segment. A dotted token is captured to its end at any segment count. A single trailing dotted word is dropped only when whitespace follows it, so `Bearer <value>.Next step` keeps the value, while `token=<value>.abc` at the end of a text or before a quote is captured whole. A password drops one sentence-final `.` that is followed by whitespace or the end of text (`password: Rainbow@2025.` reports `Rainbow@2025`); `!`, `?` and `,` stay in the value. A password also drops one trailing `)`, `]` or `}` that is followed by whitespace, the end of text, or a closing quote when its value holds no matching opener (`(pass=Hunter2xyz)` reports `Hunter2xyz`; `Pa(ss)w0rd1` is kept whole). A short `pass` or `pwd` label needs a non-letter before it, so `bypass=kittenmitten` and `Route compass: northeastregion` are not passwords, while `db_pass=`, `db-pwd=` and `"pass": ` are; `password`, `passwd` and `secret` have no boundary, so `dbpassword=` and `mysecret=` match. Accepted cost: a letter directly before `pass` or `pwd` is no longer matched (`dbpass=x`, `rootpwd=x`) (TODO.md) |
+| Secret | `SECRET` | Regex (API key, token, password assignment, PEM private key header), and provider token formats with no label (`bareShape`: AWS access key id `AKIA` or `ASIA`, GitHub `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` and `github_pat_`, Slack `xoxb-` and `xoxp-`, Stripe `sk_live_` and `rk_live_`, Google `AIza`, npm `npm_`, SendGrid `SG.`, and a bare JWT). A bare token is reported whole, its body must pass the uniform check, and it is dropped when it overlaps a labelled span. The formats and their sources are in SOURCES.md. A label may be followed by a closing quote (JSON `"api_key": ...`) and by spaces before its separator. The value is kept unless it is uniform: every character the same, or one unit of up to four characters repeated at least twice. There is no character-class rule, so a lower-case passphrase or an all-digit token is reported once its shape's length floor is met. Known tradeoff, accepted because the scrubber prefers over-redaction: a plain word of 8 or more characters after a label, such as `Password: Required`, is reported | >99% P&R | exact P=1.0000 R=1.0000 (tp=34 fp=0 fn=0); overlap P=1.0000 R=1.0000 on 34 positives, 17 negatives clean. The 9 bare-token positives (one per format) and 3 bare-token negatives match exactly. The span covers the value only, with the key name, separator, quotes and `Bearer ` outside it. A JWT or JWE with an `eyJ` header is captured whole at any header length, including a `dir` JWE with an empty second segment. A dotted token is captured to its end at any segment count. A single trailing dotted word is dropped only when whitespace follows it, so `Bearer <value>.Next step` keeps the value, while `token=<value>.abc` at the end of a text or before a quote is captured whole. A password drops one sentence-final `.` that is followed by whitespace or the end of text (`password: Rainbow@2025.` reports `Rainbow@2025`); `!`, `?` and `,` stay in the value. A password also drops one trailing `)`, `]` or `}` that is followed by whitespace, the end of text, or a closing quote when its value holds no matching opener (`(pass=Hunter2xyz)` reports `Hunter2xyz`; `Pa(ss)w0rd1` is kept whole). A short `pass` or `pwd` label needs a non-letter before it, so `bypass=kittenmitten` and `Route compass: northeastregion` are not passwords, while `db_pass=`, `db-pwd=` and `"pass": ` are; `password`, `passwd` and `secret` have no boundary, so `dbpassword=` and `mysecret=` match. Accepted cost: a letter directly before `pass` or `pwd` is no longer matched (`dbpass=x`, `rootpwd=x`) (TODO.md) |
 
 **"Target" is a goal for a ~500-case dataset; "Measured" is what
-`scripts/benchmark.sh` reports today over the 537-case seed set.** Most measured
+`scripts/benchmark.sh` reports today over the 549-case seed set.** Most measured
 cells are 1.0. The cells below 1.0 are the defects listed in TODO.md. These cells
 are evidence only for this hand-labelled set, not for the detector in general.
 The Luhn and mod-97 validators are wired into the default pipeline.
@@ -284,8 +284,8 @@ the measured column is evidence.
 Note the aggregate is not an average of this table, and the per-type cells are
 coarse: `BITCOIN` rests on 13 gold spans, so one flipped case moves its recall by
 about 8 points. Aggregate exact precision/recall over the whole seed set is
-P=1.0000 R=0.9973 (tp=372 fp=0 fn=1), and overlap matching, which tolerates
-mis-sized spans, gives the same P=1.0000 R=0.9973 (tp=372 fp=0 fn=1). The one miss under
+P=1.0000 R=0.9974 (tp=381 fp=0 fn=1), and overlap matching, which tolerates
+mis-sized spans, gives the same P=1.0000 R=0.9974 (tp=381 fp=0 fn=1). The one miss under
 both is `pos-phone-trunk-zero`. Until 2026-10-19 the secret spans included the key name, so
 exact matching missed 10 secrets (TODO.md). Before the parenthesised-phone
 fix the exact aggregate was P=0.9231 R=0.9231 while overlap stayed at 1.0000; the
@@ -309,7 +309,7 @@ order, recorded in each `schema.json`).
 | **Exact** | P=0.8357 R=0.8916 F1=0.8627 (tp=2426 fp=477 fn=295) | P=0.3677 R=0.8201 F1=0.5078 (tp=652 fp=1121 fn=143) |
 | **Overlap** | P=0.8384 R=0.8945 F1=0.8656 (tp=2434 fp=469 fn=287) | P=0.3869 R=0.8629 F1=0.5343 (tp=686 fp=1087 fn=109) |
 | negatives clean | 472 of 600 | 1291 of 1497 |
-| out-of-schema (not scored) | IBAN=1, SECRET=47 | BITCOIN=21, URL=817, MY_PASSPORT=1, SECRET=12 |
+| out-of-schema (not scored) | IBAN=1, SECRET=63 | BITCOIN=21, URL=817, MY_PASSPORT=1, SECRET=25 |
 
 Per type (exact):
 
@@ -323,7 +323,7 @@ Per type (exact):
 | `URL` | 0.9900 / 0.9229 | *no label in corpus* |
 | `IBAN` | *no label in corpus* | 0.9556 / 0.9773 |
 | `BITCOIN` | *no label in corpus* | *no label in corpus* |
-| `SECRET` | *no label in corpus* | *no label in corpus* |
+| `SECRET` | *unmapped label: `api_key`, `http_cookie`* | *unmapped label: `api_key`* |
 
 **Unlabelled spans, reported separately.** A detection that lands on a span the
 corpus labels with a name outside our type map is not counted as wrong in the
@@ -445,6 +445,7 @@ Measured before and after, on the same inputs:
 | nemotron and gretel, 2000 cases, exact, after sentence-final password periods and trailing dotted tokens were handled (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 47 and 12 | same headline and per-type cells; SECRET out-of-schema counts unchanged; 7 SECRET spans changed: six password values lose a sentence-final `.` (five nemotron, one gretel), and one nemotron JWT followed by a fourth dotted segment is captured whole (before `; Path=/auth`). SECRET is out of schema, so these are not scored |
 | nemotron and gretel, 2000 cases, exact, after the short-label left boundary (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 47 and 12 | same headline and per-type cells; SECRET out-of-schema counts unchanged at 47 and 12. Raw SECRET spans, diffed per case before and after the boundary, are identical in both corpora, so the boundary drops no corpus secret |
 | nemotron and gretel, 2000 cases, exact, after a password's trailing closing bracket is dropped (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 47 and 12 | same headline and per-type cells; SECRET out-of-schema counts unchanged at 47 and 12. Raw SECRET spans, diffed per case against HEAD (356756a) over both corpora, change once: gretel `Password: ufmE%C9zdGiFo!o1)` now reports `ufmE%C9zdGiFo!o1`. SECRET is out of schema, so this is not scored |
+| nemotron and gretel, 2000 cases, exact, after provider tokens with no label were added (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 63 and 25 | same headline and per-type cells; SECRET out-of-schema counts rose from 47 to 63 and from 12 to 25. Every new span was diffed: each one sits on a corpus span labelled `api_key` or `http_cookie` (outside the type map), except three gretel `sk_live_` cells in case 001702 that the corpus does not annotate (see TODO.md). No span was lost to overlap. Presidio output is unchanged. |
 | Presidio credit_card (2026-10-15) | tp 13, fp 1, fn 3 (exact R 0.8125) | tp 14, fp 2, fn 2 exact (R 0.8750); overlap 15, 1, 1 (R 0.9375) | the merged cluster covers two adjacent gold cards |
 | Presidio iban | tp 155, fp 0, fn 3 | tp 158, fp 0, fn 0 | country-length table (2026-10-16): tp 158, fp 0, fn 0, P 1.0000, R 1.0000 (dash separators first gave tp 158, fp 3) |
 
@@ -519,10 +520,10 @@ Column scope is set by `SetColumnType`, as in `ProcessCSV`: only registered colu
 ## Testing Strategy
 
 ### Golden Dataset
-- ~500 hand-labeled samples — **537 exist** in `testdata/golden/seed.json`
-  (341 positive, 196 negative), past the ~500 target
+- ~500 hand-labeled samples — **549 exist** in `testdata/golden/seed.json`
+  (350 positive, 199 negative), past the ~500 target
 - CI regression testing on every commit: `golden/accuracy_test.go` gates on
-  precision/recall thresholds and fails if the dataset drops below 537 cases (ratcheted with each batch)
+  precision/recall thresholds and fails if the dataset drops below 549 cases (ratcheted with each batch)
 - Precision/recall/F1 per entity type, plus aggregate, under two matching
   policies (exact span and byte overlap)
 
@@ -555,7 +556,7 @@ proves nothing.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 537-case seed (past the ~500 target); the corpora are measured on demand instead |
+| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 549-case seed (past the ~500 target); the corpora are measured on demand instead |
 | 2 | NLP recognizer (prose) | Later |
 | 3 | Secret recognizers (patterns + entropy) | SHIPPED |
 | 4 | FPE operator | Later |
@@ -567,8 +568,8 @@ proves nothing.
 ## Success Criteria (MVP)
 
 - [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT
-      MET, now measured.** The seed set reads exact P=1.0000 R=0.9973 and overlap
-      P=1.0000 R=0.9973 over 537 cases, but not every per-recognizer cell is above
+      MET, now measured.** The seed set reads exact P=1.0000 R=0.9974 and overlap
+      P=1.0000 R=0.9974 over 549 cases, but not every per-recognizer cell is above
       0.99: PHONE recall is 0.9828 (the `pos-phone-trunk-zero` miss). The corpora are
       now measurable and do not come close: exact aggregate
       P=0.8357 R=0.8916 (nemotron) and

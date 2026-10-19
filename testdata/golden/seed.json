@@ -5053,5 +5053,122 @@
         "value": "Hunter2xyz"
       }
     ]
+  },
+  {
+    "id": "pos-secret-bare-aws-key-id",
+    "note": "AWS access key id with no label, in an incident note. The value is the AWS documentation example, matched by its AKIA prefix and 16-character body.",
+    "text": "Incident 4411: the key AKIAIOSFODNN7EXAMPLE was pasted into a ticket, so rotate it.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "AKIAIOSFODNN7EXAMPLE"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-bare-github-token",
+    "note": "Classic GitHub personal access token with no label, after a shell comment. ghp_ and 36 alphanumerics.",
+    "text": "# clone with ghp_Q7rT2vN9bLx4Wc8Hm1Pd6Ys3Kf0Zj5Gu8Ea2 and push as the bot.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "ghp_Q7rT2vN9bLx4Wc8Hm1Pd6Ys3Kf0Zj5Gu8Ea2"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-bare-github-fine-grained",
+    "note": "Fine-grained GitHub token with no label: github_pat_ and 82 characters, underscores included.",
+    "text": "Fine-grained token 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 is on the CI secrets page.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "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"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-bare-slack-bot-token",
+    "note": "Slack bot token with no label in a chat message: xoxb- and two digit groups, then the secret.",
+    "text": "The deploy bot posted with xoxb-1234567890-1234567890-Q7rT2vN9bLx4Wc8Hm1Pd6Ys3 to the channel.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "xoxb-1234567890-1234567890-Q7rT2vN9bLx4Wc8Hm1Pd6Ys3"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-bare-stripe-live-key",
+    "note": "Stripe live secret key with no label, in a code snippet comment. sk_live_ and 24 or more alphanumerics.",
+    "text": "// charge call: stripe key sk_live_Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys was left in the snippet",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "sk_live_Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-bare-google-api-key",
+    "note": "Google API key with no label in a page source. AIza and 35 characters, the last two of which are letters.",
+    "text": "The map tile request uses AIzaSyD7kP2mQ9xR4vL8nB1cT6wF3hJ0zG5aEQx in the page source.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "AIzaSyD7kP2mQ9xR4vL8nB1cT6wF3hJ0zG5aEQx"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-bare-npm-token",
+    "note": "npm access token with no label in a publish script. npm_ and 36 alphanumerics.",
+    "text": "Publish script: npm_Q7rT2vN9bLx4Wc8Hm1Pd6Ys3Kf0Zj5Gu8EaK failed on the registry.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "npm_Q7rT2vN9bLx4Wc8Hm1Pd6Ys3Kf0Zj5Gu8EaK"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-bare-sendgrid-key",
+    "note": "SendGrid API key with no label in a mailer template. SG., 22 characters, a dot, then 43 characters.",
+    "text": "The mailer template includes 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 and needs replacing.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "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"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-bare-jwt",
+    "note": "A JWT with no label in a debug log: an eyJ header, an ey payload and a signature, three segments.",
+    "text": "Session pasted from the debug log: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNtPnIxz; the server rejected it.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNtPnIxz"
+      }
+    ]
+  },
+  {
+    "id": "neg-secret-bare-aws-prefix-prose",
+    "note": "The AKIA and ASIA prefixes named in prose with no following key id, and a lower-case key id that is not the format.",
+    "text": "AWS key ids start with AKIA and temporary ones with ASIA, so grep the repo for those prefixes. The lower-case akiaiosfodnn7example is a typo.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-bare-github-token-short",
+    "note": "A GitHub token cut one character short, 35 instead of 36 after ghp_. The shape needs the full length, so nothing is reported.",
+    "text": "The ticket has ghp_Q7rT2vN9bLx4Wc8Hm1Pd6Ys3Kf0Zj5Gu8Ea (cut off) in the log.",
+    "entities": []
+  },
+  {
+    "id": "neg-secret-bare-jwt-two-segments",
+    "note": "A header and payload with no signature segment. A bare JWT needs three segments, so nothing is reported.",
+    "text": "The header and payload are eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJrYXRlIn0 with no signature, so the token is not complete.",
+    "entities": []
   }
 ]

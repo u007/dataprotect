@@ -149,7 +149,7 @@ These are the 14 types in `recognizers.AllEntityTypes`. The "Scrubber" column is
 | `URL` | `regex.NewURLRecognizer` | HTTP and HTTPS, trailing punctuation trimmed | redact |
 | `IBAN` | `checksum.NewIBANValidator` | Pattern, mod-97 and per-country length table | redact |
 | `BITCOIN` | `regex.NewBitcoinRecognizer` | P2PKH, P2SH and bech32 (`bc1`, including Taproot), accepted only when the Base58Check or bech32 checksum verifies | redact |
-| `SECRET` | `secret.NewSecretRecognizer` | API keys, tokens, passwords and PEM private key headers; see "Known limits" | redact |
+| `SECRET` | `secret.NewSecretRecognizer` | API keys, tokens, passwords, PEM private key headers, and provider tokens with no label (AWS, GitHub, Slack bot and user, Stripe live, Google, npm, SendGrid, bare JWT); see "Known limits" | redact |
 | `SG_NRIC` | `national.NewSGNRICRecognizer` | Prefixes S, T, F and G, with the check letter. The M prefix is not supported | redact |
 | `MY_IC` | `national.NewMYICRecognizer` | MyKad, hyphenated form, date of birth check; MyKad has no checksum | redact |
 | `TH_ID` | `national.NewTHIDRecognizer` | Thai citizen ID, 13 digits with the mod-11 check digit. A Luhn-valid Thai ID is typed `TH_ID` by `Scrubber` | redact |
@@ -281,7 +281,7 @@ Packages: `analyzer/` (engine and overlap resolution), `anonymizer/` (operators 
 
 ## Datasets and measured results
 
-Measured on 2026-10-19 with `make benchmark`, `make corpus` and `make presidio`, run on the working tree at commit `356756a` with uncommitted changes. The seed set is 537 cases; the committed seed at `356756a` is 536. Every number in this section comes from those runs or is copied from [SPEC.md](SPEC.md) and [SOURCES.md](SOURCES.md).
+Measured on 2026-10-19 with `make benchmark`, `make corpus` and `make presidio`, run on the working tree at commit `9698b27` with uncommitted changes. The seed set is 549 cases; the committed seed at `9698b27` is 537. Every number in this section comes from those runs or is copied from [SPEC.md](SPEC.md) and [SOURCES.md](SOURCES.md).
 
 ### Sources
 
@@ -289,7 +289,7 @@ Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DAT
 
 | Dataset | Source | Pinned revision | Licence | Rows used | Local path | How to fetch |
 |---|---|---|---|---|---|---|
-| Golden seed set | `testdata/golden/seed.json`, authored in this repository from synthetic text | none; the working tree (see above) | none needed, authored here (DATASET_LICENSES.md, "Provenance") | 537 cases: 341 positive, 196 negative | `testdata/golden/` (committed) | nothing to fetch |
+| Golden seed set | `testdata/golden/seed.json`, authored in this repository from synthetic text | none; the working tree (see above) | none needed, authored here (DATASET_LICENSES.md, "Provenance") | 549 cases: 350 positive, 199 negative | `testdata/golden/` (committed) | nothing to fetch |
 | Nemotron-PII | [nvidia/Nemotron-PII](https://huggingface.co/datasets/nvidia/Nemotron-PII) | `b70ffaf5ff39e079776134c5bf4381f00a9fd1ed` | CC-BY-4.0 (attribution) | 2000 of 100000 rows, test split, file order | `testdata/external/nemotron-pii/` | `scripts/fetch-dataset.sh fetch nemotron-pii`, or `make download` |
 | Gretel synthetic PII finance (multilingual) | [gretelai/synthetic_pii_finance_multilingual](https://huggingface.co/datasets/gretelai/synthetic_pii_finance_multilingual) | `7b844d16738527a04264f50214cb426a4cea0897` | Apache-2.0 with NOTICE (attribution) | 2000 of 5596 rows, `combined_test` split only | `testdata/external/gretel-pii-finance/` | `scripts/fetch-dataset.sh fetch gretel-pii-finance`, or `make download` |
 | Microsoft Presidio test cases | [microsoft/presidio](https://github.com/microsoft/presidio) | `2523c7b74a469270c5c78bb253f140eafca21e31` | MIT | 590 cases from 601 rows, ten modules; 11 rows set aside | `testdata/external/presidio/` | `make presidio` (clones at the pin and extracts with `scripts/presidio_extract.py`) |
@@ -300,20 +300,20 @@ Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DAT
 
 | Dataset | Cases | Match | Precision | Recall | F1 | tp / fp / fn |
 |---|---|---|---|---|---|---|
-| Golden seed | 537 | exact span | 1.0000 | 0.9973 | 0.9987 | 372 / 0 / 1 |
-| Golden seed | 537 | byte overlap | 1.0000 | 0.9973 | 0.9987 | 372 / 0 / 1 |
+| Golden seed | 549 | exact span | 1.0000 | 0.9974 | 0.9987 | 381 / 0 / 1 |
+| Golden seed | 549 | byte overlap | 1.0000 | 0.9974 | 0.9987 | 381 / 0 / 1 |
 | Nemotron-PII | 2000 | exact span | 0.8357 | 0.8916 | 0.8627 | 2426 / 477 / 295 |
 | Nemotron-PII | 2000 | byte overlap | 0.8384 | 0.8945 | 0.8656 | 2434 / 469 / 287 |
 | Gretel PII finance | 2000 | exact span | 0.3677 | 0.8201 | 0.5078 | 652 / 1121 / 143 |
 | Gretel PII finance | 2000 | byte overlap | 0.3869 | 0.8629 | 0.5343 | 686 / 1087 / 109 |
 
-Negative cases with no detection: seed 196 of 196; Nemotron-PII 472 of 600; gretel 1291 of 1497.
+Negative cases with no detection: seed 199 of 199; Nemotron-PII 472 of 600; gretel 1291 of 1497.
 
 The seed set is hand-written and small. Its numbers are a floor, not a result. The corpus numbers are real measurements of a 2000-record sample, not a target. The seed set is the only one used as a CI gate.
 
 ### Per type
 
-Exact span, per type. A dash means the corpus schema does not label that type. Detections of such a type are reported as out of schema and are not scored: Nemotron-PII has IBAN 1 and SECRET 47 out of schema; gretel has BITCOIN 21, MY_PASSPORT 1, SECRET 12 and URL 817. The seed column gives case counts from `testdata/golden/seed.json` and gold spans from the benchmark.
+Exact span, per type. A dash means the corpus schema does not label that type. Detections of such a type are reported as out of schema and are not scored: Nemotron-PII has IBAN 1 and SECRET 63 out of schema; gretel has BITCOIN 21, MY_PASSPORT 1, SECRET 25 and URL 817. The seed column gives case counts from `testdata/golden/seed.json` and gold spans from the benchmark.
 
 | Type | Seed cases (gold spans) | Seed P / R (tp / fp / fn) | Nemotron-PII P / R | Gretel P / R |
 |---|---|---|---|---|
@@ -325,7 +325,7 @@ Exact span, per type. A dash means the corpus schema does not label that type. D
 | `URL` | 30 (30) | 1.0000 / 1.0000 (30 / 0 / 0) | 0.9900 / 0.9229 | - |
 | `IBAN` | 35 (35) | 1.0000 / 1.0000 (35 / 0 / 0) | - | 0.9556 / 0.9773 |
 | `BITCOIN` | 13 (13) | 1.0000 / 1.0000 (13 / 0 / 0) | - | - |
-| `SECRET` | 25 (25) | 1.0000 / 1.0000 (25 / 0 / 0) | - | - |
+| `SECRET` | 34 (34) | 1.0000 / 1.0000 (34 / 0 / 0) | - | - |
 | `SG_NRIC` | 5 (5) | 1.0000 / 1.0000 (5 / 0 / 0) | - | - |
 | `MY_IC` | 3 (3) | 1.0000 / 1.0000 (3 / 0 / 0) | - | - |
 | `TH_ID` | 4 (4) | 1.0000 / 1.0000 (4 / 0 / 0) | - | - |
@@ -374,7 +374,7 @@ Copied from [SOURCES.md](SOURCES.md) and [DATASET_LICENSES.md](DATASET_LICENSES.
 | secrets-patterns-db | no URL recorded (SPEC.md names GitHub) | No licence recorded | Not located. Not fetched |
 | CoNLL 2025 NER | no URL recorded (SPEC.md names Hugging Face) | Open question; the registry pins `conll2003` instead | Undecided |
 
-The secret recognizer has no external corpus. Its only scored data is the 25 SECRET cases in the seed set. Neither corpus labels secrets, so their SECRET detections are out of schema and not scored. Nothing from the Kaggle competition is used yet.
+The secret recognizer has no external corpus. Its only scored data is the 34 SECRET cases in the seed set. The corpora annotate some secrets under labels outside the type map (gretel `api_key`; nemotron `api_key` and `http_cookie`). Those spans are unlabelled, not scored, so their SECRET detections are out of schema and not scored. Nothing from the Kaggle competition is used yet.
 
 ## Known limits
 
@@ -388,6 +388,7 @@ Each item links to its open entry in [TODO.md](TODO.md) or to the rule in [SPEC.
 - **Secret over-redaction.** A plain word of eight or more characters after a label is reported: `Password: Required` anonymizes to `Password: [REDACTED]`. Uniform values such as `00000000000000000000` are not reported. Dotted tails are kept or trimmed by a fixed rule (SPEC.md, "Recognizers", secret row).
 - **Label boundary, accepted cost.** `pass` and `pwd` need a non-letter before them, so `bypass=` and `compass:` are not reported. The same rule means `dbpass=x` and `rootpwd=x` are not reported either (TODO.md, secret section, 2026-10-19).
 - **Closing bracket after a password.** One trailing `)`, `]` or `}` is dropped when whitespace or the end of text follows it and the value has no opener for it, so `(pass=Hunter2xyz)` reports `Hunter2xyz`. A closing bracket followed by a quote (`"Hunter2xyz)"`) is kept and over-redacts one byte; it does not leak the value (TODO.md, secret section, 2026-10-19).
+- **Provider tokens with no label, limits.** The formats in the SECRET row are matched by fixed prefix and shape only, so a token that does not follow the exact length is not reported (a GitHub token one character short is missed). Not covered: Slack `xoxa-`, `xoxr-` and `xoxs-` (no provider source found; see TODO.md), bare JWE, a bare JWT with a fourth segment, Stripe test keys (`sk_test_`), Stripe `sk_org_`, and the formats not listed. A token inside a URL is redacted as part of the URL, since the URL recognizer scores higher (0.99 against 0.98). Stated limits of the source-backed formats are in SOURCES.md.
 - **Other open items.** Singapore M-prefix NRIC is not supported. Thai passports are not covered. BITCOIN is not labelled by either corpus, so it is unmeasured there. On Nemotron-PII, all 230 CREDIT_CARD false negatives fail the Luhn check. The corpus cards have valid network prefixes but random check digits (24 of 254 pass Luhn). Detecting them would mean reporting Luhn-invalid numbers, which the Luhn-only policy and the seed negatives rule out; the decision is open (SPEC.md, "Corpus measurement").
 
 ## License

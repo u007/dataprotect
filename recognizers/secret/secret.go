@@ -50,10 +50,11 @@ func tokenValue(minLen int) string {
 // tabs may precede the separator. A newline does not, so the label stays on its line.
 const labelSeparator = `["']?[ \t]*[=:]`
 
-// apiKeyShape matches common API key formats: a prefix label followed by a
-// high-entropy value (e.g. `sk_live_...`, `AKIA...`, `xoxb-...`). Group 1 is the
-// value and group 2 its base (tokenValue): a JWT or JWE, or a bare value of 20 or
-// more characters, with an optional dotted tail.
+// apiKeyShape matches labelled API keys: a key-name label followed by a
+// high-entropy value (e.g. `api_key=sk_live_...`). A provider token with no label
+// is matched by bareShape instead. Group 1 is the value and group 2 its base
+// (tokenValue): a JWT or JWE, or a bare value of 20 or more characters, with an
+// optional dotted tail.
 var apiKeyShape = regexp.MustCompile(`(?i)(?:api[_-]?key|apikey|secret[_-]?key|access[_-]?token|auth[_-]?token)` + labelSeparator + `\s*["']?` + tokenValue(20) + `["']?`)
 
 // tokenShape matches bearer/JWT-style tokens and long hex/base64 strings. Group 1
@@ -66,6 +67,69 @@ var tokenShape = regexp.MustCompile(`(?:Bearer\s+|token` + labelSeparator + `\s*
 // privateKeyShape matches PEM private key blocks. It has no value part, so the
 // whole header is the span.
 var privateKeyShape = regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`)
+
+// tokenByte is a byte of a provider token's character set, the characters a
+// token can continue with. A bare match is kept only when no token byte sits
+// directly before or after it, so a match is never a fragment of a longer run.
+func tokenByte(b byte) bool {
+	return b == '_' || b == '-' || ('0' <= b && b <= '9') || ('A' <= b && b <= 'Z') || ('a' <= b && b <= 'z')
+}
+
+// bareShape matches provider token formats with no label. Each alternative has a
+// distinctive, case-sensitive prefix and a fixed shape, and the match is the whole
+// token. The formats, and the source each was checked against, are in SOURCES.md
+// ("Provider token formats"). A match is kept only when bareBounded accepts it.
+//
+// Each alternative has one capture group over its random body, the part after
+// the fixed prefix. bareEntities runs the uniform check on that body, so a
+// placeholder such as `AKIAAAAAAAAAAAAAAAAA` is rejected. The group is the
+// JWT itself for the JWT alternative, which has no fixed prefix to strip.
+//
+//   - AWS access key id: `AKIA` or `ASIA`, then 16 upper-case letters or digits.
+//   - GitHub token: `ghp_`, `gho_`, `ghu_`, `ghs_` or `ghr_`, then 36 alphanumerics;
+//     fine-grained `github_pat_`, then 82 characters of alphanumerics or `_`.
+//   - Slack bot and user token: `xoxb-` or `xoxp-`, then 10 to 13 digits per group.
+//   - Stripe live secret or restricted key: `sk_live_` or `rk_live_`, then 24 or
+//     more alphanumerics.
+//   - Google API key: `AIza`, then 35 characters of letters, digits, `_` or `-`.
+//   - npm access token: `npm_`, then 36 alphanumerics.
+//   - SendGrid API key: `SG.`, 22 characters, `.`, 43 characters.
+//   - JWT with no label: an `eyJ` header and an `ey` payload, each at least 8
+//     characters, then a signature of at least 8 characters. A JWT is three
+//     segments, so a fourth segment after the signature makes the match unbounded
+//     and it is dropped.
+var bareShape = regexp.MustCompile(strings.Join([]string{
+	`(?:AKIA|ASIA)([0-9A-Z]{16})`,
+	`gh[pousr]_([0-9A-Za-z]{36})`,
+	`github_pat_([0-9A-Za-z_]{82})`,
+	`xoxb-[0-9]{10,13}-[0-9]{10,13}-([0-9A-Za-z]{24,})`,
+	`xoxp-[0-9]{10,13}-[0-9]{10,13}-[0-9]{10,13}-([0-9A-Za-z]{28,34})`,
+	`(?:sk|rk)_live_([0-9A-Za-z]{24,})`,
+	`AIza([0-9A-Za-z_\-]{35})`,
+	`npm_([0-9A-Za-z]{36})`,
+	`SG\.[0-9A-Za-z_\-]{22}\.([0-9A-Za-z_\-]{43})`,
+	`(eyJ[0-9A-Za-z_\-]{8,}\.ey[0-9A-Za-z_\-]{8,}\.[0-9A-Za-z_\-]{8,})`,
+}, "|"))
+
+// bareBounded reports whether text[start:end] is a whole token. No token byte may
+// sit directly before or after it, and a `.` followed by a token byte is not
+// allowed after it, so a longer dotted token is not cut short. That last case is
+// a JWT with a fourth segment, and an SG key with more segments. Such a match is
+// dropped rather than reported as a prefix that leaves the rest visible.
+func bareBounded(text string, start, end int) bool {
+	if start > 0 && tokenByte(text[start-1]) {
+		return false
+	}
+	if end < len(text) {
+		if tokenByte(text[end]) {
+			return false
+		}
+		if text[end] == '.' && end+1 < len(text) && tokenByte(text[end+1]) {
+			return false
+		}
+	}
+	return true
+}
 
 // passwordShape matches password assignments in config-like contexts. Group 1 is
 // the value: at least 8 characters with no space, quote or line break.
@@ -86,6 +150,7 @@ type SecretRecognizer struct {
 	token      *regexp.Regexp
 	privateKey *regexp.Regexp
 	password   *regexp.Regexp
+	bare       *regexp.Regexp
 }
 
 // NewSecretRecognizer creates a secret recognizer.
@@ -95,6 +160,7 @@ func NewSecretRecognizer() *SecretRecognizer {
 		token:      tokenShape,
 		privateKey: privateKeyShape,
 		password:   passwordShape,
+		bare:       bareShape,
 	}
 }
 
@@ -109,17 +175,65 @@ func (r *SecretRecognizer) Name() string { return "secret" }
 // `access_token=` or `auth_token=` value that is a JWT, or 32 or more characters,
 // and report the same span, so the later duplicate is dropped and the first in
 // emission order is kept. The result is sorted by Start, with ties in emission order.
+//
+// A bare provider token (bareShape) is dropped when it overlaps a labelled span.
+// The labelled span is the wider one: it can take a trailing `;` from a password
+// or a dotted tail from an api_key, so the token is reported once, with its label.
 func (r *SecretRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
-	var entities []recognizers.Entity
+	var labelled []recognizers.Entity
 
-	entities = append(entities, valueEntities(r.apiKey, text, tokenEnd)...)
-	entities = append(entities, valueEntities(r.token, text, tokenEnd)...)
+	labelled = append(labelled, valueEntities(r.apiKey, text, tokenEnd)...)
+	labelled = append(labelled, valueEntities(r.token, text, tokenEnd)...)
+	labelled = append(labelled, valueEntities(r.password, text, passwordEnd)...)
+
+	entities := labelled
 	for _, m := range r.privateKey.FindAllStringIndex(text, -1) {
 		entities = append(entities, secretEntity(text, m[0], m[1], 0.99))
 	}
-	entities = append(entities, valueEntities(r.password, text, passwordEnd)...)
+	for _, e := range bareEntities(r.bare, text) {
+		if !overlapsAny(e, labelled) {
+			entities = append(entities, e)
+		}
+	}
 
 	return uniqueSpans(entities), nil
+}
+
+// bareEntities returns one entity per bare provider token that is bounded and
+// whose body passes isLikelySecret. The span is the whole match, the token with
+// its prefix. The body is the capture group of the alternative that matched.
+func bareEntities(re *regexp.Regexp, text string) []recognizers.Entity {
+	var entities []recognizers.Entity
+	for _, m := range re.FindAllStringSubmatchIndex(text, -1) {
+		if !bareBounded(text, m[0], m[1]) || !isLikelySecret(bareBody(text, m)) {
+			continue
+		}
+		entities = append(entities, secretEntity(text, m[0], m[1], 0.98))
+	}
+	return entities
+}
+
+// bareBody returns the body of a bareShape match: the text of the one capture
+// group that participated, since each alternative has exactly one group.
+func bareBody(text string, m []int) string {
+	for g := 2; g+1 < len(m); g += 2 {
+		if m[g] >= 0 {
+			return text[m[g]:m[g+1]]
+		}
+	}
+	// Every bareShape alternative has a group that always participates, so a
+	// match with none is a broken pattern, not an input to skip.
+	panic("secret: bareShape match has no body group")
+}
+
+// overlapsAny reports whether e shares at least one byte with any of others.
+func overlapsAny(e recognizers.Entity, others []recognizers.Entity) bool {
+	for _, o := range others {
+		if e.Start < o.End && o.Start < e.End {
+			return true
+		}
+	}
+	return false
 }
 
 // uniqueSpans keeps the first entity for each (Start, End), in emission order,

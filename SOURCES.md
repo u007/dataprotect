@@ -52,8 +52,8 @@ make corpus                                   # converts (LIMIT=2000 default; LI
 make corpus-anonymize                         # Anonymize contract over all converted cases
 ```
 
-**Authored in this repository:** `testdata/golden/seed.json`, 537 cases (341 positive,
-196 negative), written from synthetic text. It is the CI gate, and it carries no
+**Authored in this repository:** `testdata/golden/seed.json`, 549 cases (350 positive,
+199 negative), written from synthetic text. It is the CI gate, and it carries no
 third-party terms (see DATASET_LICENSES.md, "Provenance").
 
 **Every other candidate: status, reason, and the trigger for looking again.** Re-search
@@ -183,3 +183,34 @@ Each rule's source is listed with what it supports and what it does not.
 - Thailand passport: no format for the 2020 booklet from any source checked (Wikipedia, MFA, US State Department, PRADO `THA-AO-06001` NL and fr, HL7, IDnow Annex 2). The 2012 booklet (`THA-AO-02002`) has two entries that disagree on digit count (7 and 8), and its shape `AANNNNNNN` matches Japan's Purview pattern. Thai passports stay uncovered (decided 2026-10-15, user, on advisor's recommendation; all four 2020 booklets read with no composition). A nine-character alphanumeric rule would match non-passport strings and is not added.
 - Malaysia passport: the eight-digit shape `[AHK]\d{8}` has no PRADO composition. `MYS-AO-03001` (2017, NL) has none; `MYS-AO-02001` (2010, NL) has no numbering entry.
 - Two of three URL gaps closed 2026-10-14 (OpenNER, NRIC check tables). The MyKad Purview page is still unlocated (guessed URL 404).
+
+## Secret datasets and provider token formats (checked 2026-10-19)
+
+These supersede the "Not located" rows for SecretBench and secrets-patterns-db in the Final set table above.
+
+### Secret datasets: licence and access
+
+| Source | URL | Licence | Access | Usable | Why |
+|--------|-----|---------|--------|--------|-----|
+| secrets-patterns-db (mazen160) | https://github.com/mazen160/secrets-patterns-db | README says CC-BY-4.0 and says the TruffleHog data is AGPL. The sidebar says CC-BY-SA-4.0. `LICENSE.md` is CC BY-SA 4.0 (raw fetch 2026-10-19). The raw `LICENSE` file returns 404 on `main` and `master`. | Public. A regex database of about 1,600 patterns, not labelled text. | No | The licence statements conflict, and ShareAlike applies to adapted material. It holds regular expressions, not labelled values, so it cannot score a value-level detector. No data fetched. |
+| SecretBench (setu1421/SecretBench) | https://github.com/setu1421/SecretBench ; paper arXiv:2303.06729 | README says MIT. The LICENSE file was not read, and the page does not say whether MIT covers the dataset. | Gated. The README says researchers and tool developers must sign a data protection agreement. The data is a BigQuery dataset `dev-range-332204.secretbench.secrets` (97,479 labelled rows) and a Cloud Storage bucket `secretbench`. It contains real secrets. | No | Access needs an agreement that the project cannot sign on its own. Not downloaded. |
+| CredData (Samsung/CredData) | https://github.com/Samsung/CredData | Repository is Apache-2.0 (sidebar label; LICENSE text not read). Each data file keeps its source repository's licence, and the mapping by RepoID is not shown on the page. | The data is not in the repository. `download_data.py` fetches files from the original repositories. The page says the repository mapping is for research purposes only. | No | The data licence is per file and not resolved, and the mapping terms are research-only. Not fetched. |
+| Hugging Face search, labelled secret detection | WebSearch, two queries, 2026-10-19 | No dataset card with a verified MIT, Apache-2.0 or CC-BY licence was found. The one Hugging Face hit was a model card (`purebyte/secrets-code`), not a dataset. | n/a | No | No candidate met the bar. Search again when a candidate is named. |
+
+### Provider token formats (`bareShape`)
+
+| Format | Shape in code | Prefix source | Length and character source | Notes |
+|--------|---------------|---------------|-----------------------------|-------|
+| AWS access key id | `AKIA` or `ASIA`, then 16 of `[0-9A-Z]` | AWS IAM unique identifiers, prefix table: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html (AKIA "Access key", ASIA "Temporary (AWS STS) access key IDs"; fetched 2026-10-19) | The AWS page gives no length. 16 characters: gitleaks `aws-access-token` rule, `[A-Z2-7]{16}` (MIT; https://raw.githubusercontent.com/gitleaks/gitleaks/master/config/gitleaks.toml). | The code uses `[0-9A-Z]`, as the brief asked, which is wider than gitleaks. |
+| GitHub classic, OAuth, user-to-server, server-to-server, refresh | `gh[pousr]_`, then 36 of `[0-9A-Za-z]` | GitHub docs, "About authentication to GitHub" (https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-authentication-to-github): `ghp_`, `gho_`, `ghs_` named, fetched 2026-10-19. `ghu_` and `ghr_` appear in GitHub's engineering post on token formats (https://github.blog/engineering/behind-githubs-new-authentication-token-formats/), which was read only as a search excerpt. | 36 after the prefix. The GitHub docs say installation tokens are "exactly 40 characters long", which is the whole token, so 36 after `ghs_`. gitleaks `github-pat`, `github-oauth`, `github-app-token` and `github-refresh-token` use `{36}`. | `ghu_` and `ghr_` lengths rest on gitleaks and the 40-character figure. |
+| GitHub fine-grained PAT | `github_pat_`, then 82 of `[0-9A-Za-z_]` | Prefix named in the GitHub docs page above. | 82 characters: gitleaks `github-fine-grained-pat`, `github_pat_\w{82}`. | |
+| Slack bot and user token | `xoxb-` + 10 to 13 digits + `-` + 10 to 13 digits + `-` + 24 or more alphanumerics; `xoxp-` + three digit groups + 28 to 34 alphanumerics | https://docs.slack.dev/authentication/tokens: `xoxb-` (bot) and `xoxp-` (user), fetched 2026-10-19. | Digit groups and tail: gitleaks `slack-bot-token` and `slack-user-token`. | The 24-character tail for the bot form is the brief's choice, looser than the gitleaks rule's own tail. Not checked against a provider statement. |
+| Stripe live secret and restricted | `sk_live_` or `rk_live_`, then 24 or more alphanumerics | https://docs.stripe.com/keys: `sk_live_`, `rk_live_`, `sk_test_`, `pk_` named, fetched 2026-10-19. | 24 or more is the brief's figure. gitleaks `stripe-access-token` uses `{10,99}`. No provider length statement found. | Test keys are not matched (brief scope). |
+| Google API key | `AIza`, then 35 of `[0-9A-Za-z_-]` | Google's page (https://cloud.google.com/docs/authentication/api-keys) was fetched on 2026-10-19, and the result was withheld by a content guardrail. It was not retried by another route. Prefix and length rest on gitleaks `gcp-api-key`, `AIza[\w-]{35}`. | | Provider-page check outstanding (TODO.md). |
+| npm access token | `npm_`, then 36 alphanumerics | npm changelog, 2021-09-23, "npm has a new access token format" (https://github.blog/changelog/2021-09-23-npm-has-a-new-access-token-format): the new tokens use the GitHub-style `npm_` prefix. Read as a search excerpt. | 36 after the prefix: gitleaks `npm-access-token`, `npm_[a-z0-9]{36}`. | |
+| SendGrid API key | `SG.`, 22 characters, `.`, 43 characters | Not fetched from SendGrid. Prefix and total length from gitleaks `sendgrid-api-token`, `SG\.[a-z0-9=_\-\.]{66}` (MIT). | The 22 and 43 split is the brief's. Not checked against provider docs. | |
+| Bare JWT | `eyJ` header, `ey` payload, signature, each at least 8 characters | JWT format (RFC 7519, https://www.rfc-editor.org/rfc/rfc7519) not fetched. The `eyJ` prefix is the base64 of `{"`. The `ey` payload rule follows gitleaks `jwt`. | Floors of 8 are the code's choice. gitleaks uses 17 and 10. | A fourth segment makes the match unbounded and it is dropped. |
+
+**Not added.** Slack `xoxa-`, `xoxr-`, `xoxs-`: not in Slack's docs fetched on 2026-10-19. Microsoft Purview lists them (https://learn.microsoft.com/purview/sit-defn-slack-access-token), but Purview is not the provider. Left for a decision. Stripe test keys `sk_test_` and organisation keys `sk_org_`, Slack `xoxe.`, `xapp-` and `xwfp-`, and bare JWE: outside the brief's list.
+
+**Licence of gitleaks:** MIT, checked 2026-10-19 from its raw LICENSE file.
