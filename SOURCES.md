@@ -52,8 +52,8 @@ make corpus                                   # converts (LIMIT=2000 default; LI
 make corpus-anonymize                         # Anonymize contract over all converted cases
 ```
 
-**Authored in this repository:** `testdata/golden/seed.json`, 498 cases (316 positive,
-182 negative), written from synthetic text. It is the CI gate, and it carries no
+**Authored in this repository:** `testdata/golden/seed.json`, 518 cases (328 positive,
+190 negative), written from synthetic text. It is the CI gate, and it carries no
 third-party terms (see DATASET_LICENSES.md, "Provenance").
 
 **Every other candidate: status, reason, and the trigger for looking again.** Re-search

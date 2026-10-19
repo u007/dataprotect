@@ -1,7 +1,7 @@
 ---
 type: Concept
 title: piiscrub — Usage & Quick Start
-description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum, 5 national-ID and passport recognizers, 1 secret recognizer, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 498-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
+description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum, 5 national-ID and passport recognizers, 1 secret recognizer, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 518-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
 tags:
   - pii
   - go
@@ -25,15 +25,15 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 - **2 checksum validators, wired into the default pipeline** — Luhn (credit
   cards), mod-97 (IBAN). Cards are detected by Luhn rather than by digit shape,
   so a long number that fails the checksum is not redacted as payment data.
-- **1 secret recognizer** — API keys, bearer/JWT tokens, PEM private keys and password assignments, with an entropy gate so plain words are not reported
+- **1 secret recognizer** — API keys, bearer/JWT tokens, PEM private keys and password assignments, with a length floor per shape and a character-class gate on the value, so uniform placeholders are not reported
 - **4 operators** — replace, mask, hash, redact
 - **Structured data** — CSV batch processing
 - **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`)
 - **Measured, not claimed** — a hand-labelled seed dataset, an on-demand corpus
   measurement over the fetched corpora, and a scoring runner
-  gate accuracy in CI. Current baseline over 498 cases: exact-span
-  P=1.0000 R=0.9971, overlap P=1.0000 R=0.9971. Run `scripts/benchmark.sh`.
-  The seed set is close to the ~500 cases the accuracy targets assume, but it is
+  gate accuracy in CI. Current baseline over 518 cases: exact-span
+  P=1.0000 R=0.9972, overlap P=1.0000 R=0.9972. Run `scripts/benchmark.sh`.
+  The seed set is 518 cases, past the ~500 the accuracy targets assume, but it is
   hand-written, so treat the numbers as a floor rather than a result.
 - **Zero external dependencies** — stdlib only
 - **~100-200 MB RAM** — vs Presidio's 4 GB
@@ -127,8 +127,8 @@ The map holds the original values in plain text. Protect it as you would the inp
 
 ## Testing & dataset coverage
 
-`testdata/golden/seed.json` holds 498
-hand-labelled cases (316 positive, 182 negative), and `golden/accuracy_test.go`
+`testdata/golden/seed.json` holds 518
+hand-labelled cases (328 positive, 190 negative), and `golden/accuracy_test.go`
 gates on the exact measured baseline, so a regression fails the build instead of
 drifting silently. Labels are written from the text, never copied from detector
 output — a dataset derived from the detector's own predictions cannot fail and
@@ -136,32 +136,33 @@ proves nothing. Run `scripts/benchmark.sh` for the full report.
 
 | Match policy | Precision | Recall | F1 | tp/fp/fn |
 |---|---|---|---|---|
-| exact span | 1.0000 | 0.9971 | 0.9986 | 347/0/1 |
-| byte overlap | 1.0000 | 0.9971 | 0.9986 | 347/0/1 |
+| exact span | 1.0000 | 0.9972 | 0.9986 | 359/0/1 |
+| byte overlap | 1.0000 | 0.9972 | 0.9986 | 359/0/1 |
 
 Coverage by entity type, counting the cases that carry each type:
 
 | Entity type | Cases |
 |---|---|
-| EMAIL | 4 |
-| CREDIT_CARD | 5 |
-| PHONE | 4 |
-| SSN | 4 |
-| IP_ADDRESS | 3 |
-| URL | 4 |
-| IBAN | 5 |
-| BITCOIN | 3 (Base58Check / bech32 checksum) |
+| EMAIL | 51 |
+| CREDIT_CARD | 49 |
+| PHONE | 54 |
+| SSN | 32 |
+| IP_ADDRESS | 44 |
+| URL | 30 |
+| IBAN | 35 |
+| BITCOIN | 13 (Base58Check / bech32 checksum) |
 | SG_NRIC | 5 |
 | MY_IC | 3 |
 | TH_ID | 4 |
 | MY_PASSPORT | 3 |
 | SG_PASSPORT | 2 |
+| SECRET | 12 (API key, token, password, PEM header) |
 
 The numbers are not perfect. Batch 2 exposed two detector defects. The URL one,
 a sentence-final period kept, is fixed. The other, a four-part version string
 read as an IP, is still open; that case stays labelled as written and is in
 TODO.md. The seed set
-is 498 cases, close to the ~500 the accuracy targets assume, so read every
+is 518 cases, past the ~500 the accuracy targets assume, so read every
 number above as a floor rather than a result. This baseline was
 reached by fixing the phone recognizer's dropped leading `(` on parenthesised
 area codes — until that fix it was the single false positive and the single
@@ -185,7 +186,7 @@ restrict commercial use.
 | `piibench` | apache *declared* | audit first |
 
 Both clean corpora are fetchable **and now scored**: `make corpus` converts them
-and prints a report (see SPEC.md § "Corpus measurement (2026-10-09)" for the
+and prints a report (see SPEC.md § "Corpus measurement (2026-10-19)" for the
 numbers and what explains each gap). The conversion is schema-aware — each
 converted dataset carries a `schema.json` naming the entity types it labels, and
 the scorer excludes detections of any other type from the false-positive count
@@ -194,8 +195,8 @@ would score a correct EMAIL detection as a false positive.
 
 | | nemotron (2000 of 100000) | gretel (2000 of 5596) |
 |---|---|---|
-| exact | P=0.8345 R=0.8916 | P=0.3669 R=0.8201 |
-| byte overlap | P=0.8380 R=0.8953 | P=0.3849 R=0.8604 |
+| exact | P=0.8357 R=0.8916 | P=0.3677 R=0.8201 |
+| byte overlap | P=0.8384 R=0.8945 | P=0.3869 R=0.8629 |
 
 Those are real numbers from a 2000-record sample, not a target: the seed set
 above is too small to test the detector at scale, while 2000 real records
