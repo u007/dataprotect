@@ -186,15 +186,14 @@ var closerOpener = map[byte]byte{')': '(', ']': '[', '}': '{'}
 // `Abcdefg`.
 func passwordEnd(text string, m []int) int {
 	end := m[3]
-	if end < len(text) && !isSpaceByte(text[end]) {
-		return end
-	}
 	last := text[end-1]
-	if last == '.' {
+	if last == '.' && (end == len(text) || isSpaceByte(text[end])) {
 		return end - 1
 	}
-	if opener, ok := closerOpener[last]; ok && strings.IndexByte(text[m[2]:end-1], opener) < 0 {
-		return end - 1
+	if opener, ok := closerOpener[last]; ok {
+		if (end == len(text) || isSpaceByte(text[end]) || text[end] == 34 || text[end] == 39) && strings.IndexByte(text[m[2]:end-1], opener) < 0 {
+			return end - 1
+		}
 	}
 	return end
 }

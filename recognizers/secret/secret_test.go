@@ -206,7 +206,7 @@ func TestSecretRecognizerValueSpan(t *testing.T) {
 		{"password with a balanced paren pair at the end is kept", `password=Hunter2(x)`, `Hunter2(x)`},
 		{"password with a balanced square bracket pair at the end is kept", `password=Hunter2[x]`, `Hunter2[x]`},
 		{"password with a square bracket inside is kept", `password: Pa[ss]w0rd1]`, `Pa[ss]w0rd1]`},
-		{"password closing paren before a closing quote is kept (known residual)", `password: "Hunter2xyz)"`, `Hunter2xyz)`},
+		{"password closing paren before a closing quote is dropped", `password: "Hunter2xyz)"`, `Hunter2xyz`},
 
 		// Short labels `pass` and `pwd` match at a non-letter boundary. `_`, `-`,
 		// start of text and a quote are separators. Long labels need no boundary.
