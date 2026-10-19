@@ -4931,6 +4931,45 @@
     ]
   },
   {
+    "id": "pos-secret-password-sentence-period",
+    "note": "Password assignment that ends a sentence. The period is not part of the password, so the span stops before it; the value keeps every other character.",
+    "text": "Staging login for the reporting tool. password: Rainbow@2025. Share it only with the on-call engineer.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Rainbow@2025"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-jwt-four-segments",
+    "note": "JWS with four dot-joined segments at the end of the text. It is captured whole, not cut after the third segment.",
+    "text": "GET /v2/reports HTTP/1.1\nAuthorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.c2lnbmF0dXJl.ZXh0cmFzZWc",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.c2lnbmF0dXJl.ZXh0cmFzZWc"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-token-trailing-segment",
+    "note": "Token whose last dotted segment is a word, in a JSON value. The word is part of the token because the closing quote follows it, not a space.",
+    "text": "{\"token\": \"Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq.abc\", \"region\": \"eu-west-1\"}",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq.abc"
+      }
+    ]
+  },
+  {
+    "id": "neg-secret-prose-token-expiry",
+    "note": "Bearer as a plural noun in prose, with no token value after it and no label separator.",
+    "text": "Bearer tokens expire after an hour. Next step: rotate them before the release.",
+    "entities": []
+  },
+  {
     "id": "pos-secret-four-segment-token",
     "note": "Dotted token of four segments. The whole value is one secret; the fourth segment must not stay visible.",
     "text": "Set token=Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq.a1B2c3D4.e5F6g7H8.i9J0k1L2 for the sync job.",
@@ -4986,5 +5025,22 @@
     "note": "A token label with a 16-character value, under the 32-character token floor.",
     "text": "The old token=Zq7Rt2vN9bLx4Wc8 expired last week.",
     "entities": []
+  },
+  {
+    "id": "neg-secret-label-inside-word",
+    "note": "The short label pass sits inside the word bypass, and the value after it is an ordinary word. The label has no left boundary, so no password is reported.",
+    "text": "The release reviewer wrote bypass=kittenmitten in the ticket.",
+    "entities": []
+  },
+  {
+    "id": "pos-secret-db-pass-underscore",
+    "note": "Short pass label after an underscore in a compound key. The underscore is a separator, so the value is reported.",
+    "text": "Set db_pass=Hunter2xyz in the staging .env before the migration.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "Hunter2xyz"
+      }
+    ]
   }
 ]

@@ -167,12 +167,39 @@ func TestSecretRecognizerValueSpan(t *testing.T) {
 		{"dir jwe with short header after access token label", `access_token=` + testDirJWE, testDirJWE},
 		{"dir jwe with long header bearer", `Authorization: Bearer ` + testDirLongJWE, testDirLongJWE},
 
-		// Residual, kept on purpose: a value followed by exactly one dotted word is
-		// indistinguishable from `Bearer <value>.Next step` prose, so the word stays
-		// visible. A JWS-shaped value with a fourth segment is reported as its
-		// three-segment base for the same reason. TODO.md records both.
-		{"residual: one trailing dotted segment stays visible", `token=Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq.abc`, `Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq`},
-		{"residual: jwt with a fourth segment keeps three", `Authorization: Bearer eyJhbGciOiJIUzI0NiJ9.eyJzdWIiOiJ0ZXN0In0.c2lnbmF0dXJl.extra`, `eyJhbGciOiJIUzI0NiJ9.eyJzdWIiOiJ0ZXN0In0.c2lnbmF0dXJl`},
+		// A single dotted segment is kept when the value ends the text or is followed
+		// by a non-space byte. Followed by whitespace it is prose and is trimmed (see
+		// the dotted prose rows above).
+		{"one trailing dotted segment at end of text is captured", `token=Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq.abc`, `Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq.abc`},
+		{"jwt with a fourth segment is captured whole", `Authorization: Bearer eyJhbGciOiJIUzI0NiJ9.eyJzdWIiOiJ0ZXN0In0.c2lnbmF0dXJl.extra`, `eyJhbGciOiJIUzI0NiJ9.eyJzdWIiOiJ0ZXN0In0.c2lnbmF0dXJl.extra`},
+		{"one trailing dotted segment before a newline is trimmed", "token=Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq.abc\nnext line", `Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq`},
+		{"one trailing dotted segment inside json is captured", `{"token": "Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq.abc", "region": "eu"}`, `Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys3Tg0Bn5Kq.abc`},
+		{"two trailing dotted segments before whitespace are kept", `Authorization: Bearer ` + testJWT + `.abc.def Next`, testJWT + `.abc.def`},
+
+		// Password sentence punctuation. One trailing `.` before whitespace or the
+		// end of text is the sentence period and is dropped. `!` and `?` are part of
+		// the value. A second `.` is kept, and so is a `.` followed by `,` or a quote.
+		{"password sentence period", `password: Rainbow@2025.`, `Rainbow@2025`},
+		{"password sentence period mid text", `Set password: Rainbow@2025. Then rotate it.`, `Rainbow@2025`},
+		{"password sentence period before newline", "password=river.canyon.\nnext line", `river.canyon`},
+		{"password exclamation mark is part of the value", `password: Hunter2!`, `Hunter2!`},
+		{"password question mark is part of the value", `password: Hunter2?`, `Hunter2?`},
+		{"password drops one period of two", `password: Rainbow@2025..`, `Rainbow@2025.`},
+		{"password period before comma is kept", `password: Rainbow@2025.,`, `Rainbow@2025.,`},
+		{"password period before closing quote is kept", `password: "Rainbow@2025."`, `Rainbow@2025.`},
+		{"password floor is checked before the period is dropped", `password: Abcdefg.`, `Abcdefg`},
+
+		// Short labels `pass` and `pwd` match at a non-letter boundary. `_`, `-`,
+		// start of text and a quote are separators. Long labels need no boundary.
+		{"pass label at start of text", `pass=Hunter2xyz`, `Hunter2xyz`},
+		{"pass label after an underscore", `db_pass=Hunter2xyz`, `Hunter2xyz`},
+		{"upper-case pass label after an underscore", `DB_PASS=Hunter2xyz`, `Hunter2xyz`},
+		{"pwd label after a hyphen", `my-pwd: Hunter2xyz`, `Hunter2xyz`},
+		{"json pass label", `"pass": "Hunter2xyz"`, `Hunter2xyz`},
+		{"password label after a word with no boundary", `dbpassword=correcthorsebatterystaple`, `correcthorsebatterystaple`},
+		{"upper-case password label after a word with no boundary", `ROOTPASSWORD=correcthorsebatterystaple`, `correcthorsebatterystaple`},
+		{"secret label after a word with no boundary", `mysecret=correcthorsebatterystaple`, `correcthorsebatterystaple`},
+		{"password reported after a short label inside a word", `Route compass: password=Hunter2xyz`, `Hunter2xyz`},
 	}
 
 	for _, tt := range tests {
@@ -225,6 +252,11 @@ func TestSecretRecognizerRejectsShortOrUniformValue(t *testing.T) {
 		{"prose mentioning password with no separator", `the password is "x"`},
 		{"json key with no separator", `{"api_key" "Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys"}`},
 		{"key and separator on different lines", "api_key\n: Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys"},
+		{"password of short dotted words with a period", `password: a.b.c.`},
+		{"password uniform once its period is dropped", `password=aaaaaaa.`},
+		{"pass label inside a word", `bypass=kittenmitten`},
+		{"pass label inside a word in prose", `Route compass: northeastregion`},
+		{"pwd label inside a word", `tripwd=abcdefghij`},
 	}
 
 	for _, tt := range tests {

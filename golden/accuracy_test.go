@@ -19,11 +19,11 @@ const datasetDir = "../testdata/golden"
 // moves recall by a large fraction — so a shrinking dataset would silently
 // weaken the gate rather than fail it. Ratcheted with each batch: it tracks the
 // current seed count, so any drop below it fails.
-const minCases = 530
+const minCases = 536
 
 // Gate thresholds.
 //
-// These are the MEASURED baseline, not a target. The seed set is 530 cases, past
+// These are the MEASURED baseline, not a target. The seed set is 536 cases, past
 // the ~500 SPEC.md calls for; claiming ">99% precision/recall" here would
 // make the gate a rubber stamp. Each constant is the EXACT measured value, so
 // any regression fails immediately and any improvement is a deliberate
@@ -91,8 +91,20 @@ const minCases = 530
 // with no value, and a short token. All 12 matched exactly with the recognizer
 // change, and no bound was loosened to make them pass.
 //
-// The measured baseline is exact P=1.0000 R=0.9973 (tp=367 fp=0 fn=1), overlap
-// P=1.0000 R=0.9973 (tp=367 fp=0 fn=1), and 194 of 194 negative cases clean. The
+// Batch 18 (2026-10-19) added 3 positives and 1 negative for the secret trailing
+// punctuation and JWT tail fixes: a password with a sentence-final period, a
+// four-segment JWS at the end of the text, a token whose last dotted segment is a
+// word inside JSON, and prose with a plural `tokens` and no value. All 4 matched
+// exactly, and no bound was loosened.
+//
+// Batch 19 (2026-10-19) added 1 positive and 1 negative for the secret left
+// boundary on the short labels `pass` and `pwd`: `db_pass=` is reported and
+// `bypass=` is not. The positive adds one exact span (tp 370 to 371), and the
+// negative stays clean. The gate bound moved from 370/371 to 371/372, not
+// loosened. The known cost, a letter before `pass` or `pwd`, is not in the seed.
+//
+// The measured baseline is exact P=1.0000 R=0.9973 (tp=371 fp=0 fn=1), overlap
+// P=1.0000 R=0.9973 (tp=371 fp=0 fn=1), and 196 of 196 negative cases clean. The
 // one miss is pos-phone-trunk-zero, a documented scope decision.
 // These numbers describe this hand-labelled seed set, NOT the detector in general —
 // testdata/external are scored by `make corpus` but are not that set (see
@@ -118,9 +130,9 @@ const minCases = 530
 // pos-card-then-year now reports "4111 1111 1111 1111 2024" against gold
 // "4111 1111 1111 1111". Overlap recall stays 1.0; exact bounds are re-measured.
 const (
-	minExactPrecision = 1.0           // tp=367 fp=0 -> 367/367 (see note)
-	minExactRecall    = 367.0 / 368.0 // tp=367 fn=1 -> 367/368 (see note)
-	minOverlapRecall  = 367.0 / 368.0 // tp=367 fn=1 -> 367/368 (see note)
+	minExactPrecision = 1.0           // tp=371 fp=0 -> 371/371 (see note)
+	minExactRecall    = 371.0 / 372.0 // tp=371 fn=1 -> 371/372 (see note)
+	minOverlapRecall  = 371.0 / 372.0 // tp=371 fn=1 -> 371/372 (see note)
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled

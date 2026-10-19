@@ -6,6 +6,9 @@
 
 ## 2026-10-19
 
+* **Update**: piiscrub README rewritten — setup and examples compile-checked, results re-measured (`make benchmark`, `make corpus`, `make presidio`), datasets used and not used, known limits; TODO gains an open secret item (a password value keeps a trailing `)`) ([README](../README.md))
+* **Update**: piiscrub v1 Spec and README — secret short labels `pass` and `pwd` need a non-letter before them (`bypass=`, `compass:` no longer reported; `dbpass=` and `rootpwd=` no longer matched, accepted); golden seed 534 to 536 cases ([decisions/spec-v1.md](/decisions/spec-v1.md))
+* **Update**: piiscrub v1 Spec and README — secret password drops a sentence-final period, a trailing dotted token segment is kept at end of text and trimmed before whitespace, four-segment JWT captured whole; golden seed 530 to 534 cases ([decisions/spec-v1.md](/decisions/spec-v1.md))
 * **Update**: piiscrub v1 Spec — secret JWT header under 32 characters and five-segment JWE matched, dot not counted as a character class ([decisions/spec-v1.md](/decisions/spec-v1.md))
 * **Update**: piiscrub v1 Spec and README — secret character-class rule removed (uniform values only), JSON-quoted and spaced labels, dotted tokens of any segment count, `dir` JWE with an empty segment; golden seed 518 to 530 cases ([decisions/spec-v1.md](/decisions/spec-v1.md))
 

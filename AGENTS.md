@@ -17,7 +17,7 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 - `analyzer/` — orchestrates recognizers, returns detected entities
 - `recognizers/regex/` — regex-based PII detection (email, phone, credit card, SSN, IP, URL, IBAN, bitcoin)
 - `recognizers/checksum/` — checksum validation (Luhn for credit cards, mod-97 for IBAN, Base58Check and bech32/bech32m for bitcoin addresses; the regex BITCOIN recognizer calls the bitcoin validator)
-- `recognizers/secret/` — API keys, tokens, passwords and PEM headers, each matched by shape and kept unless its value is uniform (one character repeated, or a unit of up to four repeated). A label-based match reports the value's span only: the key name (`api_key`, `password`) is context and never part of the span, and a JWT or JWE value (an `eyJ` header) is reported whole.
+- `recognizers/secret/` — API keys, tokens, passwords and PEM headers, each matched by shape and kept unless its value is uniform (one character repeated, or a unit of up to four repeated). A label-based match reports the value's span only: the key name (`api_key`, `password`) is context and never part of the span, and a JWT or JWE value (an `eyJ` header) is reported whole. A dotted tail is kept, except that one trailing dotted segment followed by whitespace is prose and is trimmed, and a password drops one sentence-final `.` before whitespace or the end of text. The short labels `pass` and `pwd` need a non-letter before them, so `bypass=` and `compass:` are not passwords; `password`, `passwd` and `secret` have no such boundary.
 - `anonymizer/` — orchestrates operators, transforms detected entities
 - `operators/` — anonymization operators (replace, mask, hash, redact)
 - `structured/` — batch processing for CSV

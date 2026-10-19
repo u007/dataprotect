@@ -12,6 +12,8 @@ import (
 	"context"
 	"regexp"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/u007/dataprotect/recognizers"
 )
@@ -19,20 +21,29 @@ import (
 // jwtSegment is one base64url segment of a JWT or JWE.
 const jwtSegment = `[A-Za-z0-9_\-]+`
 
-// dottedTail is the optional run of dot-joined segments after a value's first
-// segment. It needs at least two segments, so a value followed by one dotted word,
-// such as the `.Next` in `Bearer <value>.Next step`, stops at the value. It has no
-// upper bound, so a token of any segment count is captured to its end. Every
-// segment needs at least one character, so a sentence-final `.` is never taken.
-const dottedTail = `(?:(?:\.` + jwtSegment + `){2,})?`
+// dottedTail is the optional run of dot-joined segments after a value's base. Every
+// segment needs at least one character, so a sentence-final `.` is never taken. It
+// has no upper bound, so a token of any segment count is captured to its end. A
+// single trailing segment followed by whitespace is trimmed afterwards by tokenEnd,
+// so `Bearer <value>.Next step` keeps only the value.
+const dottedTail = `(?:\.` + jwtSegment + `)*`
 
-// jwtValue matches a JWT or JWE whose header starts with `eyJ`, the base64url of
+// jwtBase matches a JWT or JWE whose header starts with `eyJ`, the base64url of
 // `{"` that every JSON header begins with. It has no length floor on the header,
 // so a short header such as `eyJhbGciOiJIUzI1NiJ9` (20 characters) matches. The
 // base is a three-segment JWS, or a five-segment JWE whose second segment may be
-// empty (the `dir` key management form, `header..iv.ciphertext.tag`). The prefix is
-// case-sensitive: the shapes are `(?i)`, so the literal is written `(?-i:eyJ)`.
-const jwtValue = `(?:(?-i:eyJ)` + jwtSegment + `(?:\.\.` + jwtSegment + `\.` + jwtSegment + `\.` + jwtSegment + `|\.` + jwtSegment + `\.` + jwtSegment + `)` + dottedTail + `)`
+// empty (the `dir` key management form, `header..iv.ciphertext.tag`). A JWE with a
+// non-empty second segment is a JWS-shaped base followed by the dotted tail. The
+// prefix is case-sensitive: the shapes are `(?i)`, so the literal is written
+// `(?-i:eyJ)`.
+const jwtBase = `(?-i:eyJ)` + jwtSegment + `(?:\.\.` + jwtSegment + `\.` + jwtSegment + `\.` + jwtSegment + `|\.` + jwtSegment + `\.` + jwtSegment + `)`
+
+// tokenValue is the value of a labelled token: a JWT or JWE base (jwtBase), or a
+// bare run of at least minLen characters, followed by the dotted tail. Group 1 is
+// the whole value and group 2 is its base, which tokenEnd needs to trim a tail.
+func tokenValue(minLen int) string {
+	return `((` + jwtBase + `|[A-Za-z0-9_\-]{` + strconv.Itoa(minLen) + `,})` + dottedTail + `)`
+}
 
 // labelSeparator is what may sit between a key name and its `=` or `:`. The key
 // name may be followed by a closing quote (JSON `"api_key": ...`), and spaces or
@@ -41,16 +52,16 @@ const labelSeparator = `["']?[ \t]*[=:]`
 
 // apiKeyShape matches common API key formats: a prefix label followed by a
 // high-entropy value (e.g. `sk_live_...`, `AKIA...`, `xoxb-...`). Group 1 is the
-// value: a JWT or JWE (jwtValue), or a bare value of 20 or more characters with
-// an optional dotted tail (dottedTail).
-var apiKeyShape = regexp.MustCompile(`(?i)(?:api[_-]?key|apikey|secret[_-]?key|access[_-]?token|auth[_-]?token)` + labelSeparator + `\s*["']?(` + jwtValue + `|[A-Za-z0-9_\-]{20,}` + dottedTail + `)["']?`)
+// value and group 2 its base (tokenValue): a JWT or JWE, or a bare value of 20 or
+// more characters, with an optional dotted tail.
+var apiKeyShape = regexp.MustCompile(`(?i)(?:api[_-]?key|apikey|secret[_-]?key|access[_-]?token|auth[_-]?token)` + labelSeparator + `\s*["']?` + tokenValue(20) + `["']?`)
 
 // tokenShape matches bearer/JWT-style tokens and long hex/base64 strings. Group 1
-// is the value: a JWT or JWE (jwtValue), or a bare value of 32 or more characters
-// with an optional dotted tail (dottedTail). The 32-character floor applies only to
-// a value that is not a JWT, so a short-header JWT after `Bearer` or `token=` is
-// matched.
-var tokenShape = regexp.MustCompile(`(?:Bearer\s+|token` + labelSeparator + `\s*["']?)(` + jwtValue + `|[A-Za-z0-9_\-]{32,}` + dottedTail + `)["']?`)
+// is the value and group 2 its base (tokenValue): a JWT or JWE, or a bare value of
+// 32 or more characters, with an optional dotted tail. The 32-character floor
+// applies only to a value that is not a JWT, so a short-header JWT after `Bearer`
+// or `token=` is matched.
+var tokenShape = regexp.MustCompile(`(?:Bearer\s+|token` + labelSeparator + `\s*["']?)` + tokenValue(32) + `["']?`)
 
 // privateKeyShape matches PEM private key blocks. It has no value part, so the
 // whole header is the span.
@@ -58,7 +69,16 @@ var privateKeyShape = regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`)
 
 // passwordShape matches password assignments in config-like contexts. Group 1 is
 // the value: at least 8 characters with no space, quote or line break.
-var passwordShape = regexp.MustCompile(`(?i)(?:password|passwd|pass|pwd|secret)` + labelSeparator + `\s*["']?([^\s"']{8,})["']?`)
+//
+// The short labels `pass` and `pwd` have a left boundary: the byte before them
+// must not be an ASCII letter, or the match is at the start of text. So
+// `bypass=kittenmitten` and `Route compass: northeastregion` are not passwords,
+// while `db_pass=`, `db-pwd=`, `DB_PASS=` and `"pass": ` still are. The
+// boundary is a non-capturing context group inside the alternation, so group 1
+// stays the value. `password`, `passwd` and `secret` have no boundary, so
+// `dbpassword=` and `mysecret=` match. Accepted cost: a letter directly before
+// `pass` or `pwd` (`dbpass=x`, `rootpwd=x`) is no longer matched.
+var passwordShape = regexp.MustCompile(`(?i)(?:password|passwd|secret|(?:^|(?-i:[^A-Za-z]))(?:pass|pwd))` + labelSeparator + `\s*["']?([^\s"']{8,})["']?`)
 
 // SecretRecognizer detects secrets in text.
 type SecretRecognizer struct {
@@ -92,12 +112,12 @@ func (r *SecretRecognizer) Name() string { return "secret" }
 func (r *SecretRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	var entities []recognizers.Entity
 
-	entities = append(entities, valueEntities(r.apiKey, text)...)
-	entities = append(entities, valueEntities(r.token, text)...)
+	entities = append(entities, valueEntities(r.apiKey, text, tokenEnd)...)
+	entities = append(entities, valueEntities(r.token, text, tokenEnd)...)
 	for _, m := range r.privateKey.FindAllStringIndex(text, -1) {
 		entities = append(entities, secretEntity(text, m[0], m[1], 0.99))
 	}
-	entities = append(entities, valueEntities(r.password, text)...)
+	entities = append(entities, valueEntities(r.password, text, passwordEnd)...)
 
 	return uniqueSpans(entities), nil
 }
@@ -121,17 +141,54 @@ func uniqueSpans(entities []recognizers.Entity) []recognizers.Entity {
 }
 
 // valueEntities returns one entity per match of re whose value (capture group 1)
-// passes isLikelySecret. Every shape that uses it has the value as group 1.
-func valueEntities(re *regexp.Regexp, text string) []recognizers.Entity {
+// passes isLikelySecret. Every shape that uses it has the value as group 1. trim
+// gives the value's end from the match's submatch indices, so the sentence
+// punctuation that a shape cannot leave out of its match is dropped. The
+// uniform check runs on the trimmed value.
+func valueEntities(re *regexp.Regexp, text string, trim func(text string, m []int) int) []recognizers.Entity {
 	var entities []recognizers.Entity
 	for _, m := range re.FindAllStringSubmatchIndex(text, -1) {
-		start, end := m[2], m[3]
+		start, end := m[2], trim(text, m)
 		if !isLikelySecret(text[start:end]) {
 			continue
 		}
 		entities = append(entities, secretEntity(text, start, end, 0.98))
 	}
 	return entities
+}
+
+// tokenEnd returns the end of a labelled JWT or token value. The tail after the
+// base is a run of dotted segments. A tail of exactly one segment followed by
+// whitespace is sentence prose (`Bearer <value>.Next step`), so the value ends at
+// the base. Every other tail is kept: two or more segments, or one segment directly
+// followed by a non-space byte or the end of text. That last case is the
+// fail-closed reading of `token=<value>.abc`, which a shape cannot tell from a
+// dotted word that ends a sentence.
+func tokenEnd(text string, m []int) int {
+	baseEnd, end := m[5], m[3]
+	if strings.Count(text[baseEnd:end], ".") == 1 && end < len(text) && isSpaceByte(text[end]) {
+		return baseEnd
+	}
+	return end
+}
+
+// passwordEnd returns the end of a password value. A value whose last byte is `.`
+// with whitespace or the end of text after it has a sentence-final period, which
+// is dropped: `password: Rainbow@2025.` reports `Rainbow@2025`. Only one period is
+// dropped, and `!`, `?` and `,` are kept because a password may end with them. The
+// 8-character floor is checked on the match before this trim, so
+// `password: Abcdefg.` reports `Abcdefg`.
+func passwordEnd(text string, m []int) int {
+	end := m[3]
+	if text[end-1] == '.' && (end == len(text) || isSpaceByte(text[end])) {
+		return end - 1
+	}
+	return end
+}
+
+// isSpaceByte reports whether b is a byte that the regular expression `\s` matches.
+func isSpaceByte(b byte) bool {
+	return strings.IndexByte(" \t\n\f\r", b) >= 0
 }
 
 // secretEntity builds a secret entity over text[start:end].
