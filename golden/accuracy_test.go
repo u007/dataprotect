@@ -19,11 +19,11 @@ const datasetDir = "../testdata/golden"
 // moves recall by a large fraction — so a shrinking dataset would silently
 // weaken the gate rather than fail it. Ratcheted with each batch: it tracks the
 // current seed count, so any drop below it fails.
-const minCases = 491
+const minCases = 498
 
 // Gate thresholds.
 //
-// These are the MEASURED baseline, not a target. The seed set is 491 cases, close to
+// These are the MEASURED baseline, not a target. The seed set is 498 cases, close to
 // short of the ~500 SPEC.md calls for; claiming ">99% precision/recall" here would
 // make the gate a rubber stamp. Each constant is the EXACT measured value, so
 // any regression fails immediately and any improvement is a deliberate
