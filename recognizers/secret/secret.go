@@ -104,11 +104,12 @@ var bareShape = regexp.MustCompile(strings.Join([]string{
 	`github_pat_([0-9A-Za-z_]{82})`,
 	`xoxb-[0-9]{10,13}-[0-9]{10,13}-([0-9A-Za-z]{24,})`,
 	`xoxp-[0-9]{10,13}-[0-9]{10,13}-[0-9]{10,13}-([0-9A-Za-z]{28,34})`,
-	`(?:sk|rk)_live_([0-9A-Za-z]{24,})`,
+	`(?:sk|rk)_(?:live|test|org)_([0-9A-Za-z]{24,})`,
 	`AIza([0-9A-Za-z_\-]{35})`,
 	`npm_([0-9A-Za-z]{36})`,
 	`SG\.[0-9A-Za-z_\-]{22}\.([0-9A-Za-z_\-]{43})`,
 	`(eyJ[0-9A-Za-z_\-]{8,}\.ey[0-9A-Za-z_\-]{8,}\.[0-9A-Za-z_\-]{8,})`,
+	`(eyJ[0-9A-Za-z_\-]{8,}\.[0-9A-Za-z_\-]*\.[0-9A-Za-z_\-]{8,}\.[0-9A-Za-z_\-]{8,}\.[0-9A-Za-z_\-]{8,})`,
 }, "|"))
 
 // bareBounded reports whether text[start:end] is a whole token. No token byte may

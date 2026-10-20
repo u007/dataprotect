@@ -87,9 +87,12 @@ func newScrubber(opts ...analyzer.Option) *Scrubber {
 
 // Analyze detects PII entities in text.
 //
-// A credit card whose span is a Thai citizen ID is returned as TH_ID. This runs
-// after overlap resolution, so the span keeps the card's confidence and the
-// overlap outcome is unchanged. The recognizers themselves always report a card.
+// A credit card whose span is a Thai citizen ID is returned as TH_ID. This
+// runs after overlap resolution, so the span keeps the card's confidence and
+// the overlap outcome is unchanged. Note: since the Luhn validator now
+// requires a valid card network prefix, a Thai ID (first digit 1) is no
+// longer reported as a card by Luhn; the THIDRecognizer covers it instead.
+// This retyping path remains for any card-shaped span that is also a Thai ID.
 func (s *Scrubber) Analyze(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	entities, err := s.analyzer.Analyze(ctx, text)
 	if err != nil {

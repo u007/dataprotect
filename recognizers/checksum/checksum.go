@@ -72,7 +72,7 @@ func (v *LuhnValidator) Recognize(ctx context.Context, text string) ([]recognize
 				Start:      card.start,
 				End:        card.end,
 				Text:       card.text,
-				Confidence: 0.99,
+				Confidence: card.conf,
 			})
 		}
 	}
@@ -116,7 +116,19 @@ func validCardPrefix(number string) bool {
 }
 
 func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) []cardCandidate {
-	if v.Validate(c.text) {
+	// A whole run that passes Luhn is reported only when it also has a valid
+	// card network prefix. Without this, a 13-19 digit run whose first digit is
+	// not a major-network prefix (0, 1, 7, 8, 9) — e.g. a Thai citizen ID
+	// that happens to pass Luhn, or a random digit run — would be reported as
+	// a card. The window search below already requires validCardPrefix; this
+	// keeps the whole-run path consistent with it (see TODO.md 2026-10-19,
+	// "Whole-run Luhn pass skips the network-prefix and layout checks").
+	stripped := strings.ReplaceAll(c.text, " ", "")
+	stripped = strings.ReplaceAll(stripped, "-", "")
+	stripped = strings.ReplaceAll(stripped, ".", "")
+	stripped = strings.ReplaceAll(stripped, "\t", "")
+	if v.Validate(c.text) && validCardPrefix(stripped) {
+		c.conf = 0.99
 		return []cardCandidate{c}
 	}
 	if inside(ibans, c.start, c.end) {
@@ -179,6 +191,7 @@ func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) [
 			text:  c.text[groups[first].start:groups[last].end],
 			start: c.start + groups[first].start,
 			end:   c.start + groups[last].end,
+			conf:  0.99,
 		})
 	}
 	return cards
@@ -264,6 +277,7 @@ type cardCandidate struct {
 	text  string
 	start int
 	end   int
+	conf  float64
 }
 
 // findCardCandidates finds runs of digits with optional -/. separators.

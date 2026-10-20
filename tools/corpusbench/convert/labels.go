@@ -29,6 +29,8 @@ var NemotronLabels = map[string]recognizers.EntityType{
 	"ipv4":              recognizers.EntityIP,
 	"ipv6":              recognizers.EntityIP,
 	"url":               recognizers.EntityURL,
+	"api_key":           recognizers.EntitySecret,
+	"http_cookie":       recognizers.EntitySecret,
 }
 
 // GretelLabels is gretel's equivalent map. It carries iban, which nemotron
@@ -42,6 +44,7 @@ var GretelLabels = map[string]recognizers.EntityType{
 	"ipv4":               recognizers.EntityIP,
 	"ipv6":               recognizers.EntityIP,
 	"iban":               recognizers.EntityIBAN,
+	"api_key":            recognizers.EntitySecret,
 }
 
 // BuildLabels turns corpus spans into golden labels.

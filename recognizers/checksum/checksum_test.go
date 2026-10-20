@@ -227,16 +227,17 @@ func stripSpaces(s string) string {
 }
 
 func TestLuhnRecognizeReportsThaiValidSpanAsCard(t *testing.T) {
-	// 1000000000009 is also a valid Thai citizen ID. The raw Luhn validator
-	// still reports a card: typing it as TH_ID is the Scrubber's job, after
-	// overlap resolution, so a card-only caller keeps the card it always had.
+	// 1000000000009 is also a valid Thai citizen ID, but its first digit (1) is
+	// not a major card network prefix, so the raw Luhn validator no longer
+	// reports it as a card. Typing it as TH_ID is the THIDRecognizer's job now;
+	// see piiscrub.go Analyze and TODO.md 2026-10-19.
 	v := NewLuhnValidator()
 	entities, err := v.Recognize(context.Background(), "Citizen ID 1000000000009 on file")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(entities) != 1 || entities[0].Type != recognizers.EntityCreditCard {
-		t.Fatalf("got %+v, want one CREDIT_CARD", entities)
+	if len(entities) != 0 {
+		t.Fatalf("got %+v, want no entities (prefix 1 is not a card prefix)", entities)
 	}
 }
 

@@ -29,6 +29,8 @@ func TestNemotronMapsEachLabelToItsType(t *testing.T) {
 		{"ipv4", recognizers.EntityIP},
 		{"ipv6", recognizers.EntityIP},
 		{"url", recognizers.EntityURL},
+		{"api_key", recognizers.EntitySecret},
+		{"http_cookie", recognizers.EntitySecret},
 	}
 
 	const prefix = "contact "

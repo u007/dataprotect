@@ -275,17 +275,17 @@ func TestScrubberRedactsLuhnValidThaiIDAsThaiID(t *testing.T) {
 }
 
 func TestRawLuhnKeepsCardAboveThaiThreshold(t *testing.T) {
-	// The raw Luhn validator reports a card at 0.99, and a threshold of 0.98
-	// keeps it. Typing it as TH_ID is the Scrubber's job, so a card-only caller
-	// is unaffected by the Thai decision.
+	// After the prefix check, the raw Luhn validator no longer reports the
+	// Thai-shaped run (first digit 1), so a card-only caller sees nothing.
+	// Typing is now the THIDRecognizer's job.
 	a := analyzer.New(analyzer.WithMinConfidence(0.98))
 	a.AddRecognizer(checksum.NewLuhnValidator())
 	entities, err := a.Analyze(context.Background(), "Citizen ID 1000000000009 on file")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(entities) != 1 || entities[0].Type != recognizers.EntityCreditCard {
-		t.Fatalf("got %+v, want one CREDIT_CARD", entities)
+	if len(entities) != 0 {
+		t.Fatalf("got %+v, want no entities", entities)
 	}
 }
 
@@ -296,8 +296,8 @@ func TestScrubberTypesLuhnValidThaiIDAsTHID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(entities) != 1 || entities[0].Type != recognizers.EntityTHID || entities[0].Confidence != 0.99 {
-		t.Fatalf("got %+v, want one TH_ID at 0.99", entities)
+	if len(entities) != 1 || entities[0].Type != recognizers.EntityTHID {
+		t.Fatalf("got %+v, want one TH_ID", entities)
 	}
 }
 
