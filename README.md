@@ -422,7 +422,7 @@ Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DAT
 | Golden seed set | `testdata/golden/seed.json`, authored in this repository from synthetic text | none; the working tree (see above) | none needed, authored here (DATASET_LICENSES.md, "Provenance") | 553 cases: 353 positive, 200 negative | `testdata/golden/` (committed) | nothing to fetch |
 | Nemotron-PII | [nvidia/Nemotron-PII](https://huggingface.co/datasets/nvidia/Nemotron-PII) | `b70ffaf5ff39e079776134c5bf4381f00a9fd1ed` | CC-BY-4.0 (attribution) | 2000 of 100000 rows, test split, file order | `testdata/external/nemotron-pii/` | `scripts/fetch-dataset.sh fetch nemotron-pii`, or `make download` |
 | Gretel synthetic PII finance (multilingual) | [gretelai/synthetic_pii_finance_multilingual](https://huggingface.co/datasets/gretelai/synthetic_pii_finance_multilingual) | `7b844d16738527a04264f50214cb426a4cea0897` | Apache-2.0 with NOTICE (attribution) | 2000 of 5596 rows, `combined_test` split only | `testdata/external/gretel-pii-finance/` | `scripts/fetch-dataset.sh fetch gretel-pii-finance`, or `make download` |
-| Microsoft Presidio test cases | [microsoft/presidio](https://github.com/microsoft/presidio) | `2523c7b74a469270c5c78bb253f140eafca21e31` | MIT | 590 cases from 601 rows, ten modules; 11 rows set aside | `testdata/external/presidio/` | `make presidio` (clones at the pin and extracts with `scripts/presidio_extract.py`) |
+| Microsoft Presidio test cases | [microsoft/presidio](https://github.com/microsoft/presidio) | `2523c7b74a469270c5c78bb253f140eafca21e31` | MIT | 592 cases from 601 rows, ten modules; 9 rows set aside | `testdata/external/presidio/` | `make presidio` (clones at the pin and extracts with `scripts/presidio_extract.py`) |
 
 `make download` skips the restricted corpora. For those, see "Datasets considered and not used" below.
 
@@ -482,17 +482,17 @@ The Presidio measurement covers the ten modules whose entity type this library i
 | Module | Type | Cases | Negatives | Exact P / R (tp, fp, fn) | Overlap P / R |
 |---|---|---|---|---|---|
 | `email` | EMAIL | 8 | 2 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
-| `ip` | IP_ADDRESS | 112 | 29 | 0.8049 / 0.7500 (66, 16, 22) | 1.0000 / 0.9318 |
+| `ip` | IP_ADDRESS | 114 | 29 | 0.8095 / 0.7556 (68, 16, 22) | 1.0000 / 0.9333 |
 | `url` | URL | 16 | 3 | 0.7500 / 0.6429 (9, 3, 5) | 0.9167 / 0.7857 |
-| `iban` | IBAN | 330 | 173 | 1.0000 / 1.0000 (158, 0, 0) | 1.0000 / 1.0000 |
+| `iban` | IBAN | 329 | 172 | 1.0000 / 1.0000 (158, 0, 0) | 1.0000 / 1.0000 |
 | `crypto` | BITCOIN | 9 | 3 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
-| `credit_card` | CREDIT_CARD | 19 | 5 | 0.9412 / 1.0000 (16, 1, 0) | 0.9412 / 1.0000 |
-| `phone` | PHONE | 19 | 0 | 0.7917 / 0.6786 (19, 5, 9) | 1.0000 / 0.8571 |
+| `credit_card` | CREDIT_CARD | 18 | 5 | 0.8667 / 0.8667 (13, 2, 2) | 0.8667 / 0.8667 |
+| `phone` | PHONE | 21 | 0 | 0.7500 / 0.7241 (21, 7, 8) | 0.9286 / 0.8966 |
 | `us_ssn` | SSN | 28 | 12 | 0.5769 / 0.8824 (15, 11, 2) | 0.5769 / 0.8824 |
 | `th_tnin` | TH_ID | 39 | 26 | 0.8125 / 1.0000 (13, 3, 0) | 0.8125 / 1.0000 |
 | `sg_fin` | SG_NRIC | 10 | 1 | 1.0000 / 0.5000 (5, 0, 5) | 1.0000 / 0.5000 |
 
-Totals: 590 cases from 601 rows. 11 rows are set aside: 3 IP count-only rows, 6 phone leniency rows and 2 empty-text negatives (SPEC.md, "Presidio test cases"). For `ip`, SPEC.md explains the exact-span misses as span conventions: CIDR suffixes, zone IDs, and the unspecified `::`, which is not redacted by design. Phone national formats are out of scope. Neither SPEC.md nor TODO.md analyses the `url` misses. The five `sg_fin` misses were checked by running the recognizer on each value: `M4332674T` has an unsupported M prefix; `A1234567Z` and `B1234567Z` have prefixes outside S, T, F and G; and `T1234567Z` and `G1122144L` fail the recognizer's check letter. Presidio's gold labels all five.
+Totals: 592 cases from 601 rows. 9 rows are set aside: 2 exact-duplicate texts (the `5555555555554444` card repeated in two lists, and the bare `2400:c401::5054:ff:fe1b:b031` repeated in a second context — each counted once), 4 leniency-variant duplicates of texts the default recognizer already covers, 1 count-only row with no determinable span, and 2 empty-text negatives (SPEC.md, "Presidio test cases"). For `ip`, SPEC.md explains the exact-span misses as span conventions: CIDR suffixes, zone IDs, and the unspecified `::`, which is not redacted by design. Phone national formats are out of scope. Neither SPEC.md nor TODO.md analyses the `url` misses. The five `sg_fin` misses were checked by running the recognizer on each value: `M4332674T` has an unsupported M prefix; `A1234567Z` and `B1234567Z` have prefixes outside S, T, F and G; and `T1234567Z` and `G1122144L` fail the recognizer's check letter. Presidio's gold labels all five.
 
 ## Datasets considered and not used
 

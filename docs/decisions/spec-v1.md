@@ -481,22 +481,22 @@ Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. I
 
 **Scope.** The ten modules whose `entities` fixture maps to a type this library implements: EMAIL_ADDRESS, IP_ADDRESS, URL, IBAN_CODE, CRYPTO, CREDIT_CARD, PHONE_NUMBER, US_SSN, TH_TNIN, SG_NRIC_FIN. CRYPTO is bitcoin only: its pattern is `bc1` and `1`/`3` base58 addresses (`presidio_analyzer/predefined_recognizers/generic/crypto_recognizer.py`). Out of scope and not converted, of the 140 test modules: 76 country recognizer modules for countries this library does not cover, 24 other recognizer modules (including the NLP and model-based entities such as PERSON and LOCATION), and 30 infrastructure modules (engine, registry, configuration, chunkers). Also out of scope: presidio-research's evaluation framework and generator data (the generator's identities are CC BY-SA 3.0), the context-word sentence file (no spans, so no gold), and the e2e tests, which are API smoke tests with no per-type case tables.
 
-**Method.** Only `parametrize` lists are parsed, with `ast` (never imported or run). Presidio's character offsets are converted to UTF-8 bytes, and each value is taken from the text. Rows that cannot be scored are set aside with a reason in `skipped.json`: count-only rows (Presidio asserts how many matches, not where), leniency rows (a non-default recognizer setting), and empty-text negatives (`golden.Load` rejects empty text). Each module is scored as its own dataset, so `in_schema` is that module's type.
+**Method.** Only `parametrize` lists are parsed, with `ast` (never imported or run). Presidio's character offsets are converted to UTF-8 bytes, and each value is taken from the text. Rows that cannot be scored are set aside with a reason in `skipped.json`: duplicate texts (the same text twice — a leniency variant, or a bare token repeated in a second context — is one case, not two, so the repeat is set aside), and the 2 empty-text negatives (`golden.Load` rejects empty text). A count-only row (Presidio asserts how many matches, not where) converts only when the row asserts exactly one match on a single whitespace-free token: then the whole text is the only span the gold could be, which is transcription, not invention. Anything else count-only stays set aside. Each module is scored as its own dataset, so `in_schema` is that module's type.
 
 | Module | Cases | Negatives | Exact P / R (tp, fp, fn) | Overlap P / R |
 |--------|-------|-----------|--------------------------|---------------|
 | email | 8 | 2 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
-| ip | 112 | 29 | 0.8049 / 0.7500 (66, 16, 22) | 1.0000 / 0.9318 (82, 0, 6) |
+| ip | 114 | 29 | 0.8095 / 0.7556 (68, 16, 22) | 1.0000 / 0.9333 (84, 0, 6) |
 | url | 16 | 3 | 0.7500 / 0.6429 (9, 3, 5) | 0.9167 / 0.7857 |
-| iban | 330 | 173 | 1.0000 / 1.0000 (158, 0, 0) | 1.0000 / 1.0000 |
+| iban | 329 | 172 | 1.0000 / 1.0000 (158, 0, 0) | 1.0000 / 1.0000 |
 | crypto (BITCOIN) | 9 | 3 | 1.0000 / 1.0000 (7, 0, 0) | 1.0000 / 1.0000 |
-| credit_card | 19 | 5 | 0.9412 / 1.0000 (16, 1, 0) | 0.9412 / 1.0000 (16, 1, 0) |
-| phone | 19 | 0 | 0.7917 / 0.6786 (19, 5, 9) | 1.0000 / 0.8571 |
+| credit_card | 18 | 5 | 0.8667 / 0.8667 (13, 2, 2) | 0.8667 / 0.8667 (13, 2, 2) |
+| phone | 21 | 0 | 0.7500 / 0.7241 (21, 7, 8) | 0.9286 / 0.8966 |
 | us_ssn | 28 | 12 | 0.5769 / 0.8824 (15, 11, 2) | 0.5769 / 0.8824 |
 | th_tnin (TH_ID) | 39 | 26 | 0.8125 / 1.0000 (13, 3, 0) | 0.8125 / 1.0000 |
 | sg_fin (SG_NRIC) | 10 | 1 | 1.0000 / 0.5000 (5, 0, 5) | 1.0000 / 0.5000 |
 
-Totals: 590 cases from 601 rows. 11 rows set aside (3 IP count-only, 6 phone leniency, 2 empty-text). The overlap column counts a span that touches a gold span as a match, so it is an upper bound.
+Totals: 592 cases from 601 rows. 9 rows set aside: 2 exact-duplicate texts (the `5555555555554444` card repeated in two lists, and the bare `2400:c401::5054:ff:fe1b:b031` repeated in a second context — each counted once), 4 leniency-variant duplicates of texts the default recognizer already covers, 1 count-only row with no determinable span, and 2 empty-text negatives. The overlap column counts a span that touches a gold span as a match, so it is an upper bound.
 
 **Card and IBAN fail-open, fixed 2026-10-15.** A card followed by a space and digits (`4111111111111111 123`), two cards separated by a space, and an IBAN followed by an uppercase word or digit group were not redacted. The cause was candidate grouping: each run of digits joined by space, hyphen or dot was checked as one number, and a run that failed the check was dropped. The fix keeps the whole-run check. When that fails, every card-layout window of digit groups that passes Luhn is found, the search is bounded to 19 digits per start, and overlapping windows are merged so every card digit is covered (`checksum.cardSpans`). A run inside a valid IBAN is not searched. An IBAN keeps the whole candidate, an unspaced first block, or the longest space-cut prefix that has the printed shape (`checksum.canonicalIBANShape`) and passes mod-97. Guards: a single group must be bounded by a space, hyphen or dot, and a run inside a valid IBAN is not searched. Seed batch 9 (8 positives, 2 negatives) pins the cases, and the gate is 91 cases. Exact bounds were 61/62 and 1.0 and are now 60/62 and 60/61 (see the review response below). The user decided on 2026-10-15 to keep the merge over restoring exact spans, which would reintroduce the chance-window bypass.
 
@@ -520,7 +520,7 @@ Measured before and after, on the same inputs:
 | Presidio credit_card (2026-10-15) | tp 13, fp 1, fn 3 (exact R 0.8125) | tp 14, fp 2, fn 2 exact (R 0.8750); overlap 15, 1, 1 (R 0.9375) | the merged cluster covers two adjacent gold cards |
 | Presidio iban | tp 155, fp 0, fn 3 | tp 158, fp 0, fn 0 | country-length table (2026-10-16): tp 158, fp 0, fn 0, P 1.0000, R 1.0000 (dash separators first gave tp 158, fp 3) |
 
-Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold that was missed (0 of the misses pass Luhn on their own), so the fix gains nothing on the corpora and costs nothing there. The differential over all sets (seed, 4000 corpus texts, 590 Presidio cases) loses no detection, and no case has overlapping detections. Anonymize runs without error over the seed, the corpora and every Presidio module.
+Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold that was missed (0 of the misses pass Luhn on their own), so the fix gains nothing on the corpora and costs nothing there. The differential over all sets (seed, 4000 corpus texts, 590 Presidio cases at the time) loses no detection, and no case has overlapping detections. Anonymize runs without error over the seed, the corpora and every Presidio module.
 
 **Residuals, not fixed.** These stay as TODO items: seven card windows form inside the IBAN bodies in the Presidio IBAN module (out of schema, not scored, and none in the corpora).
 

@@ -132,7 +132,7 @@ def to_bytes(text, char_index):
     return len(text[:char_index].encode("utf-8"))
 
 
-def convert_row(where, fixture_type, names, row, seen_types):
+def convert_row(where, fixture_type, names, row, seen_types, emitted_texts):
     """Return (text, labels), or (text, None, reason) when the row is set aside."""
     if not isinstance(row, tuple) or len(row) != len(names):
         fail(where, f"row does not have {len(names)} values: {row!r}")
@@ -172,13 +172,24 @@ def convert_row(where, fixture_type, names, row, seen_types):
     # golden.Load rejects empty text, so the empty-string negative is set aside.
     if text == "":
         return text, None, "empty text: golden format requires non-empty text"
-    # Presidio varies the match with a leniency setting. Only the default
-    # recognizer is scored here, so any other leniency is set aside.
-    if cols.get(LENIENCY_COLUMN, 0) != 0:
-        return text, None, f"leniency {cols[LENIENCY_COLUMN]} is a non-default recognizer setting"
-    # Presidio asserts how many matches exist but not where. Gold spans must be
-    # written from the text, so these rows are set aside rather than guessed.
+    # The same text can appear twice within one module: once bare and once in
+    # context, or once for the default recognizer and once for a leniency
+    # variant. The second row is a second opinion on the same text, not a new
+    # case, so it is set aside (the converted case keeps its original id;
+    # emitting both would renumber every later case). A leniency or bare row
+    # for NEW text converts like any other row, so no coverage is dropped.
+    if text in emitted_texts:
+        return text, None, f"duplicate text: already converted from {emitted_texts[text]}"
+    # Presidio asserts how many matches exist but not where. Guessing a span
+    # would invent gold, so these rows are set aside — unless the row asserts
+    # exactly one match on text that is a single whitespace-free token. Then
+    # there is exactly one span the gold could be, the whole text, and writing
+    # it is transcription, not invention. Anything else (count 0, count 2+,
+    # text with surrounding context) stays set aside.
     if count > 0 and not positions:
+        if count == 1 and len(text.split()) == 1:
+            single = ENTITY_MAP[fixture_type] if fixture_type is not None else ENTITY_MAP[types[0]]
+            return text, [{"type": single, "value": text, "start": 0, "end": len(text.encode("utf-8"))}], None
         return text, None, "count only: Presidio asserts no span"
 
     if len(positions) != count:
@@ -220,6 +231,7 @@ def convert_module(src, out, revision, name):
         fail(rel, f"entities fixture {fixture_type!r} has no mapping in ENTITY_MAP")
 
     cases, skipped, seen_types, per_function = [], [], set(), []
+    emitted_texts = {}
     for func in [n for n in tree.body if isinstance(n, ast.FunctionDef)]:
         for dec in parametrize_calls(func):
             if len(dec.args) < 2:
@@ -234,10 +246,11 @@ def convert_module(src, out, revision, name):
             for element in dec.args[1].elts:
                 where = f"{rel}:{element.lineno}"
                 row = literal(element, where)
-                text, labels, reason = convert_row(where, fixture_type, names, row, seen_types)
+                text, labels, reason = convert_row(where, fixture_type, names, row, seen_types, emitted_texts)
                 if labels is None:
                     skipped.append({"note": where, "reason": reason, "text": text})
                     continue
+                emitted_texts[text] = where
                 cases.append(
                     {"id": f"{path.stem}-{len(cases):04d}", "note": where, "text": text, "entities": labels}
                 )
