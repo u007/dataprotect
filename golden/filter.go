@@ -18,6 +18,8 @@ type Option func(*scoreConfig)
 // every detection counts, exactly as this package has always scored.
 type scoreConfig struct {
 	inSchema map[recognizers.EntityType]bool
+	// caseLimit caps how many cases are scored; zero means no limit.
+	caseLimit int
 }
 
 // hasSchema reports whether a schema filter was requested.
@@ -48,6 +50,24 @@ func WithInSchema(types []recognizers.EntityType) Option {
 		for _, t := range types {
 			c.inSchema[t] = true
 		}
+	}
+}
+
+// WithCaseLimit scores only the first n cases.
+//
+// It exists for the expensive detectors. The NLP sidecar costs about 20 ms per
+// text, so a 2000-case corpus takes about 40 seconds, and a developer wants a
+// faster signal.
+//
+// The limit takes a PREFIX of the loaded cases, in file order, so a limited
+// run is deterministic and reproducible: the same limit always scores the same
+// cases. The report's case count is the number actually scored, so a limited
+// run can never be read as a full-corpus figure.
+//
+// A limit of zero or less means no limit, which is the default.
+func WithCaseLimit(n int) Option {
+	return func(c *scoreConfig) {
+		c.caseLimit = n
 	}
 }
 

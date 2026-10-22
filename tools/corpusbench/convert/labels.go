@@ -13,13 +13,22 @@ import (
 // scope for scoring, and every label not listed here is out of scope and is
 // reported rather than scored as a false positive.
 //
-// The mapping is a reviewed decision, not an inference — see spec §5.5. Two
-// entries deserve their note:
+// The mapping is a reviewed decision, not an inference — see spec §5.5. Three
+// groups of entries deserve their note:
 //
 //   - fax_number -> PHONE. A fax number is a phone number by this taxonomy. If
 //     it turns out to depress precision, the map is revisited, not the
 //     recognizer: the detector has no FAX type to be wrong about.
 //   - url exists only here; gretel has no url label at all.
+//   - the PERSON and LOCATION labels were added on 2026-10-20, when the NLP
+//     sidecar made those types detectable. They are mapped LAST and
+//     separately, because they need a caveat the others do not: the corpora
+//     annotate a GIVEN NAME ("Manal") while a NER model reports a FULL NAME
+//     ("Manal King"). The span is right and the granularity differs, so an
+//     exact-span match under-counts. The overlap metric is the honest one for
+//     these types, and SPEC.md records both. The mapping is still correct:
+//     these ARE person and place spans, and leaving them out of the schema
+//     would hide the NER path's precision entirely.
 var NemotronLabels = map[string]recognizers.EntityType{
 	"email":             recognizers.EntityEmail,
 	"phone_number":      recognizers.EntityPhone,
@@ -31,11 +40,26 @@ var NemotronLabels = map[string]recognizers.EntityType{
 	"url":               recognizers.EntityURL,
 	"api_key":           recognizers.EntitySecret,
 	"http_cookie":       recognizers.EntitySecret,
+
+	// Person, organisation and place, detectable only via the NLP sidecar.
+	"first_name":     recognizers.EntityPerson,
+	"last_name":      recognizers.EntityPerson,
+	"user_name":      recognizers.EntityPerson,
+	"company_name":   recognizers.EntityOrganization,
+	"city":           recognizers.EntityLocation,
+	"country":        recognizers.EntityLocation,
+	"state":          recognizers.EntityLocation,
+	"county":         recognizers.EntityLocation,
+	"postcode":       recognizers.EntityLocation,
+	"street_address": recognizers.EntityLocation,
 }
 
 // GretelLabels is gretel's equivalent map. It carries iban, which nemotron
 // does not label — that asymmetry is why both corpora are converted rather
 // than one. It has no url label, so URL detections on gretel are out of schema.
+// The PERSON and LOCATION labels carry the same caveat as nemotron's: the
+// corpus annotates a given name and a NER model reports a full name, so the
+// exact-span metric under-counts them. See NemotronLabels and SPEC.md.
 var GretelLabels = map[string]recognizers.EntityType{
 	"email":              recognizers.EntityEmail,
 	"phone_number":       recognizers.EntityPhone,
@@ -43,6 +67,17 @@ var GretelLabels = map[string]recognizers.EntityType{
 	"ssn":                recognizers.EntitySSN,
 	"ipv4":               recognizers.EntityIP,
 	"ipv6":               recognizers.EntityIP,
+	"name":               recognizers.EntityPerson,
+	"first_name":         recognizers.EntityPerson,
+	"last_name":          recognizers.EntityPerson,
+	"user_name":          recognizers.EntityPerson,
+	"company":            recognizers.EntityOrganization,
+	"city":               recognizers.EntityLocation,
+	"country":            recognizers.EntityLocation,
+	"state":              recognizers.EntityLocation,
+	"county":             recognizers.EntityLocation,
+	"postcode":           recognizers.EntityLocation,
+	"street_address":     recognizers.EntityLocation,
 	"iban":               recognizers.EntityIBAN,
 	"api_key":            recognizers.EntitySecret,
 }

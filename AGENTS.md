@@ -22,10 +22,21 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 - `operators/` — anonymization operators (replace, mask, hash, redact)
 - `structured/` — batch processing for CSV
 - `internal/context/` — context-aware confidence boosting, applied by `Analyzer` when `WithContextBoost()` is set
+- `recognizers/nlp/` — HTTP client recognizer delegating NER to the sidecar (root stays stdlib-only)
+- `sidecar/` — separate Go module: standalone HTTP service embedding prose NER (`cmd/piiscrub-sidecar`). The prose backend decodes prose's TOKEN labels, not its entity output, because prose's coalescer mislabels company names and surnames.
 
 ## Confidence & Threshold Semantics
 
 - `WithMinConfidence(t)` KEEPS an entity when `confidence >= t`. Inclusive.
+- The floor is configurable at both layers: `analyzer.WithMinConfidence(t)` at
+  `Analyzer` construction, and `piiscrub.WithMinConfidence(t)` as a
+  `ScrubberOption` (which overrides the `newScrubber` default of 0.70). Both
+  route through `Analyzer.SetMinConfidence`, which is construction-time only;
+  calling it concurrently with `Analyze` is a data race.
+- The NLP score is 0.80: strictly above the 0.70 default floor and strictly
+  below the lowest built-in (0.85, the keyword-gated national rules), so NLP
+  fills gaps and never displaces a typed detection. `WithMinConfidence(0.85)`
+  on a `Scrubber` drops every NLP entity; that is the conservative mode.
 - Confidence is quantised to a 1e-9 grid by `roundConfidence` in `analyzer.go`,
   the single place it is quantised. All three inputs go through it: scores from
   `quantiseEntities` (every recognizer, including third-party ones), the boosted
@@ -49,8 +60,14 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
   A URL below the threshold is dropped anyway, so it does not guard. Covered by
   `TestContextBoostDoesNotLiftSpanInsideURL` and
   `TestContextBoostIgnoresURLDroppedByThreshold`.
-- `removeOverlapping` breaks ties by higher confidence; on an exact tie the
-  earlier span wins. That is a policy choice, not an implementation accident.
+- `removeOverlapping` consults `winsOverlap` before confidence. The one
+  type-pair rule is that CREDIT_CARD beats PHONE on overlap at every score; every
+  other pair breaks by higher confidence, and on an exact tie the earlier span
+  wins. Both are policy choices, not implementation accidents. The card rule
+  exists because a card window needs 13+ digits behind a valid network prefix, so
+  a colliding phone match is a sub-run of digits the card already covers — the
+  phone winning would leak the card's leading group (see SPEC.md, "Corpus
+  measurement").
 
 ## Code Conventions
 

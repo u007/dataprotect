@@ -5,7 +5,18 @@
 # detector output — a gate that scores the detector against its own predictions
 # cannot fail and proves nothing.
 #
-# Usage: scripts/benchmark.sh [dataset-dir]     (default: testdata/golden)
+# Usage: scripts/benchmark.sh [dataset-dir] [case-limit]
+#                                       (default: testdata/golden, no limit)
+#
+# Set PII_SCRUB_NLP_URL to score WITH the NLP sidecar's recognizer wired in,
+# which adds PERSON, ORGANIZATION and LOCATION to the pipeline. The two
+# numbers are then directly comparable: the same dataset, the same scorer, the
+# only difference being the recognizer.
+#
+# The optional case limit scores the FIRST n cases. It exists because the
+# sidecar costs about 20 ms per text, so a full 2000-case corpus takes about
+# 40 seconds. A limited run prints the number of cases it actually scored, so
+# a sample can never be read as a full-corpus figure.
 #
 # If the directory contains a schema.json sidecar (the converted corpora do),
 # its in_schema types are applied so out-of-schema detections are reported
@@ -19,6 +30,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 DIR="${1:-testdata/golden}"
+# The optional case limit, passed through to the program as a second argument.
+# An empty value means "no limit", and the program treats a missing argument
+# the same way.
+LIMIT_ARG="${2:-}"
 
 if [ ! -d "$DIR" ]; then
   echo "benchmark: dataset directory not found: $DIR" >&2
@@ -42,18 +57,28 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	piiscrub "github.com/u007/dataprotect"
 	"github.com/u007/dataprotect/golden"
+	"github.com/u007/dataprotect/recognizers/nlp"
 )
 
 func main() {
 	dir := os.Args[1]
-	cases, err := golden.Load(dir)
-	if err != nil {
+	if _, err := golden.Load(dir); err != nil {
 		fmt.Fprintln(os.Stderr, "benchmark:", err)
 		os.Exit(1)
+	}
+	limit := 0
+	if len(os.Args) > 2 {
+		n, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "benchmark: case limit must be a number:", err)
+			os.Exit(1)
+		}
+		limit = n
 	}
 
 	// A converted corpus carries a schema declaring which entity types it
@@ -62,6 +87,9 @@ func main() {
 	// records. A hand-labelled set has no sidecar and is scored exactly as it
 	// always was: every detection is in scope, byte for byte unchanged.
 	var opts []golden.Option
+	// corpusCases is the corpus's full case count, from the schema sidecar. It
+	// is 0 for a hand-labelled set, which has no schema.
+	corpusCases := 0
 	if _, statErr := os.Stat(filepath.Join(dir, golden.SchemaFilename)); statErr == nil {
 		sch, err := golden.LoadSchema(dir)
 		if err != nil {
@@ -69,6 +97,7 @@ func main() {
 			os.Exit(1)
 		}
 		opts = append(opts, golden.WithInSchema(sch.InSchema))
+		corpusCases = sch.Cases
 		types := make([]string, 0, len(sch.InSchema))
 		for _, t := range sch.InSchema {
 			types = append(types, string(t))
@@ -76,11 +105,20 @@ func main() {
 		sort.Strings(types)
 		fmt.Printf("schema:  %s\n", sch.Corpus)
 		fmt.Printf("in_schema: [%s]\n", strings.Join(types, " "))
-		fmt.Printf("sample:  %d cases of source_rows %d (limit %d)\n\n",
+		fmt.Printf("sample:  %d cases of source_rows %d (limit %d)\n",
 			sch.Cases, sch.SourceRows, sch.Limit)
 	}
 
+	// The NLP recognizer is opt-in, so the benchmark is opt-in too. A URL
+	// without a sidecar running scores exactly as it always has.
 	s := piiscrub.NewScrubber()
+	if url := os.Getenv("PII_SCRUB_NLP_URL"); url != "" {
+		s = piiscrub.NewScrubberWithRecognizers(nlp.New(url))
+		fmt.Printf("nlp:     %s\n\n", url)
+	}
+	if limit > 0 {
+		opts = append(opts, golden.WithCaseLimit(limit))
+	}
 	rep, err := golden.Score(context.Background(), dir,
 		func(ctx context.Context, text string) ([]golden.Prediction, error) {
 			return s.Analyze(ctx, text)
@@ -90,7 +128,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("cases: %d\n\n", len(cases))
+	// The case count must be the number ACTUALLY scored, not the number
+	// loaded, or a limited run reads as a full-corpus figure.
+	// A limited run must say so, next to the number: the schema records the
+	// FULL corpus size, and a reader who sees 2000 there and 100 here must be
+	// told which one the score covers.
+	if limit > 0 && corpusCases > 0 && rep.Cases < corpusCases {
+		fmt.Printf("limited: %d of %d cases scored\n", rep.Cases, corpusCases)
+	} else {
+		fmt.Printf("cases: %d\n", rep.Cases)
+	}
+	fmt.Println()
 	fmt.Print(rep.Summary())
 
 	if len(rep.Errors) > 0 {
@@ -99,4 +147,8 @@ func main() {
 }
 GO
 
-go run "$TMP/main.go" "$DIR"
+if [ -n "$LIMIT_ARG" ]; then
+	go run "$TMP/main.go" "$DIR" "$LIMIT_ARG"
+else
+	go run "$TMP/main.go" "$DIR"
+fi

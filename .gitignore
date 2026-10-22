@@ -78,5 +78,11 @@ Thumbs.db
 # and must be committed. It is authored here from synthetic example text, not
 # derived from any corpus, so it carries no third-party terms.
 
+# The NER gate target builds a temporary sidecar binary in the repository
+# root and removes it again. The pattern is here so a crashed run cannot
+# leave an executable behind in the tree.
+/.tmp-piiscrub-sidecar
+/.tmp-piiscrub-sidecar.pid
+
 # NOTE: the module path is github.com/u007/dataprotect (renamed 2026-10-15 from the
 # bare `dataprotect`, which consumers could not import). See TODO.md.

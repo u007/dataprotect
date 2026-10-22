@@ -1,0 +1,223 @@
+[
+  {
+    "id": "st-neg-json-key",
+    "note": "A JSON key with a colon.",
+    "text": "{\"name\":\"Eli\",\"email\":\"a@b.example\"}",
+    "entities": []
+  },
+  {
+    "id": "st-neg-json-path",
+    "note": "A JSON path value.",
+    "text": "{\"path\":\"/auth/login\",\"method\":\"POST\"}",
+    "entities": []
+  },
+  {
+    "id": "st-neg-http-header",
+    "note": "An HTTP header name.",
+    "text": "Set-Cookie: session=abc123; HttpOnly; Secure",
+    "entities": []
+  },
+  {
+    "id": "st-neg-samesite",
+    "note": "A cookie attribute.",
+    "text": "SameSite=Lax; Path=/; Expires=Mon",
+    "entities": []
+  },
+  {
+    "id": "st-neg-pipe-table",
+    "note": "A pipe-delimited table header.",
+    "text": "Name | Age | City | Status",
+    "entities": []
+  },
+  {
+    "id": "st-neg-label-value",
+    "note": "A label with a value after a colon.",
+    "text": "Reference: 12345 issued on 4 April",
+    "entities": []
+  },
+  {
+    "id": "st-neg-record-number",
+    "note": "A field label that is all field words.",
+    "text": "Record Number 4471",
+    "entities": []
+  },
+  {
+    "id": "st-neg-account-number",
+    "note": "A field label that is all field words.",
+    "text": "Account Number 88213",
+    "entities": []
+  },
+  {
+    "id": "st-neg-medical-record",
+    "note": "A field label that is all field words.",
+    "text": "Medical Record Number 7781",
+    "entities": []
+  },
+  {
+    "id": "st-neg-street-address",
+    "note": "A field label that is all field words.",
+    "text": "Street Address 12 Oak Road",
+    "entities": []
+  },
+  {
+    "id": "st-neg-customer-id",
+    "note": "A field label that is all field words.",
+    "text": "Customer ID 9921",
+    "entities": []
+  },
+  {
+    "id": "st-neg-employee-id",
+    "note": "A field label that is all field words.",
+    "text": "Employee ID 4471",
+    "entities": []
+  },
+  {
+    "id": "st-neg-social-security",
+    "note": "A field label that is all field words.",
+    "text": "Social Security Number 123-45-6789",
+    "entities": []
+  },
+  {
+    "id": "st-neg-credit-debit",
+    "note": "A field label that is all field words.",
+    "text": "Credit/Debit Card Number 4111111111111111",
+    "entities": []
+  },
+  {
+    "id": "st-neg-ssn-label",
+    "note": "A field label that is all field words.",
+    "text": "SSN 123-45-6789",
+    "entities": []
+  },
+  {
+    "id": "st-neg-iban-label",
+    "note": "A field label that is all field words.",
+    "text": "IBAN GB82 WEST 1234 5698 7654 32",
+    "entities": []
+  },
+  {
+    "id": "st-neg-swift-bic",
+    "note": "A field label that is all field words.",
+    "text": "SWIFT BIC DEUTDEFF",
+    "entities": []
+  },
+  {
+    "id": "st-neg-expiry",
+    "note": "A field label with a structured character.",
+    "text": "Expires=Mon 01 Jan 2027",
+    "entities": []
+  },
+  {
+    "id": "st-neg-facility-form",
+    "note": "A field label that is all field words.",
+    "text": "Credit Card Authorization Form 2024",
+    "entities": []
+  },
+  {
+    "id": "st-neg-vendor-report",
+    "note": "A field label that is all field words.",
+    "text": "Vendor Performance Report Q3",
+    "entities": []
+  },
+  {
+    "id": "st-neg-safety-datasheet",
+    "note": "A field label that is all field words.",
+    "text": "Safety Data Sheet Revision 4",
+    "entities": []
+  },
+  {
+    "id": "st-neg-dob-label",
+    "note": "A field label that is all field words.",
+    "text": "Date of Birth 4 April 1990",
+    "entities": []
+  },
+  {
+    "id": "st-neg-policy-number",
+    "note": "A field label that is all field words.",
+    "text": "Policy Number 4471-B",
+    "entities": []
+  },
+  {
+    "id": "st-neg-claim-id",
+    "note": "A field label that is all field words.",
+    "text": "Claim ID 9921-A",
+    "entities": []
+  },
+  {
+    "id": "st-neg-race-ethnicity",
+    "note": "Demographic field labels, not people.",
+    "text": "Race Ethnicity Age 34",
+    "entities": []
+  },
+  {
+    "id": "st-pos-name-in-record",
+    "note": "A real name inside a record with field labels.",
+    "text": "Record Number 4471; Name: Ines Alvarado",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Ines Alvarado"
+      }
+    ]
+  },
+  {
+    "id": "st-pos-org-in-record",
+    "note": "A real organisation inside a record with field labels.",
+    "text": "Account Number 88213; Company: Halcyon Manufacturing Corp",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Halcyon Manufacturing Corp"
+      }
+    ]
+  },
+  {
+    "id": "st-pos-loc-in-record",
+    "note": "A real place inside a record with field labels.",
+    "text": "City: Copenhagen; Country: Denmark",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Copenhagen"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Denmark"
+      }
+    ]
+  },
+  {
+    "id": "st-pos-name-with-title",
+    "note": "A real name after a structured label.",
+    "text": "Employee ID 4471: Beatriz Nunez signed it.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Beatriz Nunez"
+      }
+    ]
+  },
+  {
+    "id": "st-pos-accountants",
+    "note": "A name that CONTAINS a field word but is not a field.",
+    "text": "Accountants Ltd filed the return.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Accountants Ltd"
+      }
+    ]
+  },
+  {
+    "id": "st-neg-two-field-words",
+    "note": "Two field words with no punctuation. Only the field-label rule catches this.",
+    "text": "Claim ID 9921-A was filed",
+    "entities": []
+  },
+  {
+    "id": "st-neg-label-value-words",
+    "note": "A label and a value in words. Only the field-label rule catches this.",
+    "text": "Vendor Performance Report Q3 was issued",
+    "entities": []
+  }
+]

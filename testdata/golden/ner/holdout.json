@@ -1,0 +1,231 @@
+[
+  {
+    "id": "ho-person-sentence",
+    "note": "Full name as subject of a new sentence.",
+    "text": "Corinne Whitlock submitted the revised budget.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Corinne Whitlock"
+      }
+    ]
+  },
+  {
+    "id": "ho-person-after-hello",
+    "note": "A greeting with a name.",
+    "text": "Hello Fatima, your request has been approved.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Fatima"
+      }
+    ]
+  },
+  {
+    "id": "ho-person-female-surname",
+    "note": "A name whose surname is shared with a city.",
+    "text": "Marion Santiago spoke at the conference.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Marion Santiago"
+      }
+    ]
+  },
+  {
+    "id": "ho-person-three-word",
+    "note": "A three-word name.",
+    "text": "Ana Lucia Ferreira Cardoso signed the form.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Ana Lucia Ferreira Cardoso"
+      }
+    ]
+  },
+  {
+    "id": "ho-person-in-quotes",
+    "note": "A quoted speaker.",
+    "text": "The director, Helena Vogt, refused to comment.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Helena Vogt"
+      }
+    ]
+  },
+  {
+    "id": "ho-org-plc",
+    "note": "A company with a Plc suffix.",
+    "text": "Ashcroft Holdings Plc issued a statement.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Ashcroft Holdings Plc"
+      }
+    ]
+  },
+  {
+    "id": "ho-org-ab",
+    "note": "A Scandinavian company with an Ab suffix.",
+    "text": "Sundby Marine AB won the tender.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Sundby Marine AB"
+      }
+    ]
+  },
+  {
+    "id": "ho-org-hospital",
+    "note": "An institution that is an organisation.",
+    "text": "Riverside Hospital issued the discharge summary.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Riverside Hospital"
+      }
+    ]
+  },
+  {
+    "id": "ho-org-trust",
+    "note": "A trust, which is an organisation.",
+    "text": "The Marchmont Trust manages the endowment.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Marchmont Trust"
+      }
+    ]
+  },
+  {
+    "id": "ho-org-in-two-sent",
+    "note": "An organisation named in the second sentence.",
+    "text": "The audit is complete. Greymoor Associates Ltd approved the accounts.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Greymoor Associates Ltd"
+      }
+    ]
+  },
+  {
+    "id": "ho-loc-capital",
+    "note": "A capital city.",
+    "text": "Delegations met in Ottawa.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Ottawa"
+      }
+    ]
+  },
+  {
+    "id": "ho-loc-river",
+    "note": "A river name.",
+    "text": "The bridge over the Danube was reopened.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Danube"
+      }
+    ]
+  },
+  {
+    "id": "ho-loc-island",
+    "note": "An island name.",
+    "text": "The ferry serves the island of Corsica.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Corsica"
+      }
+    ]
+  },
+  {
+    "id": "ho-loc-street",
+    "note": "A street name in an address. It is a PLACE, not an organisation.",
+    "text": "The office is at 14 Elm Street.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Elm Street"
+      }
+    ]
+  },
+  {
+    "id": "ho-loc-two-countries",
+    "note": "Two country names.",
+    "text": "The shipment moved from Norway to Kenya.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Norway"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Kenya"
+      }
+    ]
+  },
+  {
+    "id": "ho-neg-weekday",
+    "note": "A weekday, which is not an entity.",
+    "text": "We will reconvene on Thursday.",
+    "entities": []
+  },
+  {
+    "id": "ho-neg-season",
+    "note": "A season name, which is not an entity.",
+    "text": "The audit runs in Autumn each year.",
+    "entities": []
+  },
+  {
+    "id": "ho-neg-dept",
+    "note": "A department, which is not an organisation here.",
+    "text": "The budget came from the marketing department.",
+    "entities": []
+  },
+  {
+    "id": "ho-neg-role",
+    "note": "A job title, which is not a person.",
+    "text": "The chief financial officer approved it.",
+    "entities": []
+  },
+  {
+    "id": "ho-neg-numbers",
+    "note": "A number with a unit, which is not an entity.",
+    "text": "The shipment weighs 250 kilograms.",
+    "entities": []
+  },
+  {
+    "id": "ho-neg-file",
+    "note": "A filename, which is not an entity.",
+    "text": "The export is saved as report_final_v2.csv.",
+    "entities": []
+  },
+  {
+    "id": "ho-neg-error",
+    "note": "An error message, which is not an entity.",
+    "text": "The request failed with status code 503.",
+    "entities": []
+  },
+  {
+    "id": "ho-neg-lower-names",
+    "note": "Lower-case words that look like names but are not.",
+    "text": "the total cost of the second order was high",
+    "entities": []
+  },
+  {
+    "id": "ho-neg-abbrev",
+    "note": "An abbreviation, which is not an entity.",
+    "text": "See appendix B for the methodology.",
+    "entities": []
+  },
+  {
+    "id": "ho-neg-tz",
+    "note": "A timezone label, which is not an entity.",
+    "text": "The meeting is scheduled for 09:00 UTC.",
+    "entities": []
+  }
+]

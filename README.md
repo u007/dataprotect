@@ -6,11 +6,11 @@ Detection uses regular expressions with checksum and rule validators: Luhn for c
 
 ## What it is not
 
-piiscrub has no language model and no named-entity recognition. It does not detect person names, organisation names, street addresses or other free-text entities. An NLP recognizer is planned for v2 in [SPEC.md](SPEC.md) and does not exist yet.
+piiscrub has no language model of its own. Detection is regex and checksum based; the only exception is the optional NLP sidecar (`sidecar/`, a separate module), which adds person, organisation and location detection through a separate process. The root library stays standard-library-only and the NLP recognizer is opt-in, so a caller that does not start the sidecar gets the same deterministic behaviour as before.
 
 As implemented, the scope is:
 
-- It detects the 14 entity types listed under "Entity types" below.
+- It detects the 17 entity types listed under "Entity types" below.
 - Malaysia and Singapore passports are matched only next to a passport keyword. Thai passports are not covered.
 - Bare domains such as `microsoft.com` are not detected. Phone numbers in national formats (Israel, Japan, UK) are not matched.
 - It is not a formal privacy tool. It gives no k-anonymity or differential-privacy guarantee, and it handles English text only (SPEC.md, "Non-goals").
@@ -137,13 +137,16 @@ Recognizers are added with `AddRecognizer`. Each one reports entities, and `Anal
 
 ### Entity types
 
-These are the 14 types in `recognizers.AllEntityTypes`. The "Scrubber" column is the operator `NewScrubber` applies by default.
+These are the 17 types in `recognizers.AllEntityTypes`. The "Scrubber" column is the operator `NewScrubber` applies by default.
 
 | Type | Detected by | Method and limits | Scrubber operator |
 |---|---|---|---|
 | `EMAIL` | `regex.NewEmailRecognizer` | Regex (RFC 5322 simplified), Unicode and punycode domains | replace `<EMAIL>` |
 | `PHONE` | `regex.NewPhoneRecognizer` | Regex, US and international forms, parenthesised area codes | tail mask `***-***-####` |
-| `CREDIT_CARD` | `checksum.NewLuhnValidator` | Luhn checksum; the regex card recognizer exists but is not wired by default | tail mask `****-****-****-####` |
+| `CREDIT_CARD` | `checksum.NewLuhnValidator` | Luhn checksum at 0.99; a Luhn-failing number at 0.85 when a label-style keyword names it ("card number", "credit card", "Visa:") and the prefix and layout are plausible. The regex card recognizer exists but is not wired by default | tail mask `****-****-****-####` |
+| `PERSON` | `recognizers/nlp.NLPRecognizer` (sidecar) | NER via sidecar (prose); English only | redact |
+| `ORGANIZATION` | `recognizers/nlp.NLPRecognizer` (sidecar) | NER via sidecar (prose); English only | redact |
+| `LOCATION` | `recognizers/nlp.NLPRecognizer` (sidecar) | NER via sidecar (prose); English only | redact |
 | `SSN` | `regex.NewSSNRecognizer` | Shape only (`NNN-NN-NNNN` with separators); a bare nine-digit value is accepted only as the whole input | mask `***-**-####` |
 | `IP_ADDRESS` | `regex.NewIPRecognizer` | IPv4, and IPv6 candidates validated by `netip` | redact |
 | `URL` | `regex.NewURLRecognizer` | HTTP and HTTPS, trailing punctuation trimmed | redact |
@@ -172,9 +175,130 @@ Pseudonymization is not an operator. It is `Anonymizer.Pseudonymize`, or `Scrubb
 
 ### Options
 
-- `analyzer.WithMinConfidence(t)` keeps an entity when its confidence is at least `t`. The threshold is inclusive. `Scrubber` uses 0.7.
+- `WithMinConfidence(t)` on a `Scrubber` (or `analyzer.WithMinConfidence(t)` on an `Analyzer`) keeps an entity when its confidence is at least `t`. The threshold is inclusive. `NewScrubber` uses 0.70. Raising it above 0.80 filters out the NLP types, which score 0.80.
 - `analyzer.WithContextBoost()` raises confidence from surrounding words. It is opt-in, because it changes overlap outcomes. It runs before the threshold and before overlap resolution, and it never lifts a span that overlaps a URL which survives the threshold. `Scrubber` does not enable it; build an `Analyzer` yourself to use it. On the two corpora, exact precision and recall were identical with boosting on and off (SPEC.md, "Core Interfaces" and the corpus measurement).
 - `anonymizer.WithDefaultOperator(op)` sets the operator for types with no `SetOperator` entry. Without it, an entity whose type has no operator is an error. It is never returned unredacted.
+
+### NLP sidecar (person, organisation, location)
+
+`PERSON`, `ORGANIZATION` and `LOCATION` come from an optional sidecar: a
+separate Go module (`sidecar/`) that runs prose NER in its own process. The root
+module stays standard-library-only, and the recognizer is opt-in, so a caller
+that never starts the sidecar gets exactly the behaviour it had before.
+
+```bash
+# build and run the sidecar (127.0.0.1:8787 by default)
+cd sidecar && go build ./cmd/piiscrub-sidecar && ./piiscrub-sidecar
+```
+
+```go
+import "github.com/u007/dataprotect/recognizers/nlp"
+
+s := piiscrub.NewScrubberWithRecognizers(nlp.New("http://127.0.0.1:8787"))
+```
+
+To run the combination conservatively — built-in types only, no NLP entities —
+raise the threshold above the NLP score:
+
+```go
+s := piiscrub.NewScrubber(
+    piiscrub.WithRecognizer(nlp.New("http://127.0.0.1:8787")),
+    piiscrub.WithMinConfidence(0.85), // drops every NLP entity (0.80)
+)
+```
+
+`NewScrubber()` reads no environment variable and makes no network call, so the
+golden tests stay deterministic. If you want the URL from the environment, read
+it yourself (`os.Getenv("PII_SCRUB_NLP_URL")`) or call `nlp.FromEnv()`, and
+pass the recognizer in. `PII_SCRUB_NLP_URL` must be set in the deployment
+environment for the sidecar to be used; it is documented in `.env.example`.
+
+`nlp.New("")` is a disabled recognizer: it returns no entities and no error. A
+configured but broken sidecar is an error, because `Analyze` aborts on a
+recognizer error; `nlp.New(url, nlp.WithNLPBestEffort())` is the opt-in mode
+that logs the failure (rate-limited) and keeps the rest of the pipeline running.
+NLP entities carry confidence 0.80: strictly below every built-in recognizer
+(the lowest is 0.85, the keyword-gated national ID and passport rules) and
+above the default 0.70 floor, so they fill gaps in prose rather than overriding
+typed entities, and they are not filtered out.
+
+### What the NLP path adds
+
+The 14 built-in types are pattern and checksum based, so they cannot see a
+person's name or a company in running text. That is what the NLP path is for.
+These are the actual outputs, measured, not illustrations:
+
+| Input | Without the NLP recognizer | With it |
+|---|---|---|
+| `John Smith called about the invoice.` | `John Smith called about the invoice.` | `[REDACTED] called about the invoice.` |
+| `Acme Corp is based in Frankfurt.` | `Acme Corp is based in Frankfurt.` | `[REDACTED] is based in [REDACTED].` |
+| `Contact Sarah Jones at Northgate Ventures in Copenhagen.` | `Contact Sarah Jones at Northgate Ventures in Copenhagen.` | `Contact [REDACTED] at [REDACTED] in [REDACTED].` |
+| `The audit was signed by Beatriz Nunez, the lead auditor, on 4 April.` | unchanged | `The audit was signed by [REDACTED], the lead auditor, on 4 April.` |
+| `Our client Halcyon Manufacturing Corp renewed the contract in Munich.` | unchanged | `Our client [REDACTED] renewed the contract in [REDACTED].` |
+| `Employee 1000000000009 filed the request from the Bangkok office.` | `Employee [REDACTED] filed the request from the Bangkok office.` | `Employee [REDACTED] filed the request from the [REDACTED] office.` |
+| `Email billing@acme-supply.example or call 555-123-4567. Card 4111111111111111.` | `Email <EMAIL> or call ***-***-4567. Card ****-****-****-1111.` | the same — the built-in types already had it |
+
+The last row matters as much as the first. The NLP path **adds** to the
+built-in recognizers, it does not replace them: the email, the phone and the
+card are still caught exactly as before, and the Thai ID is still typed
+`TH_ID`. NLP entities carry confidence 0.80 against every built-in type (the
+lowest is 0.85), so in an overlap the built-in type wins and the NLP span fills
+the gaps around it.
+
+### Measured NER accuracy
+
+The sidecar's prose backend is measured, not claimed. `make test-ner` starts a
+sidecar, scores the detector against `testdata/golden/ner/` (124 cases) and
+stops it again:
+
+| Measure | Precision | Recall | What it says |
+|---|---|---|---|
+| typed | 0.8395 | 0.8718 | the detector calls the right thing the right type |
+| span | 0.9012 | 0.9359 | the detector covers the right bytes |
+
+Both are gated. The typed number is the golden package's own, type-sensitive
+metric. The span number ignores the type, because all three NER types carry
+the same redact operator — a span covered exactly but typed differently is
+redacted just the same, so the span number is the one that says the PII is
+actually removed.
+
+The generalisation figure is the first evaluation on held-out text the decoder
+had never seen: typed P=0.5333 R=0.6154, span P=0.8667 R=1.0000. The gate
+bounds sit below the measured baseline, and the honest first-run numbers are
+recorded in `ner_accuracy_test.go`.
+
+**On the real corpora the numbers are much worse, and that is the number that
+matters.** The corpora label person, organisation and place spans, and
+`make corpus` scores them with the same scorer:
+
+| Pipeline (2000 nemotron cases) | exact P | exact R | overlap R |
+|---|---|---|---|
+| regex + checksum + national + secret | 0.8233 | 0.2654 | 0.2688 |
+| with the NLP sidecar | 0.4232 | 0.3903 | 0.4704 |
+
+The regex-only row scores 0.2654 because PERSON, ORGANIZATION and LOCATION
+are now in scope and it detects none of them — that is the baseline the NLP
+path has to beat, and it beats it on recall at the cost of precision. The
+per-type truth with the sidecar is LOCATION P=0.2457 R=0.3556, ORGANIZATION
+P=0.3077 R=0.1650, PERSON P=0.1307 R=0.0837.
+
+Two things drive the gap. The corpora annotate a **given name** ("Manal")
+while a NER model reports a **full name** ("Manal King") — 74% of the gold
+spans are covered, only 35% match exactly. And the corpora are full of form
+fields ("First Name:", "Account Number") that the detector can report.
+
+So: **the sidecar is good on running prose and poor on form-filling records.**
+Enable it on prose; leave it off for structured forms.
+
+The sidecar is not a general-purpose NER service. It is English-only, and a
+brand name with no other signal ("The Orion laptop") is reported as a place.
+
+The NLP path is the slow path, and it is worth knowing the price before you
+opt in. On a 239-byte sample, one `Analyze` call takes 305 us with the regex
+recognizers alone and 19.6 ms with the sidecar — 64x. About 50 requests a
+second sequentially, about 130 a second with 16 concurrent callers. The
+regex path is untouched, so a caller that does not enable the NLP recognizer
+pays none of this.
 
 ### Structured data (CSV)
 
@@ -302,41 +426,48 @@ Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DAT
 |---|---|---|---|---|---|---|
 | Golden seed | 549 | exact span | 1.0000 | 0.9974 | 0.9987 | 381 / 0 / 1 |
 | Golden seed | 549 | byte overlap | 1.0000 | 0.9974 | 0.9987 | 381 / 0 / 1 |
-| Nemotron-PII | 2000 | exact span | 0.8357 | 0.8916 | 0.8627 | 2426 / 477 / 295 |
-| Nemotron-PII | 2000 | byte overlap | 0.8384 | 0.8945 | 0.8656 | 2434 / 469 / 287 |
-| Gretel PII finance | 2000 | exact span | 0.3677 | 0.8201 | 0.5078 | 652 / 1121 / 143 |
-| Gretel PII finance | 2000 | byte overlap | 0.3869 | 0.8629 | 0.5343 | 686 / 1087 / 109 |
+| Nemotron-PII | 2000 | exact span | 0.8357 | 0.2886 | 0.4290 | 2655 / 522 / 6546 |
+| Nemotron-PII | 2000 | byte overlap | 0.8455 | 0.2919 | 0.4340 | 2686 / 491 / 6515 |
+| Gretel PII finance | 2000 | exact span | 0.3816 | 0.0957 | 0.1530 | 696 / 1128 / 6576 |
+| Gretel PII finance | 2000 | byte overlap | 0.3986 | 0.1000 | 0.1599 | 727 / 1097 / 6545 |
 
-Negative cases with no detection: seed 199 of 199; Nemotron-PII 472 of 600; gretel 1291 of 1497.
+Negative cases with no detection: seed 199 of 199; Nemotron-PII 52 of 71; gretel 231 of 280.
+
+The corpus recall fell from the 0.8916 / 0.8201 published before 2026-10-20 because PERSON, ORGANIZATION and LOCATION became in-scope gold on that date (they are detectable only through the NLP sidecar), and this table is the regex-only pipeline, which detects none of them: nemotron carries 3275 PERSON, 1988 LOCATION and 1018 ORGANIZATION false negatives. Scored with the sidecar, the same samples give exact P=0.4376 R=0.4135 — see SPEC.md, "NLP Sidecar".
 
 The seed set is hand-written and small. Its numbers are a floor, not a result. The corpus numbers are real measurements of a 2000-record sample, not a target. The seed set is the only one used as a CI gate.
 
 ### Per type
 
-Exact span, per type. A dash means the corpus schema does not label that type. Detections of such a type are reported as out of schema and are not scored: Nemotron-PII has IBAN 1 and SECRET 63 out of schema; gretel has BITCOIN 21, MY_PASSPORT 1, SECRET 25 and URL 817. The seed column gives case counts from `testdata/golden/seed.json` and gold spans from the benchmark.
+Exact span, per type. A dash means the corpus schema does not label that type. Detections of such a type are reported as out of schema and are not scored: Nemotron-PII has IBAN 1 out of schema; gretel has BITCOIN 21, MY_PASSPORT 1 and URL 817. The seed column gives case counts from `testdata/golden/seed.json` and gold spans from the benchmark.
 
 | Type | Seed cases (gold spans) | Seed P / R (tp / fp / fn) | Nemotron-PII P / R | Gretel P / R |
 |---|---|---|---|---|
 | `EMAIL` | 51 (57) | 1.0000 / 1.0000 (57 / 0 / 0) | 0.9975 / 0.9975 | 0.3281 / 0.8060 |
-| `PHONE` | 54 (58) | 1.0000 / 0.9828 (57 / 0 / 1) | 0.5703 / 0.9982 | 0.2766 / 0.8179 |
-| `CREDIT_CARD` | 49 (56) | 1.0000 / 1.0000 (56 / 0 / 0) | 0.5333 / 0.0945 | 0.5094 / 0.4737 |
+| `PHONE` | 54 (58) | 1.0000 / 0.9828 (57 / 0 / 1) | 0.5679 / 0.9982 | 0.2857 / 0.8580 |
+| `CREDIT_CARD` | 49 (56) | 1.0000 / 1.0000 (56 / 0 / 0) | 0.9405 / 0.9331 | 0.6875 / 0.7719 |
 | `SSN` | 32 (36) | 1.0000 / 1.0000 (36 / 0 / 0) | 0.8780 / 1.0000 | 0.9787 / 0.8846 |
 | `IP_ADDRESS` | 44 (46) | 1.0000 / 1.0000 (46 / 0 / 0) | 0.9828 / 0.9771 | 0.8400 / 0.9767 |
 | `URL` | 30 (30) | 1.0000 / 1.0000 (30 / 0 / 0) | 0.9900 / 0.9229 | - |
 | `IBAN` | 35 (35) | 1.0000 / 1.0000 (35 / 0 / 0) | - | 0.9556 / 0.9773 |
 | `BITCOIN` | 13 (13) | 1.0000 / 1.0000 (13 / 0 / 0) | - | - |
-| `SECRET` | 34 (34) | 1.0000 / 1.0000 (34 / 0 / 0) | - | - |
+| `SECRET` | 34 (34) | 1.0000 / 1.0000 (34 / 0 / 0) | 0.2540 / 0.0804 | 0.5600 / 0.3784 |
+| `PERSON` | - | - | 0.0000 / 0.0000 | 0.0000 / 0.0000 |
+| `ORGANIZATION` | - | - | 0.0000 / 0.0000 | 0.0000 / 0.0000 |
+| `LOCATION` | - | - | 0.0000 / 0.0000 | 0.0000 / 0.0000 |
 | `SG_NRIC` | 5 (5) | 1.0000 / 1.0000 (5 / 0 / 0) | - | - |
 | `MY_IC` | 3 (3) | 1.0000 / 1.0000 (3 / 0 / 0) | - | - |
 | `TH_ID` | 4 (4) | 1.0000 / 1.0000 (4 / 0 / 0) | - | - |
 | `MY_PASSPORT` | 3 (3) | 1.0000 / 1.0000 (3 / 0 / 0) | - | - |
 | `SG_PASSPORT` | 2 (2) | 1.0000 / 1.0000 (2 / 0 / 0) | - | - |
 
-Upper bounds. The benchmark also reports precision with the set-aside detections left out. Nemotron-PII exact precision is 0.9914 (456 detections set aside) and overlap precision 0.9947. Gretel exact precision is 0.3717 (19 set aside) and overlap precision 0.3911. An upper bound is not accuracy. It assumes that every set-aside detection is correct, and the set-aside spans are the ones the corpus labels with a name we do not map to a type, so some of them could be real errors. SPEC.md says the Nemotron-PII PHONE bound should not be quoted as meaningful: 408 of its set-aside detections sit on ID-type fields that the bare 10-digit phone branch matches. They are PII under the corpus labels and the scrubber redacts them, so this is a label-scope artefact, not a detector error.
+`PERSON`, `ORGANIZATION` and `LOCATION` are in scope from 2026-10-20 and this table is the regex-only pipeline, which does not implement them: the cells are zero recall against nemotron 3275 / 1018 / 1988 and gretel 2577 / 2374 / 1489 gold spans. With the NLP sidecar they become nonzero but stay weak (SPEC.md, "NLP Sidecar").
+
+Upper bounds. The benchmark also reports precision with the set-aside detections left out. Nemotron-PII exact precision is 0.9808 (470 detections set aside) and overlap precision 0.9922. Gretel exact precision is 0.3843 (13 set aside) and overlap precision 0.4014. An upper bound is not accuracy. It assumes that every set-aside detection is correct, and the set-aside spans are the ones the corpus labels with a name we do not map to a type, so some of them could be real errors. SPEC.md says the Nemotron-PII PHONE bound should not be quoted as meaningful: most of its set-aside detections sit on ID-type fields that the bare 10-digit phone branch matches. They are PII under the corpus labels and the scrubber redacts them, so this is a label-scope artefact, not a detector error.
 
 ### Why gretel precision is low
 
-Most of the gretel false positives are two types: EMAIL (383) and PHONE (693), out of 1121. For EMAIL, SPEC.md attributes the gap to the corpus. Some records label only the local part as `user_name`. A Markdown `mailto:` link renders the address twice while the corpus labels it once. In records that carry any email label, only 106 of 647 email-shaped strings are labelled `email`. For PHONE, 679 of the 693 gretel false positives sit on digit runs the corpus leaves unlabelled: EDIFACT, SWIFT, XML and CSV values, placeholders such as `1234567890`, and ID fields. The bare 10-digit branch of the phone pattern matches them. About 40 are real-looking phone numbers the corpus missed, so the true precision is higher than measured. No narrowing rule was adopted, because each candidate either drops a gold phone or stops redacting numbers that could be phones (TODO.md, 2026-10-19). The EMAIL attribution is also still open: TODO.md keeps "Corpus-side label quality depresses measured precision" unchecked.
+Most of the gretel false positives are two types: EMAIL (383) and PHONE (695), out of 1128. For EMAIL, SPEC.md attributes the gap to the corpus. Some records label only the local part as `user_name`. A Markdown `mailto:` link renders the address twice while the corpus labels it once. In records that carry any email label, only 106 of 647 email-shaped strings are labelled `email`. For PHONE, almost all of the 695 gretel false positives sit on digit runs the corpus leaves unlabelled: EDIFACT, SWIFT, XML and CSV values, placeholders such as `1234567890`, and ID fields. The bare 10-digit branch of the phone pattern matches them. About 40 are real-looking phone numbers the corpus missed, so the true precision is higher than measured. No narrowing rule was adopted, because each candidate either drops a gold phone or stops redacting numbers that could be phones (TODO.md, 2026-10-19). The EMAIL attribution is also still open: TODO.md keeps "Corpus-side label quality depresses measured precision" unchecked.
 
 ### Presidio test cases
 
@@ -389,7 +520,7 @@ Each item links to its open entry in [TODO.md](TODO.md) or to the rule in [SPEC.
 - **Label boundary, accepted cost.** `pass` and `pwd` need a non-letter before them, so `bypass=` and `compass:` are not reported. The same rule means `dbpass=x` and `rootpwd=x` are not reported either (TODO.md, secret section, 2026-10-19).
 - **Closing bracket after a password.** One trailing `)`, `]` or `}` is dropped when whitespace or the end of text follows it and the value has no opener for it, so `(pass=Hunter2xyz)` reports `Hunter2xyz`. A closing bracket followed by a quote (`"Hunter2xyz)"`) is kept and over-redacts one byte; it does not leak the value (TODO.md, secret section, 2026-10-19).
 - **Provider tokens with no label, limits.** The formats in the SECRET row are matched by fixed prefix and shape only, so a token that does not follow the exact length is not reported (a GitHub token one character short is missed). Not covered: Slack `xoxa-`, `xoxr-` and `xoxs-` (no provider source found; see TODO.md), bare JWE, a bare JWT with a fourth segment, Stripe test keys (`sk_test_`), Stripe `sk_org_`, and the formats not listed. A token inside a URL is redacted as part of the URL, since the URL recognizer scores higher (0.99 against 0.98). Stated limits of the source-backed formats are in SOURCES.md.
-- **Other open items.** Singapore M-prefix NRIC is not supported. Thai passports are not covered. BITCOIN is not labelled by either corpus, so it is unmeasured there. On Nemotron-PII, all 230 CREDIT_CARD false negatives fail the Luhn check. The corpus cards have valid network prefixes but random check digits (24 of 254 pass Luhn). Detecting them would mean reporting Luhn-invalid numbers, which the Luhn-only policy and the seed negatives rule out; the decision is open (SPEC.md, "Corpus measurement").
+- **Other open items.** Singapore M-prefix NRIC is not supported. Thai passports are not covered. BITCOIN is not labelled by either corpus, so it is unmeasured there. On Nemotron-PII, all 230 CREDIT_CARD false negatives fail the Luhn check and carry a valid network prefix; the label-style keyword gate added 2026-10-21 recovers most of them (nemotron P/R 0.6154/0.0945 → 0.9405/0.9331; gretel 0.5745/0.4737 → 0.6875/0.7719) while keeping the seed negatives clean, and it adds no false positives on either corpus — every remaining one was already present under Luhn-only. The phone-vs-card collision those gates exposed is closed by the same date: CREDIT_CARD now outranks PHONE in overlap resolution whatever their scores, so a gated card is masked as a card instead of as the phone number covering its tail (SPEC.md, "Corpus measurement").
 
 ## License
 

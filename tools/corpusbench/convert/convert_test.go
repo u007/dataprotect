@@ -109,7 +109,7 @@ func TestConvertKeepsOverlappingGold(t *testing.T) {
 func TestConvertRecordsNegativeCases(t *testing.T) {
 	root := t.TempDir()
 	writeNemotronFixture(t, root, []nemotronRow{
-		{Text: "no PII at all here", Spans: `[{'start': 3, 'end': 5, 'text': 'no', 'label': 'first_name'}]`},
+		{Text: "no PII at all here", Spans: `[{'start': 3, 'end': 5, 'text': 'no', 'label': 'age'}]`},
 	})
 
 	cases, schema, err := Nemotron(root, 0)
@@ -120,7 +120,7 @@ func TestConvertRecordsNegativeCases(t *testing.T) {
 		t.Fatalf("got %d cases, want 1", len(cases))
 	}
 	if len(cases[0].Entities) != 0 {
-		t.Errorf("labels = %+v, want none — only first_name was present and it is unmapped", cases[0].Entities)
+		t.Errorf("labels = %+v, want none — only age was present and it is unmapped", cases[0].Entities)
 	}
 	if schema.Negatives != 1 {
 		t.Errorf("Negatives = %d, want 1", schema.Negatives)

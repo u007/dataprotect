@@ -543,6 +543,47 @@ func TestScrubberRedactsPhoneNextToCardOrDigitGroup(t *testing.T) {
 	}
 }
 
+// A Luhn-failing card named by a label must be redacted as a card, not as the
+// phone number that overlaps its tail. The phone recognizer claims the last
+// group and scores 0.98 against the gated card's 0.85, so without an explicit
+// card-over-phone precedence the first group stays visible and the mask shown is
+// the phone's. Both cases are the gold spans of nemotron-pii-000709 and
+// nemotron-pii-001744.
+func TestScrubberRedactsGatedCardNotItsPhoneTail(t *testing.T) {
+	s := NewScrubber()
+	for _, tc := range []struct {
+		text    string
+		hidden  []string
+		visible []string
+	}{
+		{
+			"Credit/Debit Card 3467 284599 8675 will be used",
+			[]string{"3467", "284599"},
+			[]string{"****-****-****-"},
+		},
+		{
+			"the credit debit card 3014 754803 2190 is on file",
+			[]string{"3014", "754803"},
+			[]string{"****-****-****-"},
+		},
+	} {
+		out, err := s.Anonymize(context.Background(), tc.text)
+		if err != nil {
+			t.Fatalf("Anonymize(%q): %v", tc.text, err)
+		}
+		for _, h := range tc.hidden {
+			if strings.Contains(out, h) {
+				t.Errorf("Anonymize(%q) = %q, %q is still visible", tc.text, out, h)
+			}
+		}
+		for _, v := range tc.visible {
+			if !strings.Contains(out, v) {
+				t.Errorf("Anonymize(%q) = %q, want card mask %q", tc.text, out, v)
+			}
+		}
+	}
+}
+
 // An IPv6 address is redacted whole, including the IPv4 tail of a mapped address.
 // A clock time is not an address and stays visible.
 func TestScrubberRedactsIPv6Address(t *testing.T) {

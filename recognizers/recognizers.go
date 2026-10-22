@@ -10,20 +10,23 @@ import (
 type EntityType string
 
 const (
-	EntityEmail      EntityType = "EMAIL"
-	EntityPhone      EntityType = "PHONE"
-	EntityCreditCard EntityType = "CREDIT_CARD"
-	EntitySSN        EntityType = "SSN"
-	EntityIP         EntityType = "IP_ADDRESS"
-	EntityURL        EntityType = "URL"
-	EntityIBAN       EntityType = "IBAN"
-	EntityBitcoin    EntityType = "BITCOIN"
-	EntitySGNRIC     EntityType = "SG_NRIC"
-	EntityMYIC       EntityType = "MY_IC"
-	EntityTHID       EntityType = "TH_ID"
-	EntityMYPassport EntityType = "MY_PASSPORT"
-	EntitySGPassport EntityType = "SG_PASSPORT"
-	EntitySecret     EntityType = "SECRET"
+	EntityEmail        EntityType = "EMAIL"
+	EntityPhone        EntityType = "PHONE"
+	EntityCreditCard   EntityType = "CREDIT_CARD"
+	EntityPerson       EntityType = "PERSON"
+	EntityOrganization EntityType = "ORGANIZATION"
+	EntityLocation     EntityType = "LOCATION"
+	EntitySSN          EntityType = "SSN"
+	EntityIP           EntityType = "IP_ADDRESS"
+	EntityURL          EntityType = "URL"
+	EntityIBAN         EntityType = "IBAN"
+	EntityBitcoin      EntityType = "BITCOIN"
+	EntitySGNRIC       EntityType = "SG_NRIC"
+	EntityMYIC         EntityType = "MY_IC"
+	EntityTHID         EntityType = "TH_ID"
+	EntityMYPassport   EntityType = "MY_PASSPORT"
+	EntitySGPassport   EntityType = "SG_PASSPORT"
+	EntitySecret       EntityType = "SECRET"
 )
 
 // AllEntityTypes lists every EntityType constant. A test checks that each one
@@ -33,6 +36,9 @@ var AllEntityTypes = []EntityType{
 	EntityEmail,
 	EntityPhone,
 	EntityCreditCard,
+	EntityPerson,
+	EntityOrganization,
+	EntityLocation,
 	EntitySSN,
 	EntityIP,
 	EntityURL,
@@ -70,6 +76,12 @@ func EntityTypeFromString(s string) (EntityType, error) {
 		return EntityPhone, nil
 	case "CREDIT_CARD":
 		return EntityCreditCard, nil
+	case "PERSON":
+		return EntityPerson, nil
+	case "ORGANIZATION":
+		return EntityOrganization, nil
+	case "LOCATION":
+		return EntityLocation, nil
 	case "SSN":
 		return EntitySSN, nil
 	case "IP_ADDRESS":

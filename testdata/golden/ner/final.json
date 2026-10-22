@@ -1,0 +1,175 @@
+[
+  {
+    "id": "f-person-two",
+    "note": "Two names in a sentence.",
+    "text": "Tobias Lindgren and Rania Aziz signed the agreement.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Tobias Lindgren"
+      },
+      {
+        "type": "PERSON",
+        "value": "Rania Aziz"
+      }
+    ]
+  },
+  {
+    "id": "f-person-title",
+    "note": "A name after a courtesy title.",
+    "text": "Mr. Aled Morgan attended the meeting.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Aled Morgan"
+      }
+    ]
+  },
+  {
+    "id": "f-org-co",
+    "note": "A company with a Co suffix.",
+    "text": "Wexford Trading Co was founded in 1994.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Wexford Trading Co"
+      }
+    ]
+  },
+  {
+    "id": "f-org-llc",
+    "note": "A company with an LLC suffix.",
+    "text": "Bright Harbor LLC filed the paperwork.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Bright Harbor LLC"
+      }
+    ]
+  },
+  {
+    "id": "f-org-council",
+    "note": "An institutional body.",
+    "text": "The Kirkwall Council voted to proceed.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Kirkwall Council"
+      }
+    ]
+  },
+  {
+    "id": "f-loc-sea",
+    "note": "A sea or ocean name.",
+    "text": "The ferry crosses the Baltic Sea.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Baltic Sea"
+      }
+    ]
+  },
+  {
+    "id": "f-loc-three",
+    "note": "Three place names in one sentence.",
+    "text": "Flights from Madrid to Lima and then Quito.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Madrid"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Lima"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Quito"
+      }
+    ]
+  },
+  {
+    "id": "f-loc-avenue",
+    "note": "A street address. The street NAME is a location; the number is not part of the name.",
+    "text": "Ship to 88 Chestnut Avenue.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Chestnut Avenue"
+      }
+    ]
+  },
+  {
+    "id": "f-mixed-all",
+    "note": "All three types in one sentence.",
+    "text": "Nkechi Obi of Adeyemi Foods spoke in Cape Town.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Nkechi Obi"
+      },
+      {
+        "type": "ORGANIZATION",
+        "value": "Adeyemi Foods"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Cape Town"
+      }
+    ]
+  },
+  {
+    "id": "f-neg-april",
+    "note": "A month in a date, which is not an entity.",
+    "text": "The lease ends on 30 April.",
+    "entities": []
+  },
+  {
+    "id": "f-neg-german",
+    "note": "A language, which is not an entity.",
+    "text": "The manual is available in German and Italian.",
+    "entities": []
+  },
+  {
+    "id": "f-neg-winter",
+    "note": "A season, which is not not an entity.",
+    "text": "The plant closed for the Winter.",
+    "entities": []
+  },
+  {
+    "id": "f-neg-hours",
+    "note": "A clock time, which is not an entity.",
+    "text": "The gate closes at 22:15 each night.",
+    "entities": []
+  },
+  {
+    "id": "f-neg-percentage",
+    "note": "A percentage, which is not an entity.",
+    "text": "The margin improved by 4 percent.",
+    "entities": []
+  },
+  {
+    "id": "f-neg-initial",
+    "note": "An initial in a name-like shape.",
+    "text": "Item A was filed under section B.",
+    "entities": []
+  },
+  {
+    "id": "f-neg-product",
+    "note": "A brand name reported as a place. This is a KNOWN false positive of the prose backend.",
+    "text": "The Orion laptop was recalled.",
+    "entities": []
+  },
+  {
+    "id": "f-neg-plural",
+    "note": "A plural common noun, which is not an entity.",
+    "text": "The reports and invoices were archived.",
+    "entities": []
+  },
+  {
+    "id": "f-neg-facility",
+    "note": "A generic facility word, which is not an entity.",
+    "text": "Every office has a fire exit.",
+    "entities": []
+  }
+]

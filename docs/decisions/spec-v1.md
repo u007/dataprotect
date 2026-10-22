@@ -66,18 +66,18 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
   span. Re-measured 2026-10-19 with the corpus schema: boost on and off give identical exact P
   and R on both corpora (nemotron P 0.8357 R 0.8916; gretel P 0.3677 R 0.8201), the entity
   list is identical for every one of the 2000 cases in each corpus, and no URL span is lost.
-  Still off by default.
+  Those are the 2026-10-19 corpus figures, kept as dated measurements; the corpus schema
+  changed on 2026-10-20 and "Corpus measurement" below carries the current ones. What is
+  claimed here is the identity of boost-on and boost-off, not the level. Still off by default.
 - **Structured data** — CSV batch processing
 - **Golden dataset** — 549-case hand-labelled seed set for CI, plus an
   on-demand corpus measurement over the fetched corpora (`make corpus`)
 
 ### Later (v2+):
-- NLP recognizer (prose-based NER for person/org/location)
 - Format-preserving encryption (FPE)
 - Image PII detection (facial recognition)
 - REST API sidecar
 - Multi-language support
-
 ---
 
 ## Project Structure (MVP)
@@ -120,6 +120,13 @@ dataprotect/
 │   └── batch_test.go
 ├── internal/context/
 │   └── context.go           # confidence boosting (+ context_test.go)
+├── recognizers/nlp/
+│   ├── nlp.go               # HTTP client recognizer for the NLP sidecar
+│   └── nlp_test.go
+├── sidecar/                 # separate Go module (prose NER service)
+│   ├── go.mod
+│   ├── cmd/piiscrub-sidecar/
+│   └── internal/{ner,server}/
 ├── golden/
 │   ├── golden.go            # scoring runner for hand-labelled cases
 │   ├── golden_test.go
@@ -311,7 +318,7 @@ which is why both are reported.
 
 ---
 
-## Corpus measurement (2026-10-19)
+## Corpus measurement (2026-10-21)
 
 The seed set above is hand-written and small. `make corpus` scores the same
 detector against the two fetched corpora, which is the measurement the ">99%"
@@ -323,24 +330,58 @@ order, recorded in each `schema.json`).
 
 | | nemotron (2000 of 100000) | gretel (2000 of 5596) |
 |---|---|---|
-| **Exact** | P=0.8357 R=0.8916 F1=0.8627 (tp=2426 fp=477 fn=295) | P=0.3677 R=0.8201 F1=0.5078 (tp=652 fp=1121 fn=143) |
-| **Overlap** | P=0.8384 R=0.8945 F1=0.8656 (tp=2434 fp=469 fn=287) | P=0.3869 R=0.8629 F1=0.5343 (tp=686 fp=1087 fn=109) |
-| negatives clean | 472 of 600 | 1291 of 1497 |
-| out-of-schema (not scored) | IBAN=1, SECRET=63 | BITCOIN=21, URL=817, MY_PASSPORT=1, SECRET=25 |
+| **Exact** | P=0.8357 R=0.2886 F1=0.4290 (tp=2655 fp=522 fn=6546) | P=0.3816 R=0.0957 F1=0.1530 (tp=696 fp=1128 fn=6576) |
+| **Overlap** | P=0.8455 R=0.2919 F1=0.4340 (tp=2686 fp=491 fn=6515) | P=0.3986 R=0.1000 F1=0.1599 (tp=727 fp=1097 fn=6545) |
+| negatives clean | 52 of 71 | 231 of 280 |
+| out-of-schema (not scored) | IBAN=1 | BITCOIN=21, MY_PASSPORT=1, URL=817 |
+
+**Why recall fell from the 0.8916 / 0.8201 recorded on 2026-10-19.** It is a
+change in what counts as gold, not a detector regression, and it happened twice
+since that date. The converter's type maps gained `PERSON`, `ORGANIZATION` and
+`LOCATION` on 2026-10-20 because the NLP sidecar made them detectable; this
+table is the regex-only pipeline, which implements none of them, so those spans
+are now false negatives — nemotron carries 3275 PERSON, 1988 LOCATION and 1018
+ORGANIZATION, gretel 2577 / 1489 / 2374. And `api_key` / `http_cookie` became
+`SECRET` on 2026-10-20, which moved SECRET out of the set-aside bucket and into
+the scored schema. Both corpora moved the same way. The pre-change figures
+survive in the re-measurement history further down and in the NLP section's
+baseline row below.
 
 Per type (exact):
 
 | Type | nemotron P / R | gretel P / R |
 |------|----------------|--------------|
 | `EMAIL` | 0.9975 / 0.9975 | 0.3281 / 0.8060 |
-| `PHONE` | 0.5703 / 0.9982 | 0.2766 / 0.8179 |
-| `CREDIT_CARD` | 0.5333 / 0.0945 | 0.5094 / 0.4737 |
+| `PHONE` | 0.5679 / 0.9982 | 0.2857 / 0.8580 |
+| `CREDIT_CARD` | 0.9405 / 0.9331 | 0.6875 / 0.7719 |
 | `SSN` | 0.8780 / 1.0000 | 0.9787 / 0.8846 |
 | `IP_ADDRESS` | 0.9828 / 0.9771 | 0.8400 / 0.9767 |
 | `URL` | 0.9900 / 0.9229 | *no label in corpus* |
 | `IBAN` | *no label in corpus* | 0.9556 / 0.9773 |
 | `BITCOIN` | *no label in corpus* | *no label in corpus* |
-| `SECRET` | *unmapped label: `api_key`, `http_cookie`* | *unmapped label: `api_key`* |
+| `SECRET` | 0.2540 / 0.0804 | 0.5600 / 0.3784 |
+| `PERSON` | 0.0000 / 0.0000 | 0.0000 / 0.0000 |
+| `ORGANIZATION` | 0.0000 / 0.0000 | 0.0000 / 0.0000 |
+| `LOCATION` | 0.0000 / 0.0000 | 0.0000 / 0.0000 |
+
+The last three rows are zero by construction on this pipeline and are listed so
+the schema is visible rather than hidden. With the NLP sidecar they become
+nonzero but stay weak; see the NLP section.
+
+**Card outranks phone on overlap (decided 2026-10-21).** Overlap resolution
+compares confidence, except that `CREDIT_CARD` beats `PHONE` at every score
+(`winsOverlap` in `analyzer/analyzer.go`). A card window needs 13 or more digits
+behind a valid network prefix, so the colliding phone match is always a sub-run
+of digits the card already covers, and dropping the phone loses no coverage —
+while the phone winning loses the card's leading group. This matters only for a
+label-gated card: it scores 0.85 against the phone's 0.98, so before the rule
+`Credit/Debit Card 3467 284599 8675` was masked as
+`Credit/Debit Card 3467 ***-***-8675`, leaving four digits of a card number
+visible under the phone's mask. A Luhn-valid card at 0.99 already won. Measured
+by reverting only that call: nemotron `CREDIT_CARD` 0.9400 / 0.9252 to
+0.9405 / 0.9331 (tp 235 to 237, fn 19 to 17, fp unchanged at 15) and `PHONE`
+0.5668 / 0.9982 to 0.5679 / 0.9982 (fp 425 to 423 — those two were these cases);
+seed, gretel, Presidio and `make test-ner` unchanged.
 
 **Unlabelled spans, reported separately.** A detection that lands on a span the
 corpus labels with a name outside our type map is not counted as wrong in the
@@ -348,16 +389,16 @@ headline. It is set aside into a bucket, and the report shows the precision with
 it removed, labelled as an upper bound. The headline stays as it was, so the
 bucket can't quietly move a number. Measured on the 2000-record samples:
 
-- nemotron, exact: headline P=0.8357; 456 detections set aside (PHONE 408, SSN 25,
-  CREDIT_CARD 21, EMAIL 2); upper bound P=0.9914.
-- gretel, exact: headline P=0.3677; 19 detections set aside (CREDIT_CARD on `bban`
-  7, EMAIL on `name` 6 and `user_name` 4, IP_ADDRESS 1 on `credit_card_security_code`,
-  PHONE 1); upper bound P=0.3717.
+- nemotron, exact: headline P=0.8357; 470 detections set aside (PHONE 407, SSN 25,
+  SECRET 23, CREDIT_CARD 15); upper bound P=0.9808.
+- gretel, exact: headline P=0.3816; 13 detections set aside (SECRET on `password`
+  7, CREDIT_CARD on `bban` 4, IP_ADDRESS 1 on `credit_card_security_code`,
+  PHONE 1 on `bank_routing_number`); upper bound P=0.3843.
 
 An upper bound is not accuracy. The nemotron PHONE bucket is ID-field values
 (`biometric_identifier`, `customer_id`, `account_number`, and others) that the
 bare 10-digit phone branch matches. The cause is confirmed in code and by a label
-scan, and 12 of the 408 spans were hand-checked, all in ID contexts. They are PII
+scan, and 12 of the spans were hand-checked, all in ID contexts. They are PII
 under the corpus's own labels and the scrubber redacts them today, so the PHONE
 bound is not quoted as a precision figure. See TODO.md (2026-10-19).
 
@@ -373,32 +414,43 @@ explained rather than assumed away:**
   source labels with unmapped ID types (23 `tax_id`), and gretel's 1 is
   labelled by nothing. Whether unmapped-label spans should count as false
   positives is a scope decision — see TODO.md.
-- **PHONE on nemotron (P=0.5703)** — 408 of its 419 false positives sit on spans
-  the source labels as an ID-type field: `biometric_identifier` 117,
-  `customer_id` 83, `account_number` 79, `medical_record_number` 76,
-  `health_plan_beneficiary_number` 34. The bare 10-digit phone branch matches
+- **PHONE on nemotron (P=0.5679)** — 423 detections count as false positives in
+  the headline, and a further 407 are set aside into the bucket above because
+  they sit on spans the source labels as an ID-type field: `biometric_identifier`
+  117, `account_number` 85, `customer_id` 83, `medical_record_number` 76,
+  `health_plan_beneficiary_number` 34, `unique_id` 7, `certificate_license_number`
+  4, `coordinate` 1. The bare 10-digit phone branch matches
   them (confirmed in code, by a full label scan and by a 12-span hand check). No
   other entity in the scrubber's output overlaps these spans, and they are PII
   under the corpus's labels, so narrowing the branch would stop redacting them. Five narrowing rules
   were measured and none was adopted (TODO.md, 2026-10-19). The precision figure
   is a label-scope artefact, not a measured detector error.
-- **PHONE on gretel (P=0.2766)** — 693 false positives. 679 sit on digit runs the
-  corpus leaves unlabelled: EDIFACT, SWIFT, XML and CSV values, placeholders such
-  as `1234567890`, and ID fields. About 40 are real-looking phone numbers the corpus
+- **PHONE on gretel (P=0.2857)** — 695 false positives, with 1 more set aside on
+  `bank_routing_number`. Almost all sit on digit runs the corpus leaves
+  unlabelled: EDIFACT, SWIFT, XML and CSV values, placeholders such as
+  `1234567890`, and ID fields. About 40 are real-looking phone numbers the corpus
   missed (`Phone:`, `call us at`, `Fax:`), so the true precision is higher than
   measured. 10 are boundary misses against a gold PHONE, and 4 sit on other labelled
   types. This is corpus-side and needs no recognizer change (TODO.md, 2026-10-19).
-- **CREDIT_CARD on nemotron (R=0.0945)** — all 230 false negatives fail the
-  Luhn check, and exactly the 24 Luhn-valid ones are the true positives. The
-  validator is working as designed. Re-verified 2026-10-19: all 254 gold card
-  spans carry a valid network prefix and every span is the whole digit run, but
-  only 24 of 254 (9.4%) pass Luhn, the rate a random check digit gives. So the
-  corpus cards are real-looking numbers with random check digits, not random
-  digits. A keyword-gated rule at 0.85 would recover 216 (keyword before the
-  number) or 219 (either side) of the 230 and removes no detection. It contradicts
-  the Luhn-only policy above; the either-side form also changes a seed negative and
-  a Go test, and both forms change two Presidio negatives. It is not adopted; the
-  decision is open (TODO.md, 2026-10-19).
+- **CREDIT_CARD on nemotron (R=0.0945 → 0.9331, fixed 2026-10-21)** — the 230
+  false negatives all failed the Luhn check, and exactly the 24 Luhn-valid ones
+  were the true positives. Of the 0.9331, 0.9252 is the keyword gate and the last
+  0.0079 is the card-over-phone overlap rule. Re-verified 2026-10-19: all 254 gold card spans carry
+  a valid network prefix and every span is the whole digit run, but only 24 of
+  254 (9.4%) pass Luhn, the rate a random check digit gives. So the corpus cards
+  are real-looking numbers with random check digits, not random digits. The
+  label-style keyword gate (approved 2026-10-20, implemented 2026-10-21)
+  recovers them: a Luhn-failing window is reported at 0.85 when a label-style
+  keyword ("card number", "credit card", "Visa:") is within 40 bytes, the
+  prefix is a network prefix, the layout is standard and the window is bounded.
+  Measured: nemotron CREDIT_CARD P/R 0.6154/0.0945 → 0.9405/0.9331 (tp 24→237,
+  fp unchanged at 15); gretel 0.5745/0.4737 → 0.6875/0.7719 (tp 27→44, fp
+  unchanged at 20). The gate adds no corpus false positives at all. Bare "card"
+  in prose does not gate, so the seed negatives stay clean. Cost: Presidio
+  0016/0018 become false positives (P 1.0 → 0.875); the two Presidio misses are
+  prefix-1 gold cards and predate this change. Of the nemotron total, 0.9252
+  recall is the gate alone and the last 0.0079 is the card-over-phone overlap
+  rule added the same day (see "Corpus measurement").
 - **gretel EMAIL (P=0.3281)** — corpus-side, not detector-side. gretel labels
   the local part as `user_name` in some records (`lowe73@email.com` carries
   only `user_name 90..96 = 'lowe73'`), markdown `[addr](mailto:addr)` renders
@@ -463,6 +515,7 @@ Measured before and after, on the same inputs:
 | nemotron and gretel, 2000 cases, exact, after the short-label left boundary (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 47 and 12 | same headline and per-type cells; SECRET out-of-schema counts unchanged at 47 and 12. Raw SECRET spans, diffed per case before and after the boundary, are identical in both corpora, so the boundary drops no corpus secret |
 | nemotron and gretel, 2000 cases, exact, after a password's trailing closing bracket is dropped (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 47 and 12 | same headline and per-type cells; SECRET out-of-schema counts unchanged at 47 and 12. Raw SECRET spans, diffed per case against HEAD (356756a) over both corpora, change once: gretel `Password: ufmE%C9zdGiFo!o1)` now reports `ufmE%C9zdGiFo!o1`. SECRET is out of schema, so this is not scored |
 | nemotron and gretel, 2000 cases, exact, after provider tokens with no label were added (2026-10-19) | nemotron P 0.8357 (fp 477), R 0.8916; gretel P 0.3677 (fp 1121), R 0.8201; SECRET out of schema 63 and 25 | same headline and per-type cells; SECRET out-of-schema counts rose from 47 to 63 and from 12 to 25. Every new span was diffed: each one sits on a corpus span labelled `api_key` or `http_cookie` (outside the type map), except three gretel `sk_live_` cells in case 001702 that the corpus does not annotate (see TODO.md). No span was lost to overlap. Presidio output is unchanged. |
+| nemotron and gretel, 2000 cases, exact, re-measured 2026-10-21 after the credit-card keyword gate, the card-over-phone overlap rule and the PERSON / ORGANIZATION / LOCATION and SECRET label mappings | nemotron P 0.8357 (fp 522), R 0.2886; gretel P 0.3816 (fp 1128), R 0.0957 | The recall drop is a change in gold, not a detector regression: PERSON, ORGANIZATION and LOCATION became in-scope on 2026-10-20 and this pipeline implements none of them (nemotron fn 3275 / 1988 / 1018, gretel 2577 / 1489 / 2374), and `api_key` / `http_cookie` became scored SECRET the same day. Per type: CREDIT_CARD nemotron P 0.9405 (fp 15), R 0.9331 — the keyword gate alone gives 0.9252 and the last 0.0079 is the overlap rule — gretel 0.6875 / 0.7719; PHONE nemotron 0.5679 / 0.9982 with fp 425 to 423, gretel 0.2857 / 0.8580 (the phone-form extension in ca81df3 had already lifted gretel from 0.2766 / 0.8179). Negatives 52 of 71 and 231 of 280; upper bound P 0.9808 and 0.3843. Seed, Presidio and the NER gate unchanged. |
 | Presidio credit_card (2026-10-15) | tp 13, fp 1, fn 3 (exact R 0.8125) | tp 14, fp 2, fn 2 exact (R 0.8750); overlap 15, 1, 1 (R 0.9375) | the merged cluster covers two adjacent gold cards |
 | Presidio iban | tp 155, fp 0, fn 3 | tp 158, fp 0, fn 0 | country-length table (2026-10-16): tp 158, fp 0, fn 0, P 1.0000, R 1.0000 (dash separators first gave tp 158, fp 3) |
 
@@ -524,11 +577,164 @@ Column scope is set by `SetColumnType`, as in `ProcessCSV`: only registered colu
 
 ---
 
+## NLP Sidecar (v2, shipped)
+
+The root module stays standard-library-only, so named-entity recognition
+(PERSON, ORGANIZATION, LOCATION) lives in a separate module, `sidecar/`, and the
+root talks to it over HTTP.
+
+- `sidecar/` is its own Go module (`github.com/u007/dataprotect/sidecar`) with
+  `replace github.com/u007/dataprotect => ..`. The root module never imports
+  the sidecar, and the sidecar never imports the root's NLP client, so there is
+  no recursion.
+- `sidecar/cmd/piiscrub-sidecar` serves `GET /healthz`
+  (`{"status":"ok","backend":"prose"}`) and `POST /v1/ner` with body
+  `{"text":"..."}` and response
+  `{"entities":[{"type","start","end","text","confidence"}]}`.
+- The service binds `127.0.0.1:8787` by default, caps request bodies at 1 MiB,
+  sets `ReadHeaderTimeout` and `WriteTimeout`, and shuts down on SIGTERM.
+- The root client is `recognizers/nlp.NLPRecognizer`. An empty URL disables it
+  (`Recognize` returns `nil, nil`). A configured-but-broken sidecar is an
+  error, because `Analyzer.Analyze` aborts on a recognizer error; the opt-in
+  best-effort mode is the only path that drops one.
+- `NewScrubber()` stays env-free and deterministic. A caller wires the NLP
+  recognizer explicitly with `NewScrubberWithRecognizers(nlp.New(url))` or
+  `NewScrubber(WithRecognizer(...))`. The env var `PII_SCRUB_NLP_URL` is read
+  by the caller (or `nlp.FromEnv()`), never by `NewScrubber()`.
+- NLP entities carry confidence 0.80. Overlap resolution keeps the higher
+  confidence; every built-in type scores at least 0.85 (the keyword-gated
+  national ID and passport rules; regex, checksum and secret are 0.95 and up),
+  so NLP is strictly outranked and fills gaps rather than overriding typed
+  entities. 0.80 is also above the default 0.70 floor, so NLP entities survive
+  the filter. Both boundaries are guarded by tests:
+  `TestNLPConfidenceWindow` (root module) and `TestDefaultConfidenceWindow`
+  (sidecar). The score was 0.85 originally, which tied the national rules;
+  lowering it to 0.80 makes "never override typed" true rather than
+  tie-dependent.
+- The floor is public: `NewScrubber(WithMinConfidence(t))` overrides the
+  default 0.70. A threshold above 0.80 filters every NLP entity out and leaves
+  the built-in recognizers only, which is the supported conservative mode. The
+  option changes the filter, not overlap resolution; overlap still keeps the
+  higher-confidence span.
+- The NER golden cases are not in `testdata/golden/seed.json`, because their
+  result depends on a running sidecar and would make the offline gate
+  nondeterministic. They live in `testdata/golden/ner/` and are scored by the
+  `integration`-tagged gate (`ner_accuracy_test.go`, run by `make test-ner`).
+- **Measured NER accuracy.** prose's own entity output is NOT used directly:
+  its coalescer keeps the first token's label for a span, so a company name
+  came back as a GPE and a person's surname came back as ORGANIZATION. The
+  sidecar decodes prose's TOKEN labels instead (`sidecar/internal/ner/prose.go`),
+  with shape rules for legal forms, institutional head nouns, business head
+  nouns, place head nouns, and closed classes that are never entities
+  (months, seasons, languages, greetings, courtesy titles, communication
+  verbs).
+- The gate measures TWO numbers, because the NER types share one operator
+  (redact) and so a mistyped span is still redacted:
+  - **typed** (the golden package's own, type-sensitive): P=0.8395 R=0.8718
+    over 124 cases (tp=68 fp=13 fn=10).
+  - **span** (type-agnostic, computed in the gate): P=0.9012 R=0.9359
+    (tp=73 fp=8 fn=5). This is the number that protects the caller's data,
+    because it is the one that says the right bytes were covered.
+- The dataset has FOUR files, and the fourth exists because the corpora
+  exposed a blind spot. `testdata/golden/ner/structured.json` (32 cases)
+  covers JSON keys, HTTP headers and spreadsheet field labels. The first
+  three sets were all prose, and the corpora showed the decoder reporting
+  "Record Number", "Account Number", "SameSite=Lax", "Path=/auth" and
+  "Medical Record Number" as people and places. The rules that fix that
+  class are: a span carrying a field-path character is a field, and a run
+  whose LEADING words are two or more field names is a field label.
+- Measured on the two corpora, those two rules cut the NER detections on
+  the nemotron corpus from 4.4 to 2.76 per text, and on gretel from 6.6 to
+  5.90. The gate was mutation-verified against them: disabling the
+  field-label rule drops typed precision to 0.7907 and the gate fails.
+- The generalisation figure is the FIRST evaluation of the held-out set, on
+  text the decoder had never seen: typed P=0.5333 R=0.6154, span P=0.8667
+  R=1.0000. The gate bounds sit below the development-set baseline, and the
+  honest first-run numbers are recorded in `ner_accuracy_test.go` rather than
+  the flattering re-run.
+- **The corpora score it too, and the numbers are much worse.** The person,
+  organisation and place labels were added to the converter's type maps on
+  2026-10-20, so the corpora's own `first_name`, `last_name`, `name`,
+  `company_name`, `company`, `city`, `country`, `state`, `county`, `postcode`
+  and `street_address` spans are now gold rather than dropped. Scored on the
+  same 2000 nemotron cases, re-measured 2026-10-21, regex row from
+  `make corpus` and sidecar row from `make corpus-nlp NER_LIMIT=2000`, both
+  through the same scorer:
+
+  | Pipeline | exact P | exact R | overlap P | overlap R |
+  |---|---|---|---|---|
+  | regex + checksum + national + secret | 0.8357 | 0.2886 | 0.8455 | 0.2919 |
+  | with the NLP sidecar | 0.4376 | 0.4135 | 0.5222 | 0.4935 |
+
+  The regex-only pipeline scores R=0.2886 because PERSON, ORGANIZATION and
+  LOCATION are now in scope and it detects none of them. That is the
+  baseline the NLP path has to beat, and it beats it on recall (0.2919 to
+  0.4935 overlap) at the cost of precision (0.8455 to 0.5222).
+- **Why the corpus score is so much worse than the hand-written gate.** Two
+  reasons, both measured:
+  - **Granularity.** The corpora annotate a GIVEN NAME ("Manal", "King")
+    while a NER model reports a FULL NAME ("Manal King"). The span is right
+    and the granularity differs, so an exact-span match under-counts. On the
+    nemotron sample, 74% of the gold spans are covered by the detector at
+    all, but only 35% match exactly; of the covered-but-larger spans, 166
+    of 174 are PERSON.
+  - **Field labels.** The corpora are full of form fields ("First Name:",
+    "Street Address:", "Account Number"), and the detector reports some of
+    them. The rules that suppress that class are the ones described above.
+- **The per-type truth on the corpus**, with the NLP sidecar: LOCATION
+  P=0.2457 R=0.3556, ORGANIZATION P=0.3095 R=0.1660, PERSON P=0.1307
+  R=0.0837. The built-in types are untouched by the sidecar (EMAIL
+  P=0.9975 R=0.9975, SSN P=0.8780 R=1.0000, URL P=0.9900 R=0.9229), which
+  is the point: the NLP path adds coverage without disturbing what already
+  worked. `CREDIT_CARD` (0.9405 / 0.9331) and `PHONE` (0.5679 / 0.9982) are
+  byte-identical in both rows of the table above.
+- **The honest conclusion.** On prose the decoder is usable; on form-filling
+  structured records it is not. The corpora are mostly the latter, and the
+  numbers above are what a caller who enables the sidecar on such data gets.
+  A caller who enables it on running prose gets the gate's numbers. The
+  difference between those two figures is the whole of the NER path's
+  quality, and it is now measured rather than assumed.
+- Known limitation: a brand name with no other signal ("The Orion laptop")
+  is reported as a location. A gazetteer of brand names would fix it and
+  would be wrong the moment the list is out of date, so it is recorded as a
+  cost rather than papered over.
+
+### What the NLP path costs
+
+The NLP path is a separate process and it is the slow path. Measured on the
+239-byte sample in the NER gate's benchmark, per `Analyze` call:
+
+| Path | Time per call | vs. the regex-only path |
+|---|---|---|
+| regex + checksum + national + secret (no NLP) | 305 us | 1x |
+| with the NLP sidecar | 19.6 ms | 64x |
+
+The 64x is not the model. It was 1334x before the model was hoisted, and
+that number was a bug: `prose.NewDocument` loads and decodes the 17 MB model
+on EVERY call when it is given no model, so the sidecar was paying 340 ms of
+model loading per request. The sidecar now builds the model once, on the first
+request, and reuses it (`prose.UsingModel`). That is a 17x speedup on the
+sidecar, and the token output is byte-identical — the model is read-only once
+built. The shared model is safe for concurrent requests; a race test covers it.
+
+After that fix the sidecar sustains about 50 requests/second sequentially and
+about 130/second with 16 concurrent callers.
+
+The remaining 19.6 ms is the tagger (161 ms of the original 352 ms was the
+perceptron tagger) plus sentence segmentation (14 ms). Both are inherent to
+prose. Cutting further would mean a different model, which is Phase E.
+
+So: the NLP path costs two orders of magnitude more CPU than the regex path.
+That is the price of finding names in prose, and it is why the recognizer is
+opt-in and why `NewScrubber()` never reaches for it on its own.
+
+---
+
 ## Dependencies (Pinned)
 
 | Dependency | Purpose | Version |
 |------------|---------|---------|
-| [prose](https://github.com/jdkato/prose) | NLP NER (v2+) | v2.0.0 |
+| [prose](https://github.com/jdkato/prose) | NLP NER, in the `sidecar/` module only (not the root module) | v2.0.0 |
 | [go-face](https://github.com/Kagami/go-face) | Facial recognition (v2+) | v0.0.0-20240518085811-770585e |
 | [fpe](https://github.com/capitalone/fpe) | Format-preserving encryption (v2+) | v1.0.0 |
 
@@ -574,11 +780,11 @@ proves nothing.
 | Phase | Scope | Status |
 |-------|-------|--------|
 | **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 549-case seed (past the ~500 target); the corpora are measured on demand instead |
-| 2 | NLP recognizer (prose) | Later |
+| 2 | NLP recognizer (prose) | SHIPPED (sidecar module + opt-in client; Phases A/B/D of the NLP plan) |
 | 3 | Secret recognizers (patterns + entropy) | SHIPPED |
 | 4 | FPE operator | Later |
 | 5 | Image PII detection (go-face) | Later |
-| 6 | REST API sidecar | Later |
+| 6 | REST API sidecar | Later (the NLP sidecar in `sidecar/` exposes /healthz and /v1/ner; /v1/analyze and /v1/anonymize are the deferred part) |
 
 ---
 
@@ -589,17 +795,20 @@ proves nothing.
       P=1.0000 R=0.9974 over 549 cases, but not every per-recognizer cell is above
       0.99: PHONE recall is 0.9828 (the `pos-phone-trunk-zero` miss). The corpora are
       now measurable and do not come close: exact aggregate
-      P=0.8357 R=0.8916 (nemotron) and P=0.3677 R=0.8201 (gretel) over 2000 records
-      each — see "Corpus
+      P=0.8357 R=0.2886 (nemotron) and
+      P=0.3816 R=0.0957 (gretel) over 2000 records each — see "Corpus
       measurement (2026-10-19)" above for the per-type numbers and the
       explanation of every large gap. BITCOIN remains unmeasured because
       neither corpus labels it. Reproduce with `make corpus`.
 - [x] Luhn + IBAN checksum validation working — **MET.** Both validators are
-      wired into the default pipeline. Cards are detected by Luhn alone: the
-      regex card recognizer is excluded because wiring both cannot work, since
-      for a Luhn-failing number the validator emits nothing while the regex
-      recognizer still matches the shape. CREDIT_CARD went from P=0.7500 to
-      P=1.0000 and all negative cases became clean.
+      wired into the default pipeline. Cards are detected by Luhn, plus a
+      label-style keyword-gated window fallback at 0.85 for a Luhn-failing
+      number that a label names (2026-10-21); the regex card recognizer is
+      excluded because wiring both cannot work, since for a Luhn-failing number
+      the validator emits nothing while the regex recognizer still matches the
+      shape. CREDIT_CARD went from P=0.7500 to P=1.0000 on the seed set, and the
+      corpus recall went from 0.0945 to 0.9331 (nemotron) and 0.4737 to 0.7719
+      (gretel).
 - [x] 4 operators (replace, mask, hash, redact) working
 - [x] Structured data CSV processing working
 - [x] Full test suite passes

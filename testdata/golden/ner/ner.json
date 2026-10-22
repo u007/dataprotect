@@ -1,0 +1,493 @@
+[
+  {
+    "id": "pos-ner-person-full",
+    "note": "A full personal name in a sentence.",
+    "text": "Marcus Feld signed the agreement on Tuesday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Marcus Feld"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-person-first",
+    "note": "A single given name used as a subject.",
+    "text": "Priya will present the quarterly figures.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Priya"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-person-two",
+    "note": "Two people in one sentence, in text order.",
+    "text": "The handover went from Elena Duarte to Samuel Okoye.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Elena Duarte"
+      },
+      {
+        "type": "PERSON",
+        "value": "Samuel Okoye"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-person-three",
+    "note": "Three people in a list.",
+    "text": "Nadia Costa, Oliver Grant and Yusuf Demir attended the session.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Nadia Costa"
+      },
+      {
+        "type": "PERSON",
+        "value": "Oliver Grant"
+      },
+      {
+        "type": "PERSON",
+        "value": "Yusuf Demir"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-person-possessive",
+    "note": "A name in a possessive phrase.",
+    "text": "Ingrid Larsen's notes were circulated.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Ingrid Larsen"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-person-appositive",
+    "note": "A name followed by a role.",
+    "text": "Beatriz Nunez, the lead auditor, signed the page.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Beatriz Nunez"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-person-object",
+    "note": "A name as the object of a verb.",
+    "text": "The board appointed Halima Yusuf as chair.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Halima Yusuf"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-person-middle",
+    "note": "A middle name inside a full name.",
+    "text": "The witness was James Robert Ellery.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "James Robert Ellery"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-person-after-email-word",
+    "note": "A name in a sentence that also contains a word that looks like a contact.",
+    "text": "Contact Amara Boateng for the shipment paperwork.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Amara Boateng"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-org-inc",
+    "note": "A company name with an Inc suffix.",
+    "text": "Fernwood Logistics Inc handles the freight.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Fernwood Logistics Inc"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-org-ltd",
+    "note": "A company name with an Ltd suffix.",
+    "text": "Brightwater Analytics Ltd published the report.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Brightwater Analytics Ltd"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-org-corp",
+    "note": "A company name with a Corp suffix.",
+    "text": "Halcyon Manufacturing Corp opened a new plant.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Halcyon Manufacturing Corp"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-org-gmbh",
+    "note": "A company name with a foreign suffix.",
+    "text": "Steinbach Werkzeuge GmbH supplies the tooling.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Steinbach Werkzeuge GmbH"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-org-foundation",
+    "note": "A foundation, which is an organisation.",
+    "text": "The Ravenswood Foundation donated supplies.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Ravenswood Foundation"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-org-plural",
+    "note": "A plural organisation name.",
+    "text": "Two law firms merged to form Harrington & Vale.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Harrington & Vale"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-org-committee",
+    "note": "An organisation named as a committee.",
+    "text": "The Petersfield Safety Committee approved the plan.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Petersfield Safety Committee"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-org-university",
+    "note": "A university as an organisation.",
+    "text": "Northgate University admitted a larger cohort.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Northgate University"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-org-with-person",
+    "note": "A person and their organisation in one sentence.",
+    "text": "Aisha Rahman leads Northgate Ventures.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Aisha Rahman"
+      },
+      {
+        "type": "ORGANIZATION",
+        "value": "Northgate Ventures"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-org-mixed",
+    "note": "All three entity types in one sentence.",
+    "text": "Ines Alvarado of Cedarline Systems presented the roadmap in Helsinki.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Ines Alvarado"
+      },
+      {
+        "type": "ORGANIZATION",
+        "value": "Cedarline Systems"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Helsinki"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-loc-city",
+    "note": "A bare city name.",
+    "text": "The conference was held in Lisbon.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Lisbon"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-loc-country",
+    "note": "A country name.",
+    "text": "Delegates arrived from Portugal.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Portugal"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-loc-region",
+    "note": "A region or state name.",
+    "text": "The office sits in Bavaria.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Bavaria"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-loc-two",
+    "note": "Two place names in one sentence, in text order.",
+    "text": "The team flew from Toronto to Zurich.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Toronto"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Zurich"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-loc-institution",
+    "note": "A place name inside an institution name.",
+    "text": "The Portland campus opened its new hall.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Portland"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-loc-preposition",
+    "note": "A place name after a preposition.",
+    "text": "We shipped from Dunedin to Napier last week.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Dunedin"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Napier"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-loc-city-country",
+    "note": "A city and a country in one sentence.",
+    "text": "The treaty was signed in Vienna by Austria.",
+    "entities": [
+      {
+        "type": "LOCATION",
+        "value": "Vienna"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Austria"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-mixed-two-sent",
+    "note": "Two sentences, each with a person and a place.",
+    "text": "Rosa Lindqvist led the review. She then travelled to Madrid.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Rosa Lindqvist"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Madrid"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-mixed-org-loc",
+    "note": "An organisation and a place in one sentence.",
+    "text": "Sablefish Robotics is based in Auckland.",
+    "entities": [
+      {
+        "type": "ORGANIZATION",
+        "value": "Sablefish Robotics"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Auckland"
+      }
+    ]
+  },
+  {
+    "id": "pos-ner-mixed-three",
+    "note": "Person, organisation and place, all different types.",
+    "text": "Tomas Bielik met Lantern Point Press in Krakow.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "value": "Tomas Bielik"
+      },
+      {
+        "type": "ORGANIZATION",
+        "value": "Lantern Point Press"
+      },
+      {
+        "type": "LOCATION",
+        "value": "Krakow"
+      }
+    ]
+  },
+  {
+    "id": "neg-ner-plain-sentence",
+    "note": "A sentence with no name, organisation or place.",
+    "text": "The quarterly report was filed on time.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-weekday",
+    "note": "A capitalised weekday that is not an entity.",
+    "text": "The meeting is scheduled for Monday afternoon.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-months",
+    "note": "Capitalised month names that are not entities.",
+    "text": "The invoice was issued in January and settled in March.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-counts",
+    "note": "Numbers with no name, organisation or place.",
+    "text": "There were 42 attendees and 17 proposals submitted.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-version",
+    "note": "A capitalised product version that is not an entity.",
+    "text": "The team upgraded to Version 3 of the platform.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-lower-prose",
+    "note": "Ordinary prose in lower case.",
+    "text": "the build server was restarted after the outage",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-pronouns",
+    "note": "Pronouns where a name would be.",
+    "text": "She said they would call him back on Friday.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-abstract",
+    "note": "Abstract nouns that are not organisations.",
+    "text": "Quality, safety and cost were the deciding factors.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-unit",
+    "note": "A measurement with a unit.",
+    "text": "The tank holds 500 litres at a pressure of 3 bar.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-code",
+    "note": "An identifier that is not a name.",
+    "text": "The build identifier is F4X-9921.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-url-word",
+    "note": "A sentence about a web address with no entity.",
+    "text": "The link is on the first page of the portal.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-finance",
+    "note": "A sentence about money with no name or place.",
+    "text": "The invoice total was 4200 euros.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-time",
+    "note": "A time expression with no entity.",
+    "text": "The call starts at 14:30 and should run for an hour.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-empty-org-word",
+    "note": "The word 'company' on its own is not an entity.",
+    "text": "Every company must file a return.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-generic-dept",
+    "note": "A generic department word is not an organisation.",
+    "text": "The request went to the finance department.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-ordinal",
+    "note": "An ordinal and a quantity.",
+    "text": "The third of the five shipments arrived late.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-chemical",
+    "note": "A chemical name is not an organisation.",
+    "text": "The solvent was mixed with sodium chloride.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-language",
+    "note": "A language name is not a location.",
+    "text": "The contract is written in Swedish and English.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-acronym-only",
+    "note": "A bare acronym with no expansion.",
+    "text": "The report cites several standards and frameworks.",
+    "entities": []
+  },
+  {
+    "id": "neg-ner-month-year",
+    "note": "A month and a year, with no entity.",
+    "text": "The archive closes every June and reopens in October.",
+    "entities": []
+  }
+]

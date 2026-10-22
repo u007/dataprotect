@@ -72,6 +72,41 @@ func TestRealOverlapsCardBeatsPhone(t *testing.T) {
 	}
 }
 
+// A Luhn-failing card that a label names still outranks the phone pattern
+// overlapping it. The gated card scores 0.85 against the phone's 0.98, so
+// confidence alone hands the span to the phone: the phone masks its own sub-run
+// and leaves the card's first group in the clear ("Credit/Debit Card 3467
+// ***-***-8675"), which is a partial leak of a card number. The phone span is
+// always a strict sub-run of the card window, because a card window needs 13 or
+// more digits while a phone match needs at most the tail of them, so keeping the
+// card loses no coverage.
+func TestRealOverlapsGatedCardBeatsPhone(t *testing.T) {
+	a := newRealAnalyzer()
+	for _, text := range []string{
+		"Credit/Debit Card 3467 284599 8675 will be used",
+		"the credit debit card 3014 754803 2190 is on file",
+	} {
+		entities, err := a.Analyze(context.Background(), text)
+		if err != nil {
+			t.Fatalf("%q: unexpected error: %v", text, err)
+		}
+		got := typesOf(entities)
+		if got[recognizers.EntityCreditCard] != 1 {
+			t.Errorf("%q: want exactly 1 CREDIT_CARD, got %v (%+v)", text, got, entities)
+			continue
+		}
+		if got[recognizers.EntityPhone] != 0 {
+			t.Errorf("%q: phone stole a span inside a gated card: %v", text, entities)
+			continue
+		}
+		for _, e := range entities {
+			if e.Type == recognizers.EntityCreditCard && e.Text != text[e.Start:e.End] {
+				t.Errorf("%q: card span is not the whole card number: %q", text, e.Text)
+			}
+		}
+	}
+}
+
 // An IBAN embeds long alphanumeric runs whose digits can match SSN or phone
 // patterns. Only the IBAN may survive.
 func TestRealOverlapsIBANBeatsDigitPatterns(t *testing.T) {

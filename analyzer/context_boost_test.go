@@ -116,22 +116,29 @@ func TestContextBoostIsWhatRescuesTheEntity(t *testing.T) {
 }
 
 // The second ordering constraint: boosting must run BEFORE overlap resolution so
-// it can change which of two colliding recognizers wins. Here the phone loses on
+// it can change which of two colliding recognizers wins. Here the SSN loses on
 // raw confidence but wins once "card" in the surrounding text boosts it.
+//
+// The colliding entity is deliberately not a PHONE. CREDIT_CARD now outranks
+// PHONE outright in winsOverlap, so that pair can no longer be decided by
+// confidence or by a boost, and using it here would prove nothing about
+// ordering. The scores are also kept clear of a tie (0.6 + 0.2 = 0.8 against
+// 0.75, not 0.8 against 0.8) so the boosted win is a real win rather than the
+// tie resolving to whichever span sorted first.
 func TestContextBoostRunsBeforeOverlapResolution(t *testing.T) {
 	card := &fixedConfidenceRecognizer{
 		name: "card", entityType: recognizers.EntityCreditCard,
 		text: "4111111111111111", confidence: 0.6,
 	}
-	phone := &fixedConfidenceRecognizer{
-		name: "phone", entityType: recognizers.EntityPhone,
-		text: "4111111111111", confidence: 0.8,
+	ssn := &fixedConfidenceRecognizer{
+		name: "ssn", entityType: recognizers.EntitySSN,
+		text: "411111111", confidence: 0.75,
 	}
 
-	// Without boosting: phone has higher confidence, so it wins the overlap.
+	// Without boosting: the SSN has higher confidence, so it wins the overlap.
 	off := New()
 	off.AddRecognizer(card)
-	off.AddRecognizer(phone)
+	off.AddRecognizer(ssn)
 	got, err := off.Analyze(context.Background(), "credit card 4111111111111111 here")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -139,14 +146,14 @@ func TestContextBoostRunsBeforeOverlapResolution(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("want 1 entity after overlap resolution, got %d: %+v", len(got), got)
 	}
-	if got[0].Type != recognizers.EntityPhone {
-		t.Fatalf("without boosting the phone should win on confidence, got %q", got[0].Type)
+	if got[0].Type != recognizers.EntitySSN {
+		t.Fatalf("without boosting the SSN should win on confidence, got %q", got[0].Type)
 	}
 
-	// With boosting: "card" boosts the credit card past the phone.
+	// With boosting: "card" boosts the credit card past the SSN.
 	on := New(WithContextBoost())
 	on.AddRecognizer(card)
-	on.AddRecognizer(phone)
+	on.AddRecognizer(ssn)
 	got, err = on.Analyze(context.Background(), "credit card 4111111111111111 here")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

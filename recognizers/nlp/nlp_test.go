@@ -1,0 +1,189 @@
+package nlp
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/u007/dataprotect/recognizers"
+)
+
+func TestNLPDisabled(t *testing.T) {
+	r := New("")
+	got, err := r.Recognize(context.Background(), "John Smith")
+	if err != nil || got != nil {
+		t.Fatalf("disabled: got %v, %v; want nil, nil", got, err)
+	}
+	if r.Name() != "nlp" {
+		t.Fatalf("name: %s", r.Name())
+	}
+	if r.Health() {
+		t.Fatal("disabled should not be healthy")
+	}
+}
+
+func TestNLPSuccess(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"entities": []map[string]any{
+				{"type": "PERSON", "start": 0, "end": 10, "text": "John Smith", "confidence": 0.85},
+				{"type": "LOCATION", "start": 20, "end": 28, "text": "New York", "confidence": 0.85},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	r := New(srv.URL)
+	got, err := r.Recognize(context.Background(), "John Smith in New York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len: %d", len(got))
+	}
+	if got[0].Type != recognizers.EntityPerson || got[0].Start != 0 {
+		t.Fatalf("got[0]: %+v", got[0])
+	}
+	if got[1].Type != recognizers.EntityLocation {
+		t.Fatalf("got[1]: %+v", got[1])
+	}
+	if !r.Health() {
+		t.Fatal("should be healthy")
+	}
+	if r.LastError() != nil {
+		t.Fatalf("lastErr: %v", r.LastError())
+	}
+}
+
+func TestNLPSortedByStart(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"entities": []map[string]any{
+				{"type": "LOCATION", "start": 20, "end": 28, "text": "New York", "confidence": 0.85},
+				{"type": "PERSON", "start": 0, "end": 10, "text": "John Smith", "confidence": 0.85},
+			},
+		})
+	}))
+	defer srv.Close()
+	r := New(srv.URL)
+	got, err := r.Recognize(context.Background(), "x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Start != 0 || got[1].Start != 20 {
+		t.Fatalf("not sorted: %+v", got)
+	}
+}
+
+func TestNLP500(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+		w.Write([]byte("boom"))
+	}))
+	defer srv.Close()
+	r := New(srv.URL)
+	_, err := r.Recognize(context.Background(), "x")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if r.Health() {
+		t.Fatal("should be unhealthy")
+	}
+}
+
+func TestNLPMalformedJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("{not json"))
+	}))
+	defer srv.Close()
+	r := New(srv.URL)
+	_, err := r.Recognize(context.Background(), "x")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestNLPTimeout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		json.NewEncoder(w).Encode(map[string]any{"entities": []any{}})
+	}))
+	defer srv.Close()
+	r := New(srv.URL, WithTimeout(10*time.Millisecond))
+	_, err := r.Recognize(context.Background(), "x")
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+}
+
+func TestNLPCancel(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		json.NewEncoder(w).Encode(map[string]any{"entities": []any{}})
+	}))
+	defer srv.Close()
+	r := New(srv.URL)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := r.Recognize(ctx, "x")
+	if err == nil {
+		t.Fatal("expected error on cancelled context")
+	}
+}
+
+func TestNLPBestEffort(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+	}))
+	defer srv.Close()
+	r := New(srv.URL, WithNLPBestEffort())
+	got, err := r.Recognize(context.Background(), "x")
+	if err != nil || got != nil {
+		t.Fatalf("best-effort: got %v, %v; want nil, nil", got, err)
+	}
+	// adapter wrapper also swallows
+	wrapped := NewBestEffort(New(srv.URL))
+	got2, err2 := wrapped.Recognize(context.Background(), "x")
+	if err2 != nil || got2 != nil {
+		t.Fatalf("wrapped: got %v, %v", got2, err2)
+	}
+}
+
+func TestNLPFullURL(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/ner" {
+			t.Errorf("path: %s", r.URL.Path)
+		}
+		json.NewEncoder(w).Encode(map[string]any{"entities": []any{}})
+	}))
+	defer srv.Close()
+	r := New(srv.URL + "/v1/ner")
+	_, err := r.Recognize(context.Background(), "x")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNLPUnknownTypeSkipped(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"entities": []map[string]any{
+				{"type": "FOO", "start": 0, "end": 1, "text": "x", "confidence": 0.85},
+				{"type": "PERSON", "start": 2, "end": 6, "text": "John", "confidence": 0.85},
+			},
+		})
+	}))
+	defer srv.Close()
+	r := New(srv.URL)
+	got, err := r.Recognize(context.Background(), "x John")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("len: %d", len(got))
+	}
+}

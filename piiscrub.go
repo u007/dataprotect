@@ -20,16 +20,43 @@ type Scrubber struct {
 	anonymizer *anonymizer.Anonymizer
 }
 
+// ScrubberOption configures a Scrubber at construction time.
+type ScrubberOption func(*Scrubber)
+
+// WithRecognizer adds an extra recognizer to the default pipeline.
+func WithRecognizer(r recognizers.Recognizer) ScrubberOption {
+	return func(s *Scrubber) {
+		s.analyzer.AddRecognizer(r)
+	}
+}
+
+// WithMinConfidence sets the minimum confidence a recognized entity must have
+// to be kept. The threshold is inclusive: an entity with confidence >= t is
+// kept. The default for NewScrubber is 0.70.
+//
+// The NLP recognizer scores its entities at 0.80. Raising the threshold above
+// 0.80 filters every NLP entity out, leaving the built-in recognizers only;
+// this is the supported way to run the combination conservatively. The
+// threshold does not change overlap resolution, which always keeps the
+// higher-confidence span.
+func WithMinConfidence(confidence float64) ScrubberOption {
+	return func(s *Scrubber) {
+		s.analyzer.SetMinConfidence(confidence)
+	}
+}
+
 // NewScrubber creates a new scrubber with default recognizers and operators.
 //
 // The checksum validators are part of the default pipeline, not an opt-in, and
 // the regex card recognizer is deliberately NOT wired alongside the Luhn one.
 // Wiring both cannot work: for a Luhn-FAILING number the validator emits
 // nothing while the regex recognizer still matches the shape at 0.95, so the
-// false positive survives with nothing to overlap it away. Cards are therefore
-// detected by Luhn alone, which produces identical spans for a valid card
-// (verified for the spaced, hyphenated and plain forms) and none for an
-// invalid one.
+// false positive survives with nothing to overlap it away. Cards are instead
+// detected by the Luhn validator: a valid card at 0.99, and a Luhn-failing
+// window at 0.85 only when a label-style card keyword ("card number",
+// "credit card", "Visa:") names it and the layout and prefix are plausible.
+// That fallback recovers cards with a wrong check digit without reporting a
+// bare digit run next to the word "card" in prose.
 //
 // regex.NewCreditCardRecognizer remains available for callers who want
 // shape-only detection with no checksum, but that is the wrong default for a
@@ -40,8 +67,25 @@ type Scrubber struct {
 // greedy phone pattern can no longer be caught by observing which entity wins —
 // the card masks it. That is why TestPhoneRecognizerDoesNotClaimCardDigits
 // asserts at the recognizer level rather than through Analyze.
-func NewScrubber() *Scrubber {
-	return newScrubber()
+//
+// Recognizers can be added via NewScrubberWithRecognizers or WithRecognizer.
+// NewScrubber stays env-free and deterministic.
+func NewScrubber(opts ...ScrubberOption) *Scrubber {
+	s := newScrubber()
+	for _, o := range opts {
+		o(s)
+	}
+	return s
+}
+
+// NewScrubberWithRecognizers creates a scrubber with the default pipeline plus
+// the given extra recognizers (e.g. an NLP client).
+func NewScrubberWithRecognizers(extra ...recognizers.Recognizer) *Scrubber {
+	s := newScrubber()
+	for _, r := range extra {
+		s.analyzer.AddRecognizer(r)
+	}
+	return s
 }
 
 // newScrubber builds the default scrubber with extra analyzer options. Only
@@ -67,6 +111,9 @@ func newScrubber(opts ...analyzer.Option) *Scrubber {
 	an.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
 	an.SetOperator(recognizers.EntityPhone, operators.NewTailMaskOperator("***-***-####"))
 	an.SetOperator(recognizers.EntityCreditCard, operators.NewTailMaskOperator("****-****-****-####"))
+	an.SetOperator(recognizers.EntityPerson, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityOrganization, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityLocation, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntitySSN, operators.NewMaskOperator("***-**-####"))
 	an.SetOperator(recognizers.EntityIP, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntityURL, operators.NewRedactOperator())

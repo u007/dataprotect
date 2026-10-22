@@ -104,6 +104,7 @@ var bareShape = regexp.MustCompile(strings.Join([]string{
 	`github_pat_([0-9A-Za-z_]{82})`,
 	`xoxb-[0-9]{10,13}-[0-9]{10,13}-([0-9A-Za-z]{24,})`,
 	`xoxp-[0-9]{10,13}-[0-9]{10,13}-[0-9]{10,13}-([0-9A-Za-z]{28,34})`,
+	`xox[ars]-([0-9A-Za-z-]{20,})`,
 	`(?:sk|rk)_(?:live|test|org)_([0-9A-Za-z]{24,})`,
 	`AIza([0-9A-Za-z_\-]{35})`,
 	`npm_([0-9A-Za-z]{36})`,

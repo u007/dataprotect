@@ -55,8 +55,8 @@ func TestBuildLabelsTranslatesCharToByte(t *testing.T) {
 func TestBuildLabelsDropsUnmappedLabels(t *testing.T) {
 	const text = "Ada Lovelace"
 	spans := []Span{
-		{Start: 0, End: 3, Label: "first_name"}, // not in NemotronLabels
-		{Start: 4, End: 12, Label: "last_name"}, // not in NemotronLabels
+		{Start: 0, End: 3, Label: "age"},         // not in NemotronLabels
+		{Start: 4, End: 12, Label: "blood_type"}, // not in NemotronLabels
 	}
 	labels, unmapped, err := BuildLabels(text, spans, NemotronLabels)
 	if err != nil {
@@ -72,7 +72,7 @@ func TestBuildLabelsDropsUnmappedLabels(t *testing.T) {
 	for _, u := range unmapped {
 		seen[u] = true
 	}
-	if !seen["first_name"] || !seen["last_name"] {
+	if !seen["age"] || !seen["blood_type"] {
 		t.Errorf("unmapped = %v, want first_name and last_name", unmapped)
 	}
 }
@@ -165,14 +165,14 @@ func TestBuildLabelsRejectsUnknownMappedType(t *testing.T) {
 func TestBuildLabelsDeduplicatesUnmapped(t *testing.T) {
 	const text = "Ada"
 	spans := []Span{
-		{Start: 0, End: 3, Label: "first_name"},
-		{Start: 0, End: 3, Label: "first_name"},
+		{Start: 0, End: 3, Label: "age"},
+		{Start: 0, End: 3, Label: "age"},
 	}
 	_, unmapped, err := BuildLabels(text, spans, NemotronLabels)
 	if err != nil {
 		t.Fatalf("BuildLabels: unexpected error: %v", err)
 	}
-	if len(unmapped) != 1 || unmapped[0] != "first_name" {
+	if len(unmapped) != 1 || unmapped[0] != "age" {
 		t.Errorf("unmapped = %v, want a single deduplicated entry", unmapped)
 	}
 }

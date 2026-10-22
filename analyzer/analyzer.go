@@ -28,8 +28,20 @@ type Option func(*Analyzer)
 // representation noise alone.
 func WithMinConfidence(confidence float64) Option {
 	return func(a *Analyzer) {
-		a.minConfidence = roundConfidence(confidence)
+		a.SetMinConfidence(confidence)
 	}
+}
+
+// SetMinConfidence changes the minimum confidence threshold.
+//
+// It is intended for construction-time configuration, before the analyzer is
+// used. Analyze reads the field without a lock, so calling SetMinConfidence
+// concurrently with Analyze is a data race.
+//
+// The value goes through the same roundConfidence quantisation as
+// WithMinConfidence, so the two cannot disagree about where the threshold sits.
+func (a *Analyzer) SetMinConfidence(confidence float64) {
+	a.minConfidence = roundConfidence(confidence)
 }
 
 // WithContextBoost enables raising an entity's confidence when keywords for its
@@ -83,7 +95,10 @@ func (a *Analyzer) Recognizers() []recognizers.Recognizer {
 //   - Resolving overlaps first would make boosting cosmetic: it could no longer
 //     change which of two colliding recognizers wins, which is precisely the
 //     decision context is supposed to inform (a card number near the word "card"
-//     should beat a bare digit run that merely looks like a phone number).
+//     beats a bare digit run of another type that merely looks like a number).
+//     Note that CREDIT_CARD against PHONE is decided by winsOverlap before
+//     confidence is consulted, so a boost cannot flip that one pair; see the
+//     comment on winsOverlap for why.
 func (a *Analyzer) Analyze(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	var allEntities []recognizers.Entity
 
@@ -122,7 +137,7 @@ func (a *Analyzer) Analyze(ctx context.Context, text string) ([]recognizers.Enti
 		return allEntities[i].Start < allEntities[j].Start
 	})
 
-	// Remove overlapping entities (keep higher confidence)
+	// Remove overlapping entities (type precedence, then higher confidence)
 	allEntities = removeOverlapping(allEntities)
 
 	return allEntities, nil
@@ -219,8 +234,8 @@ func removeOverlapping(entities []recognizers.Entity) []recognizers.Entity {
 	for i := 1; i < len(entities); i++ {
 		last := &result[len(result)-1]
 		if entities[i].Start < last.End {
-			// Overlap - keep higher confidence
-			if entities[i].Confidence > last.Confidence {
+			// Overlap: type precedence first, confidence second.
+			if winsOverlap(entities[i], *last) {
 				*last = entities[i]
 			}
 		} else {
@@ -228,4 +243,32 @@ func removeOverlapping(entities []recognizers.Entity) []recognizers.Entity {
 		}
 	}
 	return result
+}
+
+// winsOverlap reports whether candidate should survive a direct overlap against
+// current.
+//
+// Confidence decides every pair except CREDIT_CARD against PHONE, where the
+// card always wins. A card window needs 13 or more digits behind a valid
+// network prefix, so when the two collide the phone match is a sub-run of
+// digits the card has already claimed, and the card is the more specific
+// reading of them. Letting confidence decide leaks: a label-gated card scores
+// 0.85 against the phone's 0.98, so the phone took the span, masked its own
+// sub-run and left the card's first group in the clear ("Credit/Debit Card 3467
+// ***-***-8675"). A Luhn-valid card at 0.99 already won this pair, so the rule
+// changes only the gated case, and it makes an intent that was previously a
+// coincidence of scores explicit.
+//
+// Dropping the phone here costs no coverage: every digit it matched sits inside
+// the card span that replaces it. The phone winning is what loses digits,
+// because the card's leading group begins before the phone match does.
+func winsOverlap(candidate, current recognizers.Entity) bool {
+	cardVsPhone := candidate.Type == recognizers.EntityCreditCard &&
+		current.Type == recognizers.EntityPhone
+	phoneVsCard := candidate.Type == recognizers.EntityPhone &&
+		current.Type == recognizers.EntityCreditCard
+	if cardVsPhone || phoneVsCard {
+		return cardVsPhone
+	}
+	return candidate.Confidence > current.Confidence
 }

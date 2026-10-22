@@ -25,7 +25,8 @@ DATA_ROOT := $(abspath $(or $(DATAPROTECT_DATA_DIR),testdata/external))
 LIMIT ?= 2000
 
 .PHONY: help download list info dry-run benchmark test test-tools build vet fmt \
-        corpus corpus-convert corpus-anonymize corpus-clean clean-data presidio presidio-fetch
+        corpus corpus-convert corpus-anonymize corpus-clean corpus-nlp clean-data presidio presidio-fetch \
+        build-sidecar test-sidecar vet-sidecar docs-sync test-ner
 
 help:
 	@echo "piiscrub targets:"
@@ -38,11 +39,17 @@ help:
 	@echo "  make corpus          convert, then score each corpus and print the report"
 	@echo "  make corpus-anonymize run Scrubber.Anonymize over every converted case (contract check)"
 	@echo "  make corpus-clean    delete the converted datasets (data is gitignored)"
+	@echo "  make corpus-nlp      score the corpora with the NLP sidecar (starts a sidecar, then stops it)"
 	@echo "  make test            run the library test suite"
 	@echo "  make test-tools      run the corpusbench tool test suite"
 	@echo "  make build           build every package"
 	@echo "  make vet             run go vet"
 	@echo "  make fmt             fail if any file is not gofmt-clean"
+	@echo "  make build-sidecar   build the sidecar module (separate Go module)"
+	@echo "  make test-sidecar    run the sidecar module test suite"
+	@echo "  make vet-sidecar     run go vet in the sidecar module"
+	@echo "  make docs-sync       copy SPEC.md and AGENTS.md into their docs/ bundle copies"
+	@echo "  make test-ner        run the NER accuracy gate (starts a sidecar, then stops it)"
 	@echo "  make clean-data      delete downloaded corpora (testdata/external)"
 	@echo "  make presidio        score Presidio's in-scope recognizer test cases (MIT, not committed)"
 
@@ -86,6 +93,36 @@ corpus: corpus-convert
 	./scripts/benchmark.sh "$(DATA_ROOT)/nemotron-pii/converted"
 	./scripts/benchmark.sh "$(DATA_ROOT)/gretel-pii-finance/converted"
 
+# Score the corpora WITH the NLP sidecar, for an apples-to-apples comparison
+# with the regex-only score that 'make corpus' prints. The sidecar is started
+# and stopped by the target, and the port must be free: a stale sidecar would
+# answer with old code.
+#
+# NER_LIMIT caps how many cases are scored. The sidecar costs about 20 ms per
+# text, so the full 2000-case corpora take about 40 seconds each; the default
+# here is a sample so the target is usable in a normal shell. The figure
+# reported is the sample's, and the schema sidecar records the sample size, so
+# a sample can never be mistaken for a full-corpus score.
+NER_LIMIT ?= 400
+corpus-nlp: build-sidecar
+	@if curl -sf $(NER_URL)/healthz >/dev/null 2>&1; then \
+		echo "a sidecar is already listening on $(NER_URL); stop it first." >&2; \
+		exit 1; \
+	fi
+	@cd sidecar && $(GO) build -o "$(CURDIR)/$(NER_BIN)" ./cmd/piiscrub-sidecar
+	@"$(CURDIR)/$(NER_BIN)" -addr $(NER_ADDR) & echo $$! > .tmp-piiscrub-sidecar.pid
+	@for i in $$(seq 1 50); do \
+		if curl -sf $(NER_URL)/healthz >/dev/null 2>&1; then break; fi; \
+		sleep 0.2; \
+	done
+	@PII_SCRUB_NLP_URL=$(NER_URL) ./scripts/benchmark.sh "$(DATA_ROOT)/nemotron-pii/converted" $(NER_LIMIT) ; \
+	status=$$?; \
+	PII_SCRUB_NLP_URL=$(NER_URL) ./scripts/benchmark.sh "$(DATA_ROOT)/gretel-pii-finance/converted" $(NER_LIMIT) ; \
+	kill $$(cat .tmp-piiscrub-sidecar.pid) 2>/dev/null || true; \
+	rm -f $(NER_BIN) .tmp-piiscrub-sidecar.pid; \
+	exit $$status
+
+
 corpus-anonymize:
 	$(GO) run ./cmd/corpusanon "$(DATA_ROOT)/nemotron-pii/converted" "$(DATA_ROOT)/gretel-pii-finance/converted"
 
@@ -115,3 +152,50 @@ presidio: presidio-fetch
 clean-data:
 	rm -rf testdata/external
 	@echo "removed testdata/external — run 'make download' to refetch"
+
+build-sidecar:
+	cd sidecar && $(GO) build ./...
+
+test-sidecar:
+	cd sidecar && $(GO) test ./...
+
+vet-sidecar:
+	cd sidecar && $(GO) vet ./...
+
+# The NER accuracy gate. It needs a running sidecar, so the target starts one,
+# waits for it to answer /healthz, runs the gate and stops it again.
+#
+# The gate measures the detector against testdata/golden/ner. Its FIRST
+# evaluation on text the decoder had never seen gave typed P=0.5333 R=0.6154
+# and span-level P=0.8667 R=1.0000. The bounds in ner_accuracy_test.go sit
+# below the development-set baseline, so a regression fails.
+NER_URL ?= http://127.0.0.1:8787
+NER_ADDR ?= 127.0.0.1:8787
+NER_BIN := .tmp-piiscrub-sidecar
+
+test-ner: build-sidecar
+	@cd sidecar && $(GO) build -o "$(CURDIR)/$(NER_BIN)" ./cmd/piiscrub-sidecar
+	@if curl -sf $(NER_URL)/healthz >/dev/null 2>&1; then \
+		echo "a sidecar is already listening on $(NER_URL); stop it first." >&2; \
+		echo "a stale sidecar would answer the gate with OLD code, which is worse" >&2; \
+		echo "than no sidecar at all." >&2; \
+		exit 1; \
+	fi
+	@"$(CURDIR)/$(NER_BIN)" -addr $(NER_ADDR) & echo $$! > .tmp-piiscrub-sidecar.pid
+	@for i in $$(seq 1 50); do \
+		if curl -sf $(NER_URL)/healthz >/dev/null 2>&1; then break; fi; \
+		sleep 0.2; \
+	done
+	@PII_SCRUB_NLP_URL=$(NER_URL) PII_SCRUB_NLP_REQUIRE=1 $(GO) test -count=1 -tags integration -run TestNER -v . ; \
+	status=$$?; \
+	kill $$(cat .tmp-piiscrub-sidecar.pid) 2>/dev/null || true; \
+	rm -f $(NER_BIN) .tmp-piiscrub-sidecar.pid; \
+	exit $$status
+
+
+
+# The docs/ bundle holds copies of SPEC.md and AGENTS.md with a YAML frontmatter
+# header. docs/concepts/piiscrub-usage.md is a condensed document, not a copy,
+# so it is maintained by hand and this target does not touch it.
+docs-sync:
+	python3 scripts/sync-docs.py

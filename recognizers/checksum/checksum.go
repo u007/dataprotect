@@ -66,7 +66,7 @@ func (v *LuhnValidator) Recognize(ctx context.Context, text string) ([]recognize
 	}
 	entities := make([]recognizers.Entity, 0)
 	for _, c := range candidates {
-		for _, card := range v.cardSpans(c, ibans) {
+		for _, card := range v.cardSpans(text, c, ibans) {
 			entities = append(entities, recognizers.Entity{
 				Type:       recognizers.EntityCreditCard,
 				Start:      card.start,
@@ -115,7 +115,166 @@ func validCardPrefix(number string) bool {
 	return false
 }
 
-func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) []cardCandidate {
+// cardLabelWindow is how far a label-style keyword may sit from a gated
+// card window, in bytes either side.
+const cardLabelWindow = 40
+
+// cardLabelPhrases are the label-style forms that gate a Luhn-failing window.
+// Bare "card" is deliberately absent: it appears in prose next to numbers that
+// are not cards ("A mistyped ... is not a card"), and gating on it turned seed
+// negatives into false positives. "card:" is handled separately because the
+// colon is part of the label rather than a word boundary.
+var cardLabelPhrases = []string{
+	"card number",
+	"card no",
+	"credit card",
+	"debit card",
+	"cvv",
+	"cvc",
+}
+
+// cardNetworkNames gate a window when followed by a separator ("Visa: 4111").
+var cardNetworkNames = []string{
+	"visa", "mastercard", "master card", "amex", "american express",
+	"discover", "jcb", "diners", "unionpay", "maestro",
+}
+
+// isAlphaNum reports whether c is an ASCII letter or digit.
+func isAlphaNum(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+// containsToken reports whether phrase occurs in s as a token: the character
+// before it must not be alphanumeric, and so must the character after it,
+// unless the phrase itself starts or ends with punctuation.
+func containsToken(s, phrase string) bool {
+	for i := 0; ; {
+		j := strings.Index(s[i:], phrase)
+		if j < 0 {
+			return false
+		}
+		j += i
+		beforeOK := j == 0 || !isAlphaNum(s[j-1]) || !isAlphaNum(phrase[0])
+		after := j + len(phrase)
+		afterOK := after == len(s) || !isAlphaNum(s[after]) || !isAlphaNum(phrase[len(phrase)-1])
+		if beforeOK && afterOK {
+			return true
+		}
+		i = j + 1
+	}
+}
+
+// networkBeforeSeparator reports whether a card network name appears as a
+// token followed by a separator anywhere in s.
+func networkBeforeSeparator(s, name string) bool {
+	for i := 0; ; {
+		j := strings.Index(s[i:], name)
+		if j < 0 {
+			return false
+		}
+		j += i
+		if j > 0 && isAlphaNum(s[j-1]) {
+			i = j + 1
+			continue
+		}
+		k := j + len(name)
+		if k < len(s) && !isAlphaNum(s[k]) {
+			return true
+		}
+		i = j + 1
+	}
+}
+
+// hasCardLabelKeyword reports whether a label-style card keyword sits within
+// cardLabelWindow bytes of [start, end). Bare "card" is not enough; see
+// cardLabelPhrases.
+func hasCardLabelKeyword(text string, start, end int) bool {
+	beforeLo := start - cardLabelWindow
+	if beforeLo < 0 {
+		beforeLo = 0
+	}
+	afterHi := end + cardLabelWindow
+	if afterHi > len(text) {
+		afterHi = len(text)
+	}
+
+	// Only the bytes within cardLabelWindow of either edge can hold a
+	// label. Searching the whole span would lowercase a 1 MB digit run once per
+	// window, which a long unseparated run must not pay (the bounding test
+	// covers it). A label cannot sit inside the digits themselves.
+	window := strings.ToLower(text[beforeLo:start] + " " + text[end:afterHi])
+
+	for _, phrase := range cardLabelPhrases {
+		if containsToken(window, phrase) {
+			return true
+		}
+	}
+	if containsToken(window, "card:") || containsToken(window, "cc") {
+		return true
+	}
+	for _, name := range cardNetworkNames {
+		if networkBeforeSeparator(window, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// standardCardLayout reports whether a window is a standard card layout with
+// no trailing extra group. cardGrouping also accepts a card followed by a
+// short group (a CVV or a year) because a Luhn-passing window is a card
+// regardless; a gated window has no checksum behind it, so it must stop at a
+// standard layout or it would swallow the CVV and widen the span past the gold
+// card.
+func standardCardLayout(lengths []int) bool {
+	if len(lengths) == 1 {
+		return true
+	}
+	if equalInts(lengths, []int{4, 4, 4, 4}) ||
+		equalInts(lengths, []int{4, 6, 5}) ||
+		equalInts(lengths, []int{4, 6, 4}) {
+		return true
+	}
+	return len(lengths) == 4 &&
+		lengths[0] == 4 && lengths[1] == 4 && lengths[2] == 4 &&
+		lengths[3] >= 1 && lengths[3] <= 3
+}
+
+// cardWindow is a window of one candidate's digit groups.
+type cardWindow struct{ first, last int }
+
+// mergedWindows turns overlapping windows into one span per cluster.
+func mergedWindows(text string, base int, groups []cardGroup, windows []cardWindow, conf float64) []cardCandidate {
+	var cards []cardCandidate
+	for i := 0; i < len(windows); {
+		first, last := windows[i].first, windows[i].last
+		for i++; i < len(windows) && windows[i].first <= last; i++ {
+			if windows[i].last > last {
+				last = windows[i].last
+			}
+		}
+		cards = append(cards, cardCandidate{
+			text:  text[groups[first].start:groups[last].end],
+			start: base + groups[first].start,
+			end:   base + groups[last].end,
+			conf:  conf,
+		})
+	}
+	return cards
+}
+
+// overlapsCandidate reports whether [start, end) shares a byte with a span
+// already collected in cards.
+func overlapsCandidate(cards []cardCandidate, start, end int) bool {
+	for _, c := range cards {
+		if start < c.end && c.start < end {
+			return true
+		}
+	}
+	return false
+}
+
+func (v *LuhnValidator) cardSpans(text string, c cardCandidate, ibans []recognizers.Entity) []cardCandidate {
 	// A whole run that passes Luhn is reported only when it also has a valid
 	// card network prefix. Without this, a 13-19 digit run whose first digit is
 	// not a major-network prefix (0, 1, 7, 8, 9) — e.g. a Thai citizen ID
@@ -149,8 +308,8 @@ func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) [
 
 	// Each start tries at most maxCardDigits digits of groups, so the search is
 	// linear in the run. Windows are collected in order of start, then end.
-	type window struct{ first, last int }
-	var valid []window
+	var valid []cardWindow
+	var gated []cardWindow
 	for a := range groups {
 		digits := 0
 		for b := a; b < len(groups); b++ {
@@ -172,27 +331,33 @@ func (v *LuhnValidator) cardSpans(c cardCandidate, ibans []recognizers.Entity) [
 			}
 			windowText := c.text[groups[a].start:groups[b].end]
 			if v.Validate(windowText) && validCardPrefix(windowText) {
-				valid = append(valid, window{a, b})
+				valid = append(valid, cardWindow{a, b})
+				continue
+			}
+			// A Luhn-failing window is a card only when a label-style keyword
+			// names it. This is the hybrid rule approved 2026-10-20: bare "card"
+			// in prose is not enough, which keeps the seed negatives clean.
+			if !validCardPrefix(windowText) || !standardCardLayout(groupLengths(groups[a:b+1])) {
+				continue
+			}
+			if !windowBoundedBySeparator(c.text, groups[a:b+1]) {
+				continue
+			}
+			if hasCardLabelKeyword(text, c.start+groups[a].start, c.start+groups[b].end) {
+				gated = append(gated, cardWindow{a, b})
 			}
 		}
 	}
 
 	// Merge windows that share a group, so one span covers each overlapping
-	// cluster of cards.
-	var cards []cardCandidate
-	for i := 0; i < len(valid); {
-		first, last := valid[i].first, valid[i].last
-		for i++; i < len(valid) && valid[i].first <= last; i++ {
-			if valid[i].last > last {
-				last = valid[i].last
-			}
+	// cluster of cards. Gated windows are merged separately because they carry
+	// a different confidence; a gated span that overlaps a Luhn span is dropped
+	// (the Luhn span is the better evidence and covers the same digits).
+	cards := mergedWindows(c.text, c.start, groups, valid, 0.99)
+	for _, g := range mergedWindows(c.text, c.start, groups, gated, 0.85) {
+		if !overlapsCandidate(cards, g.start, g.end) {
+			cards = append(cards, g)
 		}
-		cards = append(cards, cardCandidate{
-			text:  c.text[groups[first].start:groups[last].end],
-			start: c.start + groups[first].start,
-			end:   c.start + groups[last].end,
-			conf:  0.99,
-		})
 	}
 	return cards
 }
@@ -220,6 +385,25 @@ func boundedBySeparator(text string, g cardGroup) bool {
 	left := g.start == 0 || isCardSeparator(text[g.start-1])
 	right := g.end == len(text) || isCardSeparator(text[g.end])
 	return left && right
+}
+
+// windowBoundedBySeparator reports whether the first and last groups of a
+// window sit between a card separator or the candidate's edges. The inner
+// boundaries are already checked by cardGrouping.
+func windowBoundedBySeparator(text string, groups []cardGroup) bool {
+	first, last := groups[0], groups[len(groups)-1]
+	left := first.start == 0 || isCardSeparator(text[first.start-1])
+	right := last.end == len(text) || isCardSeparator(text[last.end])
+	return left && right
+}
+
+// groupLengths returns the digit count of each group.
+func groupLengths(groups []cardGroup) []int {
+	lengths := make([]int, len(groups))
+	for i, g := range groups {
+		lengths[i] = g.end - g.start
+	}
+	return lengths
 }
 
 // cardGrouping reports whether a window of digit groups is laid out like a

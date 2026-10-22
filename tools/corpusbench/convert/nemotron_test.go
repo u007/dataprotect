@@ -31,6 +31,16 @@ func TestNemotronMapsEachLabelToItsType(t *testing.T) {
 		{"url", recognizers.EntityURL},
 		{"api_key", recognizers.EntitySecret},
 		{"http_cookie", recognizers.EntitySecret},
+		{"first_name", recognizers.EntityPerson},
+		{"last_name", recognizers.EntityPerson},
+		{"user_name", recognizers.EntityPerson},
+		{"company_name", recognizers.EntityOrganization},
+		{"city", recognizers.EntityLocation},
+		{"country", recognizers.EntityLocation},
+		{"state", recognizers.EntityLocation},
+		{"county", recognizers.EntityLocation},
+		{"postcode", recognizers.EntityLocation},
+		{"street_address", recognizers.EntityLocation},
 	}
 
 	const prefix = "contact "
@@ -130,12 +140,16 @@ func TestNemotronTranslatesOffsetsForNonASCIIText(t *testing.T) {
 
 // A label the map does not carry is out of scope. It must be recorded in the
 // schema and in the case's unlabelled spans, and must never become gold.
+//
+// "age" is the unmapped example, not "first_name": the person labels are
+// mapped as of 2026-10-20, when the NLP sidecar made them detectable, so
+// "first_name" no longer demonstrates an unmapped label.
 func TestNemotronUnmappedLabelIsUnlabelledNotGold(t *testing.T) {
 	const text = "Ana 555-123-4567"
 	root := t.TempDir()
 	writeNemotronFixture(t, root, []nemotronRow{{
 		Text: text,
-		Spans: `[{'start': 0, 'end': 3, 'text': 'Ana', 'label': 'first_name'}, ` +
+		Spans: `[{'start': 0, 'end': 3, 'text': 'Ana', 'label': 'age'}, ` +
 			`{'start': 4, 'end': 16, 'text': '555-123-4567', 'label': 'phone_number'}]`,
 	}})
 
@@ -152,11 +166,11 @@ func TestNemotronUnmappedLabelIsUnlabelledNotGold(t *testing.T) {
 	if len(cases[0].Unlabelled) != 1 {
 		t.Fatalf("unlabelled = %+v, want one first_name span", cases[0].Unlabelled)
 	}
-	if u := cases[0].Unlabelled[0]; u.Label != "first_name" || u.Value != "Ana" {
-		t.Errorf("unlabelled span = %+v, want first_name covering \"Ana\"", u)
+	if u := cases[0].Unlabelled[0]; u.Label != "age" || u.Value != "Ana" {
+		t.Errorf("unlabelled span = %+v, want age covering \"Ana\"", u)
 	}
-	if len(schema.UnmappedLabels) != 1 || schema.UnmappedLabels[0] != "first_name" {
-		t.Errorf("UnmappedLabels = %v, want [first_name]", schema.UnmappedLabels)
+	if len(schema.UnmappedLabels) != 1 || schema.UnmappedLabels[0] != "age" {
+		t.Errorf("UnmappedLabels = %v, want [age]", schema.UnmappedLabels)
 	}
 }
 

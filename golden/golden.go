@@ -310,6 +310,10 @@ type Report struct {
 	Overlap Metrics `json:"overlap"`
 	// ByType holds exact-match counts keyed by entity type.
 	ByType map[string]Counts `json:"by_type"`
+	// Cases is the number of cases SCORED. It is not the number of cases
+	// loaded: WithCaseLimit scores a prefix, and a report that said 2000
+	// when 100 were scored would read as a full-corpus figure.
+	Cases int `json:"cases"`
 	// Errors collects broken labels and predictor errors. Non-empty means the
 	// dataset or the detector failed to produce an answer, which is distinct
 	// from producing a wrong answer.
@@ -480,7 +484,11 @@ func Score(ctx context.Context, dir string, predict func(context.Context, string
 	if err != nil {
 		return nil, err
 	}
+	if cfg.caseLimit > 0 && cfg.caseLimit < len(cases) {
+		cases = cases[:cfg.caseLimit]
+	}
 	rep := &Report{ByType: map[string]Counts{}, OutOfSchema: map[string]int{}}
+	rep.Cases = len(cases)
 	var unl *UnlabelledReport
 	if hasSchema {
 		unl = &UnlabelledReport{ByLabel: map[string]int{}}

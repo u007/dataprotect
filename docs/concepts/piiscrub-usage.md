@@ -23,8 +23,11 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 - **5 national ID and passport recognizers** — Singapore NRIC/FIN, Malaysia MyKad and
   Thailand citizen ID, each validated by its own rule. Malaysia and Singapore passports need a passport keyword; Thailand passports are not covered yet
 - **2 checksum validators, wired into the default pipeline** — Luhn (credit
-  cards), mod-97 (IBAN). Cards are detected by Luhn rather than by digit shape,
-  so a long number that fails the checksum is not redacted as payment data.
+  cards), mod-97 (IBAN). Cards are detected by Luhn at 0.99, plus a
+  Luhn-failing window at 0.85 when a label-style keyword ("card number",
+  "credit card", "Visa:") names it and the prefix and layout are plausible, so
+  a long number that fails the checksum is not redacted as payment data on
+  shape alone.
 - **1 secret recognizer** — API keys, bearer/JWT tokens, PEM private keys, password assignments and provider tokens with no label (AWS, GitHub, Slack, Stripe, Google, npm, SendGrid, bare JWT), with a length floor per shape and a uniform-value check (every character the same, or a short unit repeated), so placeholders such as `00000000000000000000` are not reported
 - **4 operators** — replace, mask, hash, redact
 - **Structured data** — CSV batch processing
@@ -37,6 +40,10 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
   hand-written, so treat the numbers as a floor rather than a result.
 - **Zero external dependencies** — stdlib only
 - **~100-200 MB RAM** — vs Presidio's 4 GB
+- **Optional NLP sidecar** — a separate module (`sidecar/`) adds PERSON,
+  ORGANIZATION and LOCATION through prose NER over HTTP. The root module stays
+  stdlib-only and the recognizer is opt-in, so a caller that never starts the
+  sidecar gets the same behaviour as before.
 
 ## Installation
 
@@ -194,8 +201,13 @@ would score a correct EMAIL detection as a false positive.
 
 | | nemotron (2000 of 100000) | gretel (2000 of 5596) |
 |---|---|---|
-| exact | P=0.8357 R=0.8916 | P=0.3677 R=0.8201 |
-| byte overlap | P=0.8384 R=0.8945 | P=0.3869 R=0.8629 |
+| exact | P=0.8357 R=0.2886 | P=0.3816 R=0.0957 |
+| byte overlap | P=0.8455 R=0.2919 | P=0.3986 R=0.1000 |
+
+The recall is low because PERSON, ORGANIZATION and LOCATION became in-scope gold
+on 2026-10-20 and this is the regex-only pipeline, which does not implement them.
+Nemotron carries 3275 PERSON, 1988 LOCATION and 1018 ORGANIZATION false
+negatives; with the NLP sidecar the same samples give exact P=0.4376 R=0.4135.
 
 Those are real numbers from a 2000-record sample, not a target: the seed set
 above is too small to test the detector at scale, while 2000 real records
@@ -206,6 +218,43 @@ explained in SPEC.md rather than waved away.
 
 Derived output lives in the same gitignored directory as the corpora and is
 never committed, so no corpus-derived bytes reach this repository.
+
+## NLP sidecar
+
+```bash
+cd sidecar && go build ./cmd/piiscrub-sidecar && ./piiscrub-sidecar
+```
+
+```go
+s := piiscrub.NewScrubberWithRecognizers(nlp.New("http://127.0.0.1:8787"))
+```
+
+NLP entities score 0.80: above the default 0.70 floor and strictly below every
+built-in recognizer (lowest 0.85), so they fill gaps and never displace a typed
+detection. Raise the public threshold to drop NLP entirely:
+
+```go
+s := piiscrub.NewScrubber(
+    piiscrub.WithRecognizer(nlp.New("http://127.0.0.1:8787")),
+    piiscrub.WithMinConfidence(0.85), // drops every NLP entity (0.80)
+)
+```
+
+`NewScrubber()` reads no environment variable and makes no network call, so the
+golden tests stay deterministic. The sidecar URL comes from the caller, or from
+`PII_SCRUB_NLP_URL` read by the caller (`nlp.FromEnv()`); that variable must be
+set in the deployment environment for the sidecar to be used. A configured but
+broken sidecar is an error; `nlp.New(url, nlp.WithNLPBestEffort())` is the
+opt-in mode that logs the failure and keeps the pipeline running. See
+[spec-v1](../decisions/spec-v1.md), "NLP Sidecar".
+
+The sidecar's accuracy is measured. `make test-ner` starts a sidecar, scores
+the detector against `testdata/golden/ner/` and stops it again: typed
+P=0.8395 R=0.8718, and span-level P=0.9012 R=0.9359. The span measure ignores
+the type, because all three NER types redact — it is the one that says the
+PII is actually removed. The first evaluation on unseen text gave typed
+P=0.5333 R=0.6154 and span P=0.8667 R=1.0000; that is the generalisation
+figure, and it is recorded in the gate.
 
 ## Documentation
 
