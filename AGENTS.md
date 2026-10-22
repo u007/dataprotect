@@ -89,6 +89,11 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
   converts only. Both are on-demand — the corpora are gitignored, so CI cannot
   see them and the committed gate stays the seed set in `testdata/golden/`.
 - `make test` runs the library suite; `make test-tools` runs the tool module's.
+- `make test-race` runs the library suite under the race detector. It is a
+  correctness gate, not a speed gate: the bounded-time tests scale their
+  wall-clock budget 8x when the detector is on (`boundedBudget`, `race_test.go`),
+  because instrumentation multiplies the same work by roughly 5x to 11x. The
+  inputs are left at full size so a superlinear regression still cannot fit.
 - A converted dataset carries `schema.json` declaring its in-schema types.
   `scripts/benchmark.sh` applies it automatically when present, so a detection
   of a type the corpus never labels is reported as out-of-schema instead of

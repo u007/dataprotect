@@ -70,7 +70,8 @@ var privateKeyShape = regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`)
 
 // tokenByte is a byte of a provider token's character set, the characters a
 // token can continue with. A bare match is kept only when no token byte sits
-// directly before or after it, so a match is never a fragment of a longer run.
+// directly after it, so a match is never the head of a longer run. A token byte
+// before it does not disqualify the match; see bareBounded.
 func tokenByte(b byte) bool {
 	return b == '_' || b == '-' || ('0' <= b && b <= '9') || ('A' <= b && b <= 'Z') || ('a' <= b && b <= 'z')
 }
@@ -86,12 +87,22 @@ func tokenByte(b byte) bool {
 // JWT itself for the JWT alternative, which has no fixed prefix to strip.
 //
 //   - AWS access key id: `AKIA` or `ASIA`, then 16 upper-case letters or digits.
-//   - GitHub token: `ghp_`, `gho_`, `ghu_`, `ghs_` or `ghr_`, then 36 alphanumerics;
-//     fine-grained `github_pat_`, then 82 characters of alphanumerics or `_`.
+//   - GitHub token: `ghp_`, `gho_`, `ghu_`, `ghs_` or `ghr_`, then 36 or more
+//     alphanumerics; fine-grained `github_pat_`, then 82 characters of
+//     alphanumerics or `_`. The classic length is a floor, not an exact count:
+//     a body the documented 36 does not fit is dropped whole by bareBounded, so
+//     a longer token from the same provider would go unredacted. The run is
+//     consumed greedily, so the report is the whole token and no tail shows.
 //   - Slack bot and user token: `xoxb-` or `xoxp-`, then 10 to 13 digits per group.
 //   - Stripe live secret or restricted key: `sk_live_` or `rk_live_`, then 24 or
 //     more alphanumerics.
 //   - Google API key: `AIza`, then 35 characters of letters, digits, `_` or `-`.
+//   - Google Gemini auth key: `AQ.`, then 35 or more of the same. Gemini issues
+//     these instead of `AIza` keys from 2026-05-28, so the `AIza` shape alone
+//     misses every new key. The floor is the one length a public scanner rule
+//     publishes, `AQ\.[A-Za-z0-9\-_]{35,}` (ai-guardian, the only project that
+//     added the format), and an observed key is 53 characters, 50 of body, so
+//     the floor covers it. Nothing ever documented the exact length.
 //   - npm access token: `npm_`, then 36 alphanumerics.
 //   - SendGrid API key: `SG.`, 22 characters, `.`, 43 characters.
 //   - JWT with no label: an `eyJ` header and an `ey` payload, each at least 8
@@ -100,28 +111,34 @@ func tokenByte(b byte) bool {
 //     and it is dropped.
 var bareShape = regexp.MustCompile(strings.Join([]string{
 	`(?:AKIA|ASIA)([0-9A-Z]{16})`,
-	`gh[pousr]_([0-9A-Za-z]{36})`,
+	`gh[pousr]_([0-9A-Za-z]{36,})`,
 	`github_pat_([0-9A-Za-z_]{82})`,
 	`xoxb-[0-9]{10,13}-[0-9]{10,13}-([0-9A-Za-z]{24,})`,
 	`xoxp-[0-9]{10,13}-[0-9]{10,13}-[0-9]{10,13}-([0-9A-Za-z]{28,34})`,
 	`xox[ars]-([0-9A-Za-z-]{20,})`,
 	`(?:sk|rk)_(?:live|test|org)_([0-9A-Za-z]{24,})`,
 	`AIza([0-9A-Za-z_\-]{35})`,
+	`AQ\.([0-9A-Za-z_\-]{35,})`,
 	`npm_([0-9A-Za-z]{36})`,
 	`SG\.[0-9A-Za-z_\-]{22}\.([0-9A-Za-z_\-]{43})`,
 	`(eyJ[0-9A-Za-z_\-]{8,}\.ey[0-9A-Za-z_\-]{8,}\.[0-9A-Za-z_\-]{8,})`,
 	`(eyJ[0-9A-Za-z_\-]{8,}\.[0-9A-Za-z_\-]*\.[0-9A-Za-z_\-]{8,}\.[0-9A-Za-z_\-]{8,}\.[0-9A-Za-z_\-]{8,})`,
 }, "|"))
 
-// bareBounded reports whether text[start:end] is a whole token. No token byte may
-// sit directly before or after it, and a `.` followed by a token byte is not
-// allowed after it, so a longer dotted token is not cut short. That last case is
-// a JWT with a fourth segment, and an SG key with more segments. Such a match is
-// dropped rather than reported as a prefix that leaves the rest visible.
-func bareBounded(text string, start, end int) bool {
-	if start > 0 && tokenByte(text[start-1]) {
-		return false
-	}
+// bareBounded reports whether text[:end] ends a whole token. No token byte may
+// sit directly after it, and a `.` followed by a token byte is not allowed after
+// it, so a longer dotted token is not cut short. That last case is a JWT with a
+// fourth segment, and an SG key with more segments. Such a match is dropped
+// rather than reported as a prefix that leaves the rest visible.
+//
+// There is no left-hand rule. A prefix is always a prefix, so a letter or an
+// underscore glued before one (`key_AKIA...`) is reported and the glue stays
+// visible: dropping the match would leave the whole key. A run that merely
+// contains a prefix is partly redacted instead, which is over-redaction and is
+// the scrubber's preference. The right-hand rule keeps its reason, which is the
+// reverse of this one: there the ambiguity is which of two candidate tokens is
+// the real one.
+func bareBounded(text string, end int) bool {
 	if end < len(text) {
 		if tokenByte(text[end]) {
 			return false
@@ -207,7 +224,7 @@ func (r *SecretRecognizer) Recognize(ctx context.Context, text string) ([]recogn
 func bareEntities(re *regexp.Regexp, text string) []recognizers.Entity {
 	var entities []recognizers.Entity
 	for _, m := range re.FindAllStringSubmatchIndex(text, -1) {
-		if !bareBounded(text, m[0], m[1]) || !isLikelySecret(bareBody(text, m)) {
+		if !bareBounded(text, m[1]) || !isLikelySecret(bareBody(text, m)) {
 			continue
 		}
 		entities = append(entities, secretEntity(text, m[0], m[1], 0.98))

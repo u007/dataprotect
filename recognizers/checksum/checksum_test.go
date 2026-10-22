@@ -401,17 +401,19 @@ func TestLuhnRecognizeChancePassingWindowDoesNotCutCard(t *testing.T) {
 // used to try every later group for every start, which is cubic in the run.
 func TestLuhnRecognizeLongDigitRunIsBounded(t *testing.T) {
 	text := strings.Repeat("1 ", 500000)
-	done := make(chan struct{})
+	budget := boundedBudget(5 * time.Second)
+	errCh := make(chan error, 1)
 	go func() {
-		defer close(done)
-		if _, err := NewLuhnValidator().Recognize(context.Background(), text); err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
+		_, err := NewLuhnValidator().Recognize(context.Background(), text)
+		errCh <- err
 	}()
 	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("Recognize did not finish a 1 MB digit run in 5 seconds")
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	case <-time.After(budget):
+		t.Fatalf("Recognize did not finish a 1 MB digit run in %s", budget)
 	}
 }
 
@@ -419,17 +421,19 @@ func TestLuhnRecognizeLongDigitRunIsBounded(t *testing.T) {
 // not make the containment check superlinear: 4 MB finishes in a few seconds.
 func TestLuhnRecognizeManyIBANsIsBounded(t *testing.T) {
 	text := strings.Repeat("DE89370400440532013000;1;", 4000000/25)
-	done := make(chan struct{})
+	budget := boundedBudget(5 * time.Second)
+	errCh := make(chan error, 1)
 	go func() {
-		defer close(done)
-		if _, err := NewLuhnValidator().Recognize(context.Background(), text); err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
+		_, err := NewLuhnValidator().Recognize(context.Background(), text)
+		errCh <- err
 	}()
 	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("Recognize did not finish 4 MB of IBANs in 5 seconds")
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	case <-time.After(budget):
+		t.Fatalf("Recognize did not finish 4 MB of IBANs in %s", budget)
 	}
 }
 

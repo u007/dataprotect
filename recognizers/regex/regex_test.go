@@ -440,16 +440,18 @@ func TestURLRecognizerExactSpan(t *testing.T) {
 // A long run of addresses and non-addresses must not make the scan superlinear.
 func TestIPRecognizerLongMixedRunIsBounded(t *testing.T) {
 	text := strings.Repeat("1.1.1.1 ::1 ", 90000)
-	done := make(chan struct{})
+	budget := boundedBudget(5 * time.Second)
+	errCh := make(chan error, 1)
 	go func() {
-		defer close(done)
-		if _, err := NewIPRecognizer().Recognize(context.Background(), text); err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
+		_, err := NewIPRecognizer().Recognize(context.Background(), text)
+		errCh <- err
 	}()
 	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("Recognize did not finish a 1 MB mixed run in 5 seconds")
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	case <-time.After(budget):
+		t.Fatalf("Recognize did not finish a 1 MB mixed run in %s", budget)
 	}
 }

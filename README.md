@@ -378,6 +378,7 @@ func main() {
 go build ./...
 go vet ./...
 go test ./...            # the library suite (make test)
+go test -race ./...      # the same suite under the race detector (make test-race)
 go test -v ./recognizers/...
 make fmt                 # fails if any file is not gofmt-clean
 ```
@@ -387,6 +388,7 @@ Make targets (from `make help`):
 | Target | What it does |
 |---|---|
 | `build`, `vet`, `test`, `fmt` | build every package, run `go vet`, run the library suite, check gofmt |
+| `test-race` | run the library suite under the race detector |
 | `test-tools` | run the `tools/corpusbench` suite (separate module) |
 | `benchmark` | score `testdata/golden` and print the report (`scripts/benchmark.sh`) |
 | `list`, `info NAME=<dataset>`, `dry-run`, `download` | licence and fetch helpers (`scripts/fetch-dataset.sh`); `download` fetches the commercially usable corpora |
@@ -407,13 +409,17 @@ Packages: `analyzer/` (engine and overlap resolution), `anonymizer/` (operators 
 
 Measured on 2026-10-19 with `make benchmark`, `make corpus` and `make presidio`, run on the working tree at commit `9698b27` with uncommitted changes. The seed set is 549 cases; the committed seed at `9698b27` is 537. Every number in this section comes from those runs or is copied from [SPEC.md](SPEC.md) and [SOURCES.md](SOURCES.md).
 
+Updated 2026-10-21: the seed set is now 551 cases, because two bare-provider-token cases were added when the glued-prefix and GitHub-body gaps were closed. The committed gate re-measures at exact and overlap P=1.0000 R=0.9974 with tp=383 fp=0 fn=1, and 199 of 199 negative cases clean. The tables below are left as they were measured on 2026-10-19; the corpus rows were re-measured on 2026-10-21 and carry that date.
+
+Updated 2026-10-22: the seed set is now 553 cases, because one positive and one negative were added for the Google Gemini auth key (`AQ.`), the format AI Studio issues instead of `AIza` keys. The gate re-measures at exact and overlap P=1.0000 R=0.9974 with tp=384 fp=0 fn=1, and 200 of 200 negative cases clean. Neither corpus moved: the new shape detects nothing in nemotron or gretel, so it adds no false positives either.
+
 ### Sources
 
 Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DATA_DIR` to keep them elsewhere; the fetch script and the Makefile both read it. Each fetched directory holds a `PROVENANCE.txt` with the revision, and each converted directory holds `schema.json`, which records the input's SHA-256 and the row bound.
 
 | Dataset | Source | Pinned revision | Licence | Rows used | Local path | How to fetch |
 |---|---|---|---|---|---|---|
-| Golden seed set | `testdata/golden/seed.json`, authored in this repository from synthetic text | none; the working tree (see above) | none needed, authored here (DATASET_LICENSES.md, "Provenance") | 549 cases: 350 positive, 199 negative | `testdata/golden/` (committed) | nothing to fetch |
+| Golden seed set | `testdata/golden/seed.json`, authored in this repository from synthetic text | none; the working tree (see above) | none needed, authored here (DATASET_LICENSES.md, "Provenance") | 553 cases: 353 positive, 200 negative | `testdata/golden/` (committed) | nothing to fetch |
 | Nemotron-PII | [nvidia/Nemotron-PII](https://huggingface.co/datasets/nvidia/Nemotron-PII) | `b70ffaf5ff39e079776134c5bf4381f00a9fd1ed` | CC-BY-4.0 (attribution) | 2000 of 100000 rows, test split, file order | `testdata/external/nemotron-pii/` | `scripts/fetch-dataset.sh fetch nemotron-pii`, or `make download` |
 | Gretel synthetic PII finance (multilingual) | [gretelai/synthetic_pii_finance_multilingual](https://huggingface.co/datasets/gretelai/synthetic_pii_finance_multilingual) | `7b844d16738527a04264f50214cb426a4cea0897` | Apache-2.0 with NOTICE (attribution) | 2000 of 5596 rows, `combined_test` split only | `testdata/external/gretel-pii-finance/` | `scripts/fetch-dataset.sh fetch gretel-pii-finance`, or `make download` |
 | Microsoft Presidio test cases | [microsoft/presidio](https://github.com/microsoft/presidio) | `2523c7b74a469270c5c78bb253f140eafca21e31` | MIT | 590 cases from 601 rows, ten modules; 11 rows set aside | `testdata/external/presidio/` | `make presidio` (clones at the pin and extracts with `scripts/presidio_extract.py`) |

@@ -5077,6 +5077,28 @@
     ]
   },
   {
+    "id": "pos-secret-bare-token-glued-prefix",
+    "note": "An AWS access key id with a key name glued before it. The underscore belongs to the variable name, not the token. A prefix is always a prefix, so the token is reported and the glue stays visible.",
+    "text": "Export key_AKIAIOSFODNN7EXAMPLE in the deploy step; the underscore belongs to the variable name.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "AKIAIOSFODNN7EXAMPLE"
+      }
+    ]
+  },
+  {
+    "id": "pos-secret-bare-github-token-longer-body",
+    "note": "A classic GitHub token whose body is 37 characters rather than the documented 36. The body length is a floor and the whole run is reported, so no tail is left visible.",
+    "text": "# clone with ghp_Q7rT2vN9bLx4Wc8Hm1Pd6Ys3Kf0Zj5Gu8Ea2x and push as the bot.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "ghp_Q7rT2vN9bLx4Wc8Hm1Pd6Ys3Kf0Zj5Gu8Ea2x"
+      }
+    ]
+  },
+  {
     "id": "pos-secret-bare-github-fine-grained",
     "note": "Fine-grained GitHub token with no label: github_pat_ and 82 characters, underscores included.",
     "text": "Fine-grained token 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 is on the CI secrets page.",
@@ -5169,6 +5191,23 @@
     "id": "neg-secret-bare-jwt-two-segments",
     "note": "A header and payload with no signature segment. A bare JWT needs three segments, so nothing is reported.",
     "text": "The header and payload are eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJrYXRlIn0 with no signature, so the token is not complete.",
+    "entities": []
+  },
+  {
+    "id": "pos-secret-bare-gemini-auth-key",
+    "note": "A Google Gemini auth key, the format AI Studio issues from 2026-05-28 instead of an AIza key. It has no label, so only the bare shape finds it, and an AIza-only shape misses every new Gemini key.",
+    "text": "Paste AQ.Ab8R4xN6ig1shM8Q9xUooLyPtHooh8X2azsxiburzg4TZgQ7cW into the GEMINI_API_KEY field and restart the worker.",
+    "entities": [
+      {
+        "type": "SECRET",
+        "value": "AQ.Ab8R4xN6ig1shM8Q9xUooLyPtHooh8X2azsxiburzg4TZgQ7cW"
+      }
+    ]
+  },
+  {
+    "id": "neg-secret-bare-gemini-auth-key-body-short",
+    "note": "A Gemini auth key with a 34-character body, one below the floor the bare shape requires. Nothing is reported, and the missing character is deliberate rather than a truncated copy of a real key.",
+    "text": "The value AQ.Ab8R4xN6ig1shM8Q9xUooLyPtHooh8X2az is not a complete key.",
     "entities": []
   }
 ]

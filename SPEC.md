@@ -54,7 +54,7 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
   changed on 2026-10-20 and "Corpus measurement" below carries the current ones. What is
   claimed here is the identity of boost-on and boost-off, not the level. Still off by default.
 - **Structured data** — CSV batch processing
-- **Golden dataset** — 549-case hand-labelled seed set for CI, plus an
+- **Golden dataset** — 553-case hand-labelled seed set for CI, plus an
   on-demand corpus measurement over the fetched corpora (`make corpus`)
 
 ### Later (v2+):
@@ -257,7 +257,7 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 
 ## Recognizers (MVP)
 
-| Recognizer | Entity Type | Method | Target | Measured (549-case seed) |
+| Recognizer | Entity Type | Method | Target | Measured (553-case seed) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
 | Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope) |
@@ -275,7 +275,7 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 | Secret | `SECRET` | Regex (API key, token, password assignment, PEM private key header), and provider token formats with no label (`bareShape`: AWS access key id `AKIA` or `ASIA`, GitHub `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` and `github_pat_`, Slack `xoxb-` and `xoxp-`, Stripe `sk_live_` and `rk_live_`, Google `AIza`, npm `npm_`, SendGrid `SG.`, and a bare JWT). A bare token is reported whole, its body must pass the uniform check, and it is dropped when it overlaps a labelled span. The formats and their sources are in SOURCES.md. A label may be followed by a closing quote (JSON `"api_key": ...`) and by spaces before its separator. The value is kept unless it is uniform: every character the same, or one unit of up to four characters repeated at least twice. There is no character-class rule, so a lower-case passphrase or an all-digit token is reported once its shape's length floor is met. Known tradeoff, accepted because the scrubber prefers over-redaction: a plain word of 8 or more characters after a label, such as `Password: Required`, is reported | >99% P&R | exact P=1.0000 R=1.0000 (tp=34 fp=0 fn=0); overlap P=1.0000 R=1.0000 on 34 positives, 17 negatives clean. The 9 bare-token positives (one per format) and 3 bare-token negatives match exactly. The span covers the value only, with the key name, separator, quotes and `Bearer ` outside it. A JWT or JWE with an `eyJ` header is captured whole at any header length, including a `dir` JWE with an empty second segment. A dotted token is captured to its end at any segment count. A single trailing dotted word is dropped only when whitespace follows it, so `Bearer <value>.Next step` keeps the value, while `token=<value>.abc` at the end of a text or before a quote is captured whole. A password drops one sentence-final `.` that is followed by whitespace or the end of text (`password: Rainbow@2025.` reports `Rainbow@2025`); `!`, `?` and `,` stay in the value. A password also drops one trailing `)`, `]` or `}` that is followed by whitespace, the end of text, or a closing quote when its value holds no matching opener (`(pass=Hunter2xyz)` reports `Hunter2xyz`; `Pa(ss)w0rd1` is kept whole). A short `pass` or `pwd` label needs a non-letter before it, so `bypass=kittenmitten` and `Route compass: northeastregion` are not passwords, while `db_pass=`, `db-pwd=` and `"pass": ` are; `password`, `passwd` and `secret` have no boundary, so `dbpassword=` and `mysecret=` match. Accepted cost: a letter directly before `pass` or `pwd` is no longer matched (`dbpass=x`, `rootpwd=x`) (TODO.md) |
 
 **"Target" is a goal for a ~500-case dataset; "Measured" is what
-`scripts/benchmark.sh` reports today over the 549-case seed set.** Most measured
+`scripts/benchmark.sh` reports today over the 553-case seed set.** Most measured
 cells are 1.0. The cells below 1.0 are the defects listed in TODO.md. These cells
 are evidence only for this hand-labelled set, not for the detector in general.
 The Luhn and mod-97 validators are wired into the default pipeline.
@@ -292,8 +292,9 @@ the measured column is evidence.
 Note the aggregate is not an average of this table, and the per-type cells are
 coarse: `BITCOIN` rests on 13 gold spans, so one flipped case moves its recall by
 about 8 points. Aggregate exact precision/recall over the whole seed set is
-P=1.0000 R=0.9974 (tp=381 fp=0 fn=1), and overlap matching, which tolerates
-mis-sized spans, gives the same P=1.0000 R=0.9974 (tp=381 fp=0 fn=1). The one miss under
+P=1.0000 R=0.9974 (tp=384 fp=0 fn=1), and overlap matching, which tolerates
+mis-sized spans, gives the same P=1.0000 R=0.9974 (tp=384 fp=0 fn=1). Re-measured 2026-10-22,
+when the seed grew to 553 cases with a Gemini auth key positive and its short-body negative. The one miss under
 both is `pos-phone-trunk-zero`. Until 2026-10-19 the secret spans included the key name, so
 exact matching missed 10 secrets (TODO.md). Before the parenthesised-phone
 fix the exact aggregate was P=0.9231 R=0.9231 while overlap stayed at 1.0000; the
@@ -727,10 +728,10 @@ opt-in and why `NewScrubber()` never reaches for it on its own.
 ## Testing Strategy
 
 ### Golden Dataset
-- ~500 hand-labeled samples — **549 exist** in `testdata/golden/seed.json`
-  (350 positive, 199 negative), past the ~500 target
+- ~500 hand-labeled samples — **553 exist** in `testdata/golden/seed.json`
+  (353 positive, 200 negative), past the ~500 target
 - CI regression testing on every commit: `golden/accuracy_test.go` gates on
-  precision/recall thresholds and fails if the dataset drops below 549 cases (ratcheted with each batch)
+  precision/recall thresholds and fails if the dataset drops below 553 cases (ratcheted with each batch)
 - Precision/recall/F1 per entity type, plus aggregate, under two matching
   policies (exact span and byte overlap)
 
@@ -763,7 +764,7 @@ proves nothing.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 549-case seed (past the ~500 target); the corpora are measured on demand instead |
+| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 553-case seed (past the ~500 target); the corpora are measured on demand instead |
 | 2 | NLP recognizer (prose) | SHIPPED (sidecar module + opt-in client; Phases A/B/D of the NLP plan) |
 | 3 | Secret recognizers (patterns + entropy) | SHIPPED |
 | 4 | FPE operator | Later |
@@ -776,7 +777,7 @@ proves nothing.
 
 - [ ] All regex recognizers >99% precision/recall on golden dataset — **NOT
       MET, now measured.** The seed set reads exact P=1.0000 R=0.9974 and overlap
-      P=1.0000 R=0.9974 over 549 cases, but not every per-recognizer cell is above
+      P=1.0000 R=0.9974 over 553 cases, but not every per-recognizer cell is above
       0.99: PHONE recall is 0.9828 (the `pos-phone-trunk-zero` miss). The corpora are
       now measurable and do not come close: exact aggregate
       P=0.8357 R=0.2886 (nemotron) and

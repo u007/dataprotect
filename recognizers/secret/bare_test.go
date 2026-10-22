@@ -18,6 +18,7 @@ const (
 	fakeSlackBot    = "xoxb-1234567890-1234567890-Q7rT2vN9bLx4Wc8Hm1Pd6Ys3"
 	fakeStripeLive  = "sk_live_Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys"
 	fakeGoogleKey   = "AIzaSyD7kP2mQ9xR4vL8nB1cT6wF3hJ0zG5aEQx"
+	fakeGeminiAuth  = "AQ.Ab8R4xN6ig1shM8Q9xUooLyPtHooh8X2azsxiburzg4TZgQ7cW"
 	fakeNPMToken    = "npm_Q7rT2vN9bLx4Wc8Hm1Pd6Ys3Kf0Zj5Gu8EaK"
 	fakeSendGrid    = "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"
 )
@@ -34,8 +35,12 @@ func TestBareProviderTokenSpan(t *testing.T) {
 		want string
 	}{
 		{"aws access key id", "Rotate the key " + fakeAWSKey + " before Friday.", fakeAWSKey},
+		{"aws key id glued to an underscore", "key_" + fakeAWSKey + " in the config", fakeAWSKey},
+		{"aws key id glued to a letter", "key" + fakeAWSKey + " in the config", fakeAWSKey},
 		{"aws temporary key id", "session ASIAZ7KQ3WM5RT2PXN8D expires soon", "ASIAZ7KQ3WM5RT2PXN8D"},
 		{"github classic token", "clone with " + fakeGHToken + " for now", fakeGHToken},
+		{"github token one character long", fakeGHToken + "x", fakeGHToken + "x"},
+		{"github token glued to an underscore", "token_ghp_" + fakeGHTail + " end", "ghp_" + fakeGHTail},
 		{"github oauth token", "gho_" + fakeGHTail + " in the callback", "gho_" + fakeGHTail},
 		{"github user-to-server token", "ghu_" + fakeGHTail, "ghu_" + fakeGHTail},
 		{"github server-to-server token", "ghs_" + fakeGHTail + " from the app", "ghs_" + fakeGHTail},
@@ -47,6 +52,9 @@ func TestBareProviderTokenSpan(t *testing.T) {
 		{"stripe live restricted key", "rk_live_Hm1Pd6Ys3Kf0Zj5Gu8Ea2Bq7 for refunds", "rk_live_Hm1Pd6Ys3Kf0Zj5Gu8Ea2Bq7"},
 		{"stripe test secret key", "charge with sk_test_Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys", "sk_test_Zq7Rt2vN9bLx4Wc8Hm1Pd6Ys"},
 		{"google api key", "maps " + fakeGoogleKey + " in the page", fakeGoogleKey},
+		{"google gemini auth key", "gemini " + fakeGeminiAuth + " in the env", fakeGeminiAuth},
+		{"gemini auth key glued to an underscore", "key_" + fakeGeminiAuth + " end", fakeGeminiAuth},
+		{"gemini auth key one character long", fakeGeminiAuth + "x", fakeGeminiAuth + "x"},
 		{"npm access token", "publish with " + fakeNPMToken, fakeNPMToken},
 		{"sendgrid api key", fakeSendGrid + " in the mailer", fakeSendGrid},
 		{"bare jwt", "the session is " + testJWT + " for now", testJWT},
@@ -88,15 +96,16 @@ func TestBareProviderTokenRejected(t *testing.T) {
 		{"aws key id lower-case tail", "AKIAiosfodnn7example"},
 		{"aws key id uniform", "AKIAAAAAAAAAAAAAAAAA"},
 		{"aws prefix named in prose", "AWS key ids start with AKIA, so grep for it."},
-		{"aws prefix glued after an underscore", "my_AKIAIOSFODNN7EXAMPLE"},
+		{"aws key id cut one character short after a glued underscore", "key_AKIAIOSFODNN7EXAMPL end"},
 		{"github token one character short", "ghp_" + fakeGHTail[:35] + " end"},
-		{"github token one character long", fakeGHToken + "x"},
 		{"github token upper-case prefix", "GHP_" + fakeGHTail},
 		{"github prefix not in the list", "ghx_" + fakeGHTail},
 		{"github fine-grained one character short", fakeFineGrained[:len(fakeFineGrained)-1] + " end"},
 		{"stripe live key one character short", fakeStripeLive[:len(fakeStripeLive)-1] + " end"},
 		{"google key one character short", "AIzaSyD7kP2mQ9xR4vL8nB1cT6wF3hJ0zG5aE"},
 		{"google key one character long", fakeGoogleKey + "x"},
+		{"gemini auth key body one character below the floor", "AQ.Ab8R4xN6ig1shM8Q9xUooLyPtHooh8X2az end"},
+		{"gemini prefix named in prose", "New Gemini keys start with AQ. instead of AIza."},
 		{"npm token one character short", "npm_Q7rT2vN9bLx4Wc8Hm1Pd6Ys3Kf0Zj5Gu8Ea"},
 		{"sendgrid key short second part", "SG.Q7rT2vN9bLx4Wc8Hm1Pd6Y.Ys3Kf0Zj5Gu8Ea2Bq7Rt4Lm9Nv1Cx6Wp3Hd8Ks0Jf"},
 		{"slack bot token digits too few", "xoxb-123-456-Q7rT2vN9bLx4Wc8Hm1Pd6Ys3"},

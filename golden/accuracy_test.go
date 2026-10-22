@@ -19,11 +19,11 @@ const datasetDir = "../testdata/golden"
 // moves recall by a large fraction — so a shrinking dataset would silently
 // weaken the gate rather than fail it. Ratcheted with each batch: it tracks the
 // current seed count, so any drop below it fails.
-const minCases = 549
+const minCases = 553
 
 // Gate thresholds.
 //
-// These are the MEASURED baseline, not a target. The seed set is 549 cases, past
+// These are the MEASURED baseline, not a target. The seed set is 551 cases, past
 // the ~500 SPEC.md calls for; claiming ">99% precision/recall" here would
 // make the gate a rubber stamp. Each constant is the EXACT measured value, so
 // any regression fails immediately and any improvement is a deliberate
@@ -115,8 +115,19 @@ const minCases = 549
 // with no signature). All 9 positives matched exactly and all 3 negatives stayed
 // clean. The gate bound moved from 372/373 to 381/382, not loosened.
 //
-// The measured baseline is exact P=1.0000 R=0.9974 (tp=381 fp=0 fn=1), overlap
-// P=1.0000 R=0.9974 (tp=381 fp=0 fn=1), and 199 of 199 negative cases clean. The
+// Batch 22 (2026-10-21) added 2 positives for the two bare-token gaps closed that
+// day: an AWS key id with a key name glued before it (`key_AKIA...`), and a GitHub
+// token whose body is 37 rather than 36 characters. Both matched exactly (tp 381
+// to 383), no negative moved, and the bound went from 381/382 to 383/384.
+//
+// Batch 23 (2026-10-21) added 2 cases for the Google Gemini auth key format,
+// which AI Studio issues instead of `AIza` keys from 2026-05-28: one positive (a
+// bare `AQ.` key in prose) and one negative (a 34-character body, one below the
+// floor). The positive matched exactly (tp 383 to 384) and the negative stayed
+// clean, so the bound went from 383/384 to 384/385.
+//
+// The measured baseline is exact P=1.0000 R=0.9974 (tp=384 fp=0 fn=1), overlap
+// P=1.0000 R=0.9974 (tp=384 fp=0 fn=1), and 200 of 200 negative cases clean. The
 // one miss is pos-phone-trunk-zero, a documented scope decision.
 // These numbers describe this hand-labelled seed set, NOT the detector in general —
 // testdata/external are scored by `make corpus` but are not that set (see
@@ -142,9 +153,9 @@ const minCases = 549
 // pos-card-then-year now reports "4111 1111 1111 1111 2024" against gold
 // "4111 1111 1111 1111". Overlap recall stays 1.0; exact bounds are re-measured.
 const (
-	minExactPrecision = 1.0           // tp=381 fp=0 -> 381/381 (see note)
-	minExactRecall    = 381.0 / 382.0 // tp=381 fn=1 -> 381/382 (see note)
-	minOverlapRecall  = 381.0 / 382.0 // tp=381 fn=1 -> 381/382 (see note)
+	minExactPrecision = 1.0           // tp=384 fp=0 -> 384/384 (see note)
+	minExactRecall    = 384.0 / 385.0 // tp=384 fn=1 -> 384/385 (see note)
+	minOverlapRecall  = 384.0 / 385.0 // tp=384 fn=1 -> 384/385 (see note)
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled

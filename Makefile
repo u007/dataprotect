@@ -7,6 +7,11 @@
 # skipped and can be inspected individually with `make info NAME=<dataset>`.
 
 GO    ?= go
+# From GOROOT, not PATH: this environment's PATH does not carry the Go tools, and
+# a bare `gofmt` then fails inside the recipe while the empty result reads as
+# "clean". A format gate that silently passes when it cannot run is worse than
+# none.
+GOFMT ?= $(shell $(GO) env GOROOT)/bin/gofmt
 FETCH := ./scripts/fetch-dataset.sh
 
 # Corpora live outside the tree (see DATASET_LICENSES.md). DATAPROTECT_DATA_DIR
@@ -24,7 +29,7 @@ DATA_ROOT := $(abspath $(or $(DATAPROTECT_DATA_DIR),testdata/external))
 # full-corpus one. 0 means every record.
 LIMIT ?= 2000
 
-.PHONY: help download list info dry-run benchmark test test-tools build vet fmt \
+.PHONY: help download list info dry-run benchmark test test-race test-tools build vet fmt \
         corpus corpus-convert corpus-anonymize corpus-clean corpus-nlp clean-data presidio presidio-fetch \
         build-sidecar test-sidecar vet-sidecar docs-sync test-ner
 
@@ -41,6 +46,7 @@ help:
 	@echo "  make corpus-clean    delete the converted datasets (data is gitignored)"
 	@echo "  make corpus-nlp      score the corpora with the NLP sidecar (starts a sidecar, then stops it)"
 	@echo "  make test            run the library test suite"
+	@echo "  make test-race       run the library test suite under the race detector"
 	@echo "  make test-tools      run the corpusbench tool test suite"
 	@echo "  make build           build every package"
 	@echo "  make vet             run go vet"
@@ -72,6 +78,9 @@ benchmark:
 test:
 	$(GO) test ./...
 
+test-race:
+	$(GO) test -race ./...
+
 build:
 	$(GO) build ./...
 
@@ -79,7 +88,8 @@ vet:
 	$(GO) vet ./...
 
 fmt:
-	@unformatted="$$(gofmt -l .)"; \
+	@test -x "$(GOFMT)" || { echo "gofmt not found at $(GOFMT)"; exit 1; }
+	@unformatted="$$($(GOFMT) -l .)"; \
 	if [ -n "$$unformatted" ]; then echo "not gofmt-clean:"; echo "$$unformatted"; exit 1; fi; \
 	echo "gofmt: clean"
 
