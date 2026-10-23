@@ -45,6 +45,24 @@ func WithMinConfidence(confidence float64) ScrubberOption {
 	}
 }
 
+// WithOperator sets the anonymization operator for one entity type, overriding
+// the default. For example, to encrypt credit-card numbers with format-preserving
+// encryption instead of masking them:
+//
+//	scrubber := NewScrubber(
+//	    WithOperator(recognizers.EntityCreditCard, operators.MustFPEOperator(key, 10, tweak, 8)),
+//	)
+func WithOperator(entityType recognizers.EntityType, op operators.Operator) ScrubberOption {
+	return func(s *Scrubber) {
+		s.SetOperator(entityType, op)
+	}
+}
+
+// SetOperator overrides the anonymization operator for one entity type.
+func (s *Scrubber) SetOperator(entityType recognizers.EntityType, op operators.Operator) {
+	s.anonymizer.SetOperator(entityType, op)
+}
+
 // NewScrubber creates a new scrubber with default recognizers and operators.
 //
 // The checksum validators are part of the default pipeline, not an opt-in, and
