@@ -149,11 +149,11 @@ Coverage by entity type, counting the cases that carry each type:
 
 | Entity type | Cases |
 |---|---|
-| EMAIL | 51 |
-| CREDIT_CARD | 49 |
-| PHONE | 54 |
-| SSN | 32 |
-| IP_ADDRESS | 44 |
+| EMAIL | 57 |
+| CREDIT_CARD | 56 |
+| PHONE | 58 |
+| SSN | 36 |
+| IP_ADDRESS | 46 |
 | URL | 30 |
 | IBAN | 35 |
 | BITCOIN | 13 (Base58Check / bech32 checksum) |
@@ -162,7 +162,7 @@ Coverage by entity type, counting the cases that carry each type:
 | TH_ID | 4 |
 | MY_PASSPORT | 3 |
 | SG_PASSPORT | 2 |
-| SECRET | 34 (API key, token, password, PEM header, provider token with no label) |
+| SECRET | 37 (API key, token, password, PEM header, provider token with no label) |
 
 The numbers are not perfect. Batch 2 exposed two detector defects. The URL one,
 a sentence-final period kept, is fixed. The other, a four-part version string

@@ -31,7 +31,7 @@ LIMIT ?= 2000
 
 .PHONY: help download list info dry-run benchmark test test-race test-tools build vet fmt \
         corpus corpus-convert corpus-anonymize corpus-clean corpus-nlp clean-data presidio presidio-fetch \
-        build-sidecar test-sidecar vet-sidecar docs-sync test-ner
+        build-sidecar test-sidecar vet-sidecar docs-sync test-ner docs-check
 
 help:
 	@echo "piiscrub targets:"
@@ -51,6 +51,7 @@ help:
 	@echo "  make build           build every package"
 	@echo "  make vet             run go vet"
 	@echo "  make fmt             fail if any file is not gofmt-clean"
+	@echo "  make docs-check      fail if README.md and the usage doc disagree with the seed set"
 	@echo "  make build-sidecar   build the sidecar module (separate Go module)"
 	@echo "  make test-sidecar    run the sidecar module test suite"
 	@echo "  make vet-sidecar     run go vet in the sidecar module"
@@ -92,6 +93,9 @@ fmt:
 	@unformatted="$$($(GOFMT) -l .)"; \
 	if [ -n "$$unformatted" ]; then echo "not gofmt-clean:"; echo "$$unformatted"; exit 1; fi; \
 	echo "gofmt: clean"
+
+docs-check:
+	python3 scripts/docs_check.py
 
 # The tool lives in its own module so parquet-go never reaches the library's
 # dependency list; every target that uses it runs inside that module.

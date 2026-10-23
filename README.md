@@ -407,7 +407,7 @@ Packages: `analyzer/` (engine and overlap resolution), `anonymizer/` (operators 
 
 ## Datasets and measured results
 
-Measured on 2026-10-19 with `make benchmark`, `make corpus` and `make presidio`, run on the working tree at commit `9698b27` with uncommitted changes. The seed set is 549 cases; the committed seed at `9698b27` is 537. Every number in this section comes from those runs or is copied from [SPEC.md](SPEC.md) and [SOURCES.md](SOURCES.md).
+Measured with `make benchmark`, `make corpus` and `make presidio`; every number in this section comes from those runs or is copied from [SPEC.md](SPEC.md) and [SOURCES.md](SOURCES.md). The seed set is 553 cases (353 positive, 200 negative), and the committed gate re-measures at exact and overlap P=1.0000 R=0.9974 with tp=384 fp=0 fn=1 and 200 of 200 negative cases clean.
 
 Updated 2026-10-21: the seed set is now 551 cases, because two bare-provider-token cases were added when the glued-prefix and GitHub-body gaps were closed. The committed gate re-measures at exact and overlap P=1.0000 R=0.9974 with tp=383 fp=0 fn=1, and 199 of 199 negative cases clean. The tables below are left as they were measured on 2026-10-19; the corpus rows were re-measured on 2026-10-21 and carry that date.
 
@@ -430,14 +430,14 @@ Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DAT
 
 | Dataset | Cases | Match | Precision | Recall | F1 | tp / fp / fn |
 |---|---|---|---|---|---|---|
-| Golden seed | 549 | exact span | 1.0000 | 0.9974 | 0.9987 | 381 / 0 / 1 |
-| Golden seed | 549 | byte overlap | 1.0000 | 0.9974 | 0.9987 | 381 / 0 / 1 |
+| Golden seed | 553 | exact span | 1.0000 | 0.9974 | 0.9987 | 384 / 0 / 1 |
+| Golden seed | 553 | byte overlap | 1.0000 | 0.9974 | 0.9987 | 384 / 0 / 1 |
 | Nemotron-PII | 2000 | exact span | 0.8357 | 0.2886 | 0.4290 | 2655 / 522 / 6546 |
 | Nemotron-PII | 2000 | byte overlap | 0.8455 | 0.2919 | 0.4340 | 2686 / 491 / 6515 |
 | Gretel PII finance | 2000 | exact span | 0.3816 | 0.0957 | 0.1530 | 696 / 1128 / 6576 |
 | Gretel PII finance | 2000 | byte overlap | 0.3986 | 0.1000 | 0.1599 | 727 / 1097 / 6545 |
 
-Negative cases with no detection: seed 199 of 199; Nemotron-PII 52 of 71; gretel 231 of 280.
+Negative cases with no detection: seed 200 of 200; Nemotron-PII 52 of 71; gretel 231 of 280.
 
 The corpus recall fell from the 0.8916 / 0.8201 published before 2026-10-20 because PERSON, ORGANIZATION and LOCATION became in-scope gold on that date (they are detectable only through the NLP sidecar), and this table is the regex-only pipeline, which detects none of them: nemotron carries 3275 PERSON, 1988 LOCATION and 1018 ORGANIZATION false negatives. Scored with the sidecar, the same samples give exact P=0.4376 R=0.4135 — see SPEC.md, "NLP Sidecar".
 
