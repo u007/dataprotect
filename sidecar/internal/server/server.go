@@ -8,24 +8,28 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/u007/dataprotect"
 	"github.com/u007/dataprotect/sidecar/internal/ner"
 )
 
 const maxBodyBytes = 1 << 20
 
 type Server struct {
-	addr    string
-	backend ner.NERBackend
+	addr     string
+	backend  ner.NERBackend
+	scrubber *piiscrub.Scrubber
 }
 
-func New(addr string, backend ner.NERBackend) *Server {
-	return &Server{addr: addr, backend: backend}
+func New(addr string, backend ner.NERBackend, scrubber *piiscrub.Scrubber) *Server {
+	return &Server{addr: addr, backend: backend, scrubber: scrubber}
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/v1/ner", s.handleNER)
+	mux.HandleFunc("/v1/scrub", s.handleScrub)
+	mux.HandleFunc("/v1/pseudonymize", s.handlePseudonymize)
 	return mux
 }
 
@@ -79,6 +83,65 @@ func (s *Server) handleNER(w http.ResponseWriter, r *http.Request) {
 			Confidence: e.Confidence,
 		})
 	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+type scrubRequest struct {
+	Text string `json:"text"`
+}
+
+type scrubResponse struct {
+	Text string `json:"text"`
+}
+
+type pseudonymizeRequest struct {
+	Text string `json:"text"`
+}
+
+type pseudonymizeResponse struct {
+	Text    string            `json:"text"`
+	Mapping map[string]string `json:"mapping"`
+}
+
+func (s *Server) handleScrub(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	var req scrubRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	redacted, err := s.scrubber.Anonymize(r.Context(), req.Text)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resp := scrubResponse{Text: redacted}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (s *Server) handlePseudonymize(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	var req pseudonymizeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	redacted, mapping, err := s.scrubber.Pseudonymize(r.Context(), req.Text)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resp := pseudonymizeResponse{Text: redacted, Mapping: mapping}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
