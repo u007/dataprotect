@@ -457,7 +457,7 @@ them as gaps.
 
 ## Open Questions
 
-- [ ] FPE library evaluation (capitalone/fpe vs alternatives)
+- [x] FPE library evaluation (capitalone/fpe vs alternatives) — Done 2026-10-24: evaluated capitalone/fpe and decided to keep the custom stdlib-only FF1 implementation in operators/fpe.go (radix 2-62 vs 2-36, Encrypt+Decrypt vs Encrypt only, 8-10 rounds vs fixed 10). Documented in SPEC.md "FPE library evaluation" section.
 - [ ] go-face model bundling strategy (download on first use vs bundle)
 - [x] **Module path renamed to `github.com/u007/dataprotect`. Done 2026-10-15.** The bare `dataprotect` path could not be imported by consumers. Every Go import, the root `go.mod`, the corpusbench tool module (`github.com/u007/dataprotect/tools/corpusbench`, with `replace github.com/u007/dataprotect => ../..`), `scripts/benchmark.sh` and the README and usage examples now use the new path. Verified: `go test ./...` and `make test-tools` pass. The dated `docs/superpowers/` specs and plans keep the old name; they are historical records and are not edited.
 - [x] **LICENSE: MIT.** `LICENSE` exists with `Copyright (c) 2026 Mercstudio`.

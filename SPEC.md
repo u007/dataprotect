@@ -721,9 +721,18 @@ opt-in and why `NewScrubber()` never reaches for it on its own.
 |------------|---------|---------|
 | [prose](https://github.com/jdkato/prose) | NLP NER, in the `sidecar/` module only (not the root module) | v2.0.0 |
 | [go-face](https://github.com/Kagami/go-face) | Facial recognition (v2+) | v0.0.0-20240518085811-770585e |
-| [fpe](https://github.com/capitalone/fpe) | Format-preserving encryption (v2+) | v1.0.0 |
 
 ---
+
+### FPE library evaluation
+
+The [capitalone/fpe](https://github.com/capitalone/fpe) library (FF1/FF3 per NIST SP 800-38G) was evaluated as a potential dependency for format-preserving encryption. The decision is to **keep the custom FF1 implementation** in `operators/fpe.go` for these reasons:
+
+- The root module is standard-library-only; capitalone/fpe is an external (Apache-2.0) dependency.
+- Our implementation supports radix 2–62; capitalone/fpe's ff1 package supports radix 2–36.
+- Our implementation provides both `Encrypt` and `Decrypt`; capitalone/fpe's ff1 package provides `Encrypt`/`EncryptWithTweak` only.
+- Our implementation allows 8–10 Feistel rounds; capitalone/fpe fixes 10 rounds.
+- Our implementation passes all round-trip, determinism, key/tweak sensitivity, and invalid-input tests (`operators/fpe_test.go`).
 
 ## Testing Strategy
 
