@@ -458,7 +458,7 @@ them as gaps.
 ## Open Questions
 
 - [x] FPE library evaluation (capitalone/fpe vs alternatives) — Done 2026-10-24: evaluated capitalone/fpe and decided to keep the custom stdlib-only FF1 implementation in operators/fpe.go (radix 2-62 vs 2-36, Encrypt+Decrypt vs Encrypt only, 8-10 rounds vs fixed 10). Documented in SPEC.md "FPE library evaluation" section.
-- [ ] go-face model bundling strategy (download on first use vs bundle)
+- [x] go-face model bundling strategy — Done 2026-10-26: download on first use. Model files NOT bundled with binary; on first face-detection call, each missing model is downloaded from dlib.net, decompressed from .bz2, and cached in the OS user cache dir (~/.cache/dataprotect/face-models/ on Linux). Implemented in sidecar/internal/facedetect/ with Downloader (thread-safe, retry-on-failure, dedup per model), FaceDetector interface + StubDetector (returns ErrDlibUnavailable until libdlib-dev is installed). Documented in SPEC.md "go-face model bundling strategy" section.
 - [x] **Module path renamed to `github.com/u007/dataprotect`. Done 2026-10-15.** The bare `dataprotect` path could not be imported by consumers. Every Go import, the root `go.mod`, the corpusbench tool module (`github.com/u007/dataprotect/tools/corpusbench`, with `replace github.com/u007/dataprotect => ../..`), `scripts/benchmark.sh` and the README and usage examples now use the new path. Verified: `go test ./...` and `make test-tools` pass. The dated `docs/superpowers/` specs and plans keep the old name; they are historical records and are not edited.
 - [x] **LICENSE: MIT.** `LICENSE` exists with `Copyright (c) 2026 Mercstudio`.
       Chosen over Apache-2.0 because the module has zero dependencies, so

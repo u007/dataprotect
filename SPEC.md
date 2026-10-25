@@ -724,6 +724,23 @@ opt-in and why `NewScrubber()` never reaches for it on its own.
 
 ---
 
+### go-face model bundling strategy
+
+The [go-face](https://github.com/Kagami/go-face) library binds to dlib (a C++ ML toolkit) and requires two pre-trained model files:
+
+- `shape_predictor_5_face_landmarks.dat` (~22 MB)
+- `dlib_face_recognition_resnet_model_v1.dat` (~97 MB)
+
+**Decision: download on first use.** Model files are NOT bundled with the binary. On the first call that needs face detection, each missing model is downloaded from dlib.net, decompressed from `.bz2`, and stored in the OS user cache directory (`~/.cache/dataprotect/face-models/` on Linux). Subsequent calls reuse the cached files.
+
+Rationale:
+- Bundling ~120 MB of model files would bloat the binary for users who never use face detection.
+- Download-on-first-use keeps the initial download small and only incurs the cost when face detection is actually needed.
+- Models are cached persistently, so repeated use has no download overhead.
+- Download failures are retried (up to 3 times) and do not prevent future attempts.
+
+Implementation: `sidecar/internal/facedetect/` handles model cache management, download-on-first-use with thread-safe deduplication, and a `FaceDetector` interface. A `StubDetector` is provided that returns `ErrDlibUnavailable` until `libdlib-dev` is installed and go-face is imported.
+
 ### FPE library evaluation
 
 The [capitalone/fpe](https://github.com/capitalone/fpe) library (FF1/FF3 per NIST SP 800-38G) was evaluated as a potential dependency for format-preserving encryption. The decision is to **keep the custom FF1 implementation** in `operators/fpe.go` for these reasons:
