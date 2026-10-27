@@ -460,9 +460,14 @@ truncated sub-span: gretel combined `PHONE` moves from 0.2931 / 0.8920 to
 0.9000) while their false positives fall. The seed gate is unchanged and
 nemotron stays exactly at 0.5679 / 0.9982.
 
-Remaining non-English phone gaps are deliberate follow-ups, not silent misses:
-Sweden's rarer groupings (`095-02 69 41`, `08-11 123 456`) and France's bare
-`[+33] …` bracket form. See TODO.md "multi-language".
+Sweden's rarer groupings (`08-11 123 456` and `095-02 69 41`) were added on
+2026-10-27. Wikipedia "Telephone numbers in Sweden" gives area codes of 2-4
+digits (including the leading 0) and subscriber numbers of 5-8, so the original
+`0XX-XXX XX XX` branch covered only one layout. Two more branches cover a
+two-char area with a 2-3-3 subscriber and a three-char area with a 2-2-2
+subscriber; Swedish `PHONE` recall moves 0.8302 → 0.8868 (tp 44 → 47, fp
+unchanged at 227). France's bare `[+33] …` bracket form remains the only
+deliberate non-English phone gap. See TODO.md "multi-language".
 
 **Unlabelled spans, reported separately.** A detection that lands on a span the
 corpus labels with a name outside our type map is not counted as wrong in the

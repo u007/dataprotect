@@ -146,9 +146,11 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
     guard so arithmetic, C++ and email tags stay non-phones. Precision rose
     because the full span now wins; gretel combined PHONE 0.2931/0.8920 →
     0.3059/0.8951.
-  - [ ] **Remaining phone follow-up**, only with a documented numbering-plan
-    source (the SG M-prefix precedent): Sweden's rarer groupings
-    (`095-02 69 41`, `08-11 123 456`).
+  - [x] **Sweden's rarer groupings.** Done 2026-10-27. Added a two-char area
+    with a 2-3-3 subscriber (`08-11 123 456`) and a three-char area with a
+    2-2-2 subscriber (`095-02 69 41`). Swedish PHONE recall 0.8302 → 0.8868;
+    gates unchanged. France's bare `[+33] …` bracket form is the only
+    remaining deliberate phone gap.
   - [ ] **IBAN country grouping** (Germany R 0.316, Italy 0.471) and the
     **national-ID gap behind `ssn`** (German R 0.111, Italian 0.091) — the latter
     is the `national/` package's job, not a language fix.

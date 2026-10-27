@@ -105,6 +105,10 @@ func TestPhoneRecognizer(t *testing.T) {
 		// Sweden: national 0XX-XXX XX XX and the four-group +46 international form.
 		{"sweden national", "ring 070-123 45 67 tack", 1, "070-123 45 67"},
 		{"sweden international", "call +46 8 123 456 78", 1, "+46 8 123 456 78"},
+		// Rarer Swedish groupings: a two-char area code (08, 2-3-3) and a
+		// three-char area code with a 2-2-2 subscriber (095-02 69 41).
+		{"sweden two-digit area", "tel 08-11 123 456", 1, "08-11 123 456"},
+		{"sweden two-two-two", "tel 095-02 69 41", 1, "095-02 69 41"},
 		// Germany: geographic 4-digit area code, a grouped subscriber, the 0800
 		// freephone block, a mobile, and the no-space "+49(0)" spelling.
 		{"germany geographic", "ruf 0221-123456 an", 1, "0221-123456"},
