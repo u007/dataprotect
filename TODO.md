@@ -116,7 +116,7 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
 - [x] Format-preserving encryption (FPE) operator — done, `operators/fpe.go` (commit 15d4db8).
 - [ ] Image PII detection (facial recognition via go-face)
 - [x] REST API sidecar — done, `/v1/scrub` and `/v1/pseudonymize` (commit 181aa07).
-- [ ] **Multi-language support. Scoped 2026-10-27; first step done.**
+- [ ] **Multi-language support. Scoped 2026-10-27; phone formats for France, Sweden, Germany and the Netherlands done.**
   The built-in recognizers are format-based, so EMAIL, IP_ADDRESS, IBAN and SECRET
   are already language-agnostic and hold up across the seven gretel splits. The
   language-sensitive losses are, in measured priority order: PHONE national
@@ -133,10 +133,18 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
     unchanged (P=1.0000 R=0.9974, 200/200 negatives). Sources: Wikipedia
     "Telephone numbers in France" (citing ARCEP), E.164, libphonenumber. Numbers
     and rationale in SPEC.md "Non-English phone formats".
-  - [ ] **Next phone countries**, each only with a documented numbering-plan
-    source (the SG M-prefix precedent): Sweden's rarer groupings
-    (`095-02 69 41`, `08-11 123 456`), Germany (`0XXX-XXXXXXX`), and the
-    Netherlands (`0X-XXXXXXXX`).
+  - [x] **Germany + Netherlands phone formats.** Done 2026-10-27. Germany:
+    geographic `0[2-9]<1-4>` + separated subscriber and mobile `01[5-7]…`.
+    Netherlands: exact ten-digit geographic, `06` mobile, and the
+    0800/088/085/084/087/0900/0906/0909 service prefixes. Added a `+NN(0)…`
+    no-space branch and an eight-digit national floor that drops short
+    fragments. PHONE recall German 0.551 → 0.735, Dutch 0.409 → 0.909; seed
+    gate unchanged; English/Italian/Spanish precision improved from the floor.
+    Numbers in SPEC.md "Germany and Netherlands phone formats".
+  - [ ] **Remaining phone follow-ups**, each only with a documented
+    numbering-plan source (the SG M-prefix precedent): Sweden's rarer
+    groupings (`095-02 69 41`, `08-11 123 456`), and the E.164 no-separator
+    form (`+491234567890`) the generic `+` branch still misses.
   - [ ] **IBAN country grouping** (Germany R 0.316, Italy 0.471) and the
     **national-ID gap behind `ssn`** (German R 0.111, Italian 0.091) — the latter
     is the `national/` package's job, not a language fix.

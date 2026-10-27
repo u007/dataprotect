@@ -105,6 +105,19 @@ func TestPhoneRecognizer(t *testing.T) {
 		// Sweden: national 0XX-XXX XX XX and the four-group +46 international form.
 		{"sweden national", "ring 070-123 45 67 tack", 1, "070-123 45 67"},
 		{"sweden international", "call +46 8 123 456 78", 1, "+46 8 123 456 78"},
+		// Germany: geographic 4-digit area code, a grouped subscriber, the 0800
+		// freephone block, a mobile, and the no-space "+49(0)" spelling.
+		{"germany geographic", "ruf 0221-123456 an", 1, "0221-123456"},
+		{"germany grouped", "Tel. 029-85 10 71", 1, "029-85 10 71"},
+		{"germany freephone", "0800 123 4567", 1, "0800 123 4567"},
+		{"germany mobile", "mobil 0171 1234567", 1, "0171 1234567"},
+		{"germany international (0)", "erreichbar unter +49(0)30 1234567", 1, "+49(0)30 1234567"},
+		// Netherlands: mobile 06, a three-digit geographic area code, an 088
+		// service number, and the no-space "+31(0)" spelling.
+		{"netherlands mobile", "bel 06-12345678", 1, "06-12345678"},
+		{"netherlands geographic", "tel 020-1234567", 1, "020-1234567"},
+		{"netherlands service", "bel 088 45 41 25", 1, "088 45 41 25"},
+		{"netherlands international (0)", "+31(0)83-3795934", 1, "+31(0)83-3795934"},
 		// A partial French grouping is not a number, and a bare run is not France.
 		{"incomplete france is not a phone", "code 01 23 45 here", 0, ""},
 	}

@@ -276,7 +276,7 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 | Recognizer | Entity Type | Method | Target | Measured (553-case seed) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
-| Phone | `PHONE` | Regex (US/international/E.164, plus France and Sweden national formats) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope. France/Sweden support added 2026-10-27 — see "Non-English phone formats") |
+| Phone | `PHONE` | Regex (US/international/E.164, plus France, Sweden, Germany and Netherlands national formats) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope. France/Sweden and Germany/Netherlands support added 2026-10-27 — see "Non-English phone formats") |
 | Credit Card | `CREDIT_CARD` | Luhn checksum | >99% P&R | P=0.9811 R=0.9811 (tab-separated groups fixed; the `pos-card-then-year` window defect remains) |
 | SSN | `SSN` | Regex (XXX-XX-XXXX) | >99% P&R | P=1.0000 R=1.0000 (shape-only, by decision) |
 | IP Address | `IP_ADDRESS` | Regex (IPv4); IPv6 candidates validated by `netip` | >99% P&R | P=1.0000 R=1.0000 (version string suppressed) |
@@ -416,10 +416,55 @@ not move: they do not contain the French pair format (checked), so the combined
 table above still shows gretel PHONE 0.2857 / 0.8580 and nemotron 0.5679 / 0.9982.
 The per-language figures are the measurement of the new formats.
 
+**Germany and Netherlands phone formats (2026-10-27).** The France/Sweden
+branches above only recognised their own layouts, so Germany's
+`0221-123456` / `029-85 10 71` / `0800 123 4567` and the Netherlands'
+`06-12345678` / `088 45 41 25` were partly or wholly missed. Changes in
+`recognizers/regex/regex.go`:
+
+- Germany: a geographic branch `0[2-9]` + one-to-four area digits + a separated
+  subscriber (area codes are 2-5 digits starting 2-9, per Wikipedia "Telephone
+  numbers in Germany"), and a mobile branch `01[5-7]…` (mobile codes start 15,
+  16 and 17).
+- Netherlands: geographic `0` + two-or-three-digit area + six-or-seven
+  subscriber, fixed at exactly ten digits; mobile `06` + eight digits; and the
+  `0800/088/085/084/087/0900/0906/0909` service prefixes (Wikipedia "Telephone
+  numbers in the Netherlands").
+- A `+NN(0)…` branch with no space (`+31(0)83-3795934`), because the generic
+  `+` branch required a separator after the country code.
+- `Recognize` rejects any zero-leading match with fewer than nine digits, with
+  an eight-digit exception for a service prefix. That is what drops a decimal
+  (`083.33`), an apartment number (`045/4051`), a document id (`0204-1717`) and
+  an IBAN tail; German subscriber digits also never start with 0, which keeps a
+  `0532 0130 00` tail out. It also rejects a match that is the tail of a
+  card-shaped run (`4532 0698 7456 2387` does not contain a phone), counting
+  digits backwards across spaces/dots/hyphens only. The floor is a documented
+  trade-off: grandfathered German numbers can be seven digits and a four-digit
+  toll-free subscriber (`0800-0543`) is eight, so the eight-digit service
+  exception keeps it.
+
+Measured on gretel's per-language splits (same scorer and schema; "before" is
+the France/Sweden commit):
+
+| Split | PHONE R before | PHONE R after | PHONE P before → after |
+|-------|----------------|---------------|------------------------|
+| German | 0.5510 | **0.7347** | 0.1888 → 0.2222 |
+| Dutch | 0.4091 | **0.9091** | 0.1500 → 0.2740 |
+
+English, Italian and Spanish precision also improved because the nine-digit
+floor removes short fragments (English fp 1033 → 968, Italian 132 → 115,
+Spanish 150 → 141) while English recall rose from 0.8625 to 0.8979. France and
+Sweden are unchanged within a case. The seed gate is unchanged (P=1.0000
+R=0.9974, 200/200 negatives). On the combined 2000-row samples gretel `PHONE`
+moves from 0.2857 / 0.8580 to 0.2931 / 0.8920, while nemotron is unchanged at
+0.5679 / 0.9982: the length and card-run guards remove the bank-routing,
+account and customer IDs the new branches would otherwise have picked up, so
+the pinned benchmark baseline still passes exactly.
+
 Remaining non-English phone gaps are deliberate follow-ups, not silent misses:
-Sweden's rarer groupings (`095-02 69 41`, `08-11 123 456`), Germany and the
-Netherlands each need their own source-backed branch, and France's bare
-`[+33] …` bracket form is still unmatched. See TODO.md "multi-language".
+Sweden's rarer groupings (`095-02 69 41`, `08-11 123 456`), the E.164
+no-separator form (`+491234567890`) that the generic `+` branch still misses,
+and France's bare `[+33] …` bracket form. See TODO.md "multi-language".
 
 **Unlabelled spans, reported separately.** A detection that lands on a span the
 corpus labels with a name outside our type map is not counted as wrong in the

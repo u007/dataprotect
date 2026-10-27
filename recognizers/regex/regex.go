@@ -114,28 +114,117 @@ type PhoneRecognizer struct {
 //     a bare run is still decided by the existing bare-US branch alone. That
 //     separation requirement is deliberate, because bare 10-digit runs are the
 //     corpus's dominant phone false positive.
+//   - Two more national groups (2026-10-27) for Germany and the Netherlands.
+//     Their trunks also start with 0, but their area-code and subscriber
+//     lengths differ from France/Sweden and are taken from the numbering plans:
+//     Germany (Wikipedia "Telephone numbers in Germany") has an open plan with
+//     geographic area codes of 2-5 digits starting 2-9, mobile codes starting
+//     15, 16 and 17, and a total of 10-11 digits; the Netherlands (Wikipedia
+//     "Telephone numbers in the Netherlands") has two- or three-digit area
+//     codes with 7 or 6 subscriber digits (9 digits total), mobile 06 plus 8
+//     digits, and the 0800/088/085/084/087/0900/0906/0909 service prefixes.
+//     German subscriber digits never start with 0 (the plan says so), and that
+//     guard is also what stops an IBAN tail such as `0532 0130 00` from
+//     reading as a number. The Netherlands' geographic branch fixes the total
+//     at exactly ten digits (two-digit area plus seven subscriber, or
+//     three-digit area plus six), which is the plan's arithmetic and keeps
+//     bare nine-digit routing numbers out. Recognize additionally rejects any
+//     zero-leading match with fewer than nine digits (eight only for a service
+//     prefix), which drops decimals, apartment numbers, document ids and other
+//     short fragments. The plain `030-1234567` / `020-1234567` forms
+//     already resolved through the bare-US branch; what these add is the
+//     4-5-digit-area and multi-group forms (`0221-123456`, `029-85 10 71`,
+//     `06-12345678`).
+//   - A "+NN(0)" branch with no space (e.g. "+31(0)83-3795934"). The generic
+//     "+" branch required a separator after the country code, so the common
+//     German/Dutch "+49(0)30..." / "+31(0)20..." spelling missed. It is a
+//     separate alternative rather than an optional separator on the generic
+//     branch, so a bare "+1234" cannot become a phone just because the
+//     country-code boundary is ambiguous.
 func NewPhoneRecognizer() *PhoneRecognizer {
 	// Parenthesised (optional "1") | international "+" | bare US, in that order
 	// so the more specific paren branch wins a leftmost match such as
 	// "+1 (555) 867-5309".
 	return &PhoneRecognizer{
-		pattern: regexp.MustCompile(`(?:(?:\+1[\s.\-]?|\b1[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}|\(\+\d{1,3}\)[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\+\d{1,3}[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}(?:[\s.\-]\d{2}){0,3}|\b001[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}|\b0[1-9](?:[\s.\-]\d{2}){4}|\b0\d{2}[\s.\-]\d{3}[\s.\-]\d{2}[\s.\-]\d{2})(?:\s*[xX]\.?\s*\d{1,6})?\b`),
+		pattern: regexp.MustCompile(`(?:(?:\+1[\s.\-]?|\b1[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}|\(\+\d{1,3}\)[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\+\d{1,3}[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}(?:[\s.\-]\d{2}){0,3}|\+\d{1,3}\(\d{1,4}\)[ .\-]?\d{1,4}[ .\-]?\d{1,9}(?:[ .\-]\d{2}){0,3}|\b001[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}|\b0[1-9](?:[\s.\-]\d{2}){4}|\b0\d{2}[\s.\-]\d{3}[\s.\-]\d{2}[\s.\-]\d{2}|\b0[2-9]\d(?:[ .\-/][1-9]\d{0,7})(?:[ .\-]\d{2,4}){0,3}|\b0[2-9]\d{2,4}(?:[ .\-/][1-9]\d{0,8})(?:[ .\-]\d{2,4}){0,3}|\b01[5-7]\d{0,1}[ .\-/]?\d{7,8}|\b06[ .\-]?\d{8}|\b0[1-9]\d[ .\-]?\d{7}|\b0[1-9]\d{2}[ .\-]?\d{6}|\b0(?:800|88|85|84|87|900|906|909)(?:[ .\-]\d{2,4})(?:[ .\-]?\d{2,4}){0,3})(?:\s*[xX]\.?\s*\d{1,6})?\b`),
 	}
 }
 
 // Name returns the recognizer name.
 func (r *PhoneRecognizer) Name() string { return "regex_phone" }
 
+// countDigits returns the number of ASCII digits in s.
+func countDigits(s string) int {
+	n := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] >= '0' && s[i] <= '9' {
+			n++
+		}
+	}
+	return n
+}
+
+// isServicePrefix reports whether s starts with a Dutch service/freephone
+// prefix, which is the only kind of national number allowed to be eight digits
+// (e.g. 0800-0543).
+func isServicePrefix(s string) bool {
+	for _, p := range []string{"0800", "0900", "0906", "0909", "088", "084", "085", "087", "082"} {
+		if len(s) >= len(p) && s[:len(p)] == p {
+			return true
+		}
+	}
+	return false
+}
+
+// digitRunBefore counts the digits immediately before s[i], crossing only
+// spaces, dots and hyphens. A slash or newline stops the count, so a SWIFT
+// field such as `1234567890/+31...` is not treated as one long run.
+func digitRunBefore(s string, i int) int {
+	n := 0
+	for i > 0 {
+		c := s[i-1]
+		switch {
+		case c >= '0' && c <= '9':
+			n++
+			i--
+		case c == ' ' || c == '.' || c == '-':
+			i--
+		default:
+			return n
+		}
+	}
+	return n
+}
+
 // Recognize detects phone numbers in text.
 func (r *PhoneRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	matches := r.pattern.FindAllStringIndex(text, -1)
 	entities := make([]recognizers.Entity, 0, len(matches))
 	for _, m := range matches {
+		span := text[m[0]:m[1]]
+		if span[0] == '0' {
+			d := countDigits(span)
+			// A national (trunk-0) number is at least nine digits, except a
+			// short service number such as 0800-0543. Shorter matches are
+			// fragments: a decimal (`083.33`), an apartment number
+			// (`045/4051`), a document id (`0204-1717`) or an IBAN tail.
+			if d < 9 && !(d == 8 && isServicePrefix(span)) {
+				continue
+			}
+			// Do not call the tail of a card-shaped run a phone: in
+			// "4532 0698 7456 2387" the `0698 7456 2387` suffix is 12 digits
+			// and would otherwise match the German branch. Count the digits
+			// before the match across space/dot/hyphen only; a slash (a SWIFT
+			// field) or a newline stops the run.
+			if d+digitRunBefore(text, m[0]) >= 13 {
+				continue
+			}
+		}
 		entities = append(entities, recognizers.Entity{
 			Type:       recognizers.EntityPhone,
 			Start:      m[0],
 			End:        m[1],
-			Text:       text[m[0]:m[1]],
+			Text:       span,
 			Confidence: 0.98,
 		})
 	}
