@@ -497,6 +497,21 @@ alphanumeric run into an IBAN and destroy precision, so no detector change is
 made. This is a label-quality finding of the same kind as the gretel EMAIL
 decomposition.
 
+**German/Italian `ssn` labels are mostly not SSNs (2026-10-27).** Per-language
+`SSN` recall is 0.1111 for German and 0.0909 for Italian, and the only detected
+span in each split is the US-shaped one (`232-00-8506`, `679-64-2779`). The
+other labels are a noisy mix: a policy number (`203011038720206` under
+`Policy-Nummer`), an account ID (`790245863` under `<AcctID>`), a
+customer-service number (`167050319015427`), EDIFACT references
+(`197127654052091` under `RFF+ON`), UK-NINO-shaped test strings (`ZZ 568141 T`,
+whose `ZZ` prefix is reserved), and synthetic 15-digit runs. Relaxing the SSN
+rule to accept bare nine-digit runs was already rejected on 2026-10-19 because
+it produced the same class of false positives. One real finding survives the
+noise: four `YYMMDD-XXXX` values (`000418-9759`, `450317-5152`, `900711-0902`,
+`550714-1074`) are Luhn-valid Swedish personnummer, not German or Italian IDs. A
+Nordic-ID recognizer is a separate, legitimate feature, but it is not a fix for
+German/Italian `ssn` coverage. No detector change is made.
+
 **Unlabelled spans, reported separately.** A detection that lands on a span the
 corpus labels with a name outside our type map is not counted as wrong in the
 headline. It is set aside into a bucket, and the report shows the precision with

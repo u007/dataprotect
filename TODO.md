@@ -156,8 +156,14 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
     checksum-invalid synthetic labels: 6 of 19 German and 8 of 17 Italian gold
     spans pass mod-97, and every one of those is detected. Relaxing mod-97
     would destroy precision. See SPEC.md.
-  - [ ] **National-ID gap behind `ssn`** (German R 0.111, Italian 0.091) — the
-    `national/` package's job, not a language fix.
+  - [x] **National-ID gap behind `ssn`.** Investigated 2026-10-27; no detector
+    change. German/Italian `ssn` recall (0.111/0.091) is label-quality: the
+    only detected value in each split is the US-shaped SSN; the rest are
+    policy/account/customer-service numbers, EDIFACT references, `ZZ…T` test
+    strings and synthetic 15-digit runs. The four Luhn-valid `YYMMDD-XXXX`
+    values are Swedish personnummer, a separate Nordic-ID recognizer rather
+    than an `ssn` fix. Bare nine-digit SSN matching was already rejected for
+    precision. See SPEC.md.
   - [ ] **Localise the English-only word lists.** `internal/context/context.go`
     (opt-in boost) and the card keyword gate in `recognizers/checksum`. Add a
     language parameter; do NOT append translations to the global lists, which
