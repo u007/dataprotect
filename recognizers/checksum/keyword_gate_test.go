@@ -154,3 +154,38 @@ func TestLuhnKeywordGateDoesNotDuplicateALuhnCard(t *testing.T) {
 		t.Errorf("confidence = %v, want the Luhn 0.99", entities[0].Confidence)
 	}
 }
+
+// TestLuhnKeywordGatedCardLanguages verifies the opt-in language sets: a
+// local-language label gates a Luhn-failing card only when the language was
+// requested, and English remains the default.
+func TestLuhnKeywordGatedCardLanguages(t *testing.T) {
+	const num = "4111 1111 1111 1112"
+
+	tests := []struct {
+		name string
+		lang []Language
+		text string
+		want bool
+	}{
+		{"english default does not gate french", nil, "carte de crédit : " + num, false},
+		{"french requested gates", []Language{LanguageFR}, "carte de crédit : " + num, true},
+		{"italian requested gates", []Language{LanguageIT}, "carta di credito: " + num, true},
+		{"spanish requested gates", []Language{LanguageES}, "Número de Tarjeta: " + num, true},
+		{"german requested gates", []Language{LanguageDE}, "Kreditkarte: " + num, true},
+		{"dutch requested gates", []Language{LanguageNL}, "Creditcardnummer: " + num, true},
+		{"english still gates", []Language{LanguageFR}, "credit card " + num, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := NewLuhnValidatorWithLanguages(tt.lang...)
+			entities, err := v.Recognize(context.Background(), tt.text)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got := len(entities) == 1; got != tt.want {
+				t.Fatalf("got %d entities (want gated=%v): %+v", len(entities), tt.want, entities)
+			}
+		})
+	}
+}

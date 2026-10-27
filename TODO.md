@@ -164,12 +164,17 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
     values are Swedish personnummer, a separate Nordic-ID recognizer rather
     than an `ssn` fix. Bare nine-digit SSN matching was already rejected for
     precision. See SPEC.md.
-  - [ ] **Localise the English-only word lists.** `internal/context/context.go`
-    (opt-in boost) and the card keyword gate in `recognizers/checksum`. Add a
-    language parameter; do NOT append translations to the global lists, which
-    would boost on e.g. Spanish "tarjeta" inside English text.
-  - [ ] **Separate track: multilingual NLP model** (PERSON/ORGANIZATION/LOCATION).
-    It dominates overall recall but is a model swap, not a recognizer change.
+  - [x] **Card-label and context word lists are language-selectable.** Done
+    2026-10-27. `checksum.NewLuhnValidatorWithLanguages` /
+    `piiscrub.WithCardLanguages` add de/nl/fr/it/es card-label phrases to the
+    English default; measured CREDIT_CARD R Dutch 0.615→0.769, French
+    0.429→0.643, Italian 0.133→0.333, German/Spanish unchanged.
+    `analyzer.WithContextBoostLanguage` does the same for the opt-in boost
+    (still off by default). The default pipeline, seed gate and pinned
+    benchmarks are unchanged.
+  - [ ] **Multilingual NLP model.** Separate track: needs a downloadable
+    multilingual NER model/ONNX artifact plus sidecar wiring; bash downloads are
+    blocked here, so it is deferred rather than attempted.
 - [ ] Benchmark suite (OpenNER, Financial PII, Kaggle PII, CoNLL, ai4privacy, PII-Bench, SecretBench)
 
 ## Known gaps in the current MVP

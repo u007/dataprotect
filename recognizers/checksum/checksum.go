@@ -12,11 +12,42 @@ import (
 )
 
 // LuhnValidator validates credit card numbers using the Luhn algorithm.
-type LuhnValidator struct{}
+type LuhnValidator struct {
+	phrases []string
+}
 
-// NewLuhnValidator creates a new Luhn validator.
+// NewLuhnValidator creates a Luhn validator with the English card-label set.
 func NewLuhnValidator() *LuhnValidator {
-	return &LuhnValidator{}
+	return &LuhnValidator{phrases: cardLabelPhrases}
+}
+
+// NewLuhnValidatorWithLanguages creates a Luhn validator whose keyword gate
+// also accepts card-label phrases in the given languages. English is always
+// included; unknown languages are ignored.
+func NewLuhnValidatorWithLanguages(langs ...Language) *LuhnValidator {
+	v := &LuhnValidator{}
+	v.SetLanguages(langs...)
+	return v
+}
+
+// SetLanguages rebuilds the gate's keyword set as English plus the given
+// languages. It is intended to be called before the validator is used.
+func (v *LuhnValidator) SetLanguages(langs ...Language) {
+	seen := make(map[string]bool, len(cardLabelPhrases))
+	phrases := make([]string, 0, len(cardLabelPhrases))
+	add := func(list []string) {
+		for _, p := range list {
+			if !seen[p] {
+				seen[p] = true
+				phrases = append(phrases, p)
+			}
+		}
+	}
+	add(cardLabelPhrasesByLanguage[LanguageEN])
+	for _, l := range langs {
+		add(cardLabelPhrasesByLanguage[l])
+	}
+	v.phrases = phrases
 }
 
 // Name returns the validator name.
@@ -119,19 +150,53 @@ func validCardPrefix(number string) bool {
 // card window, in bytes either side.
 const cardLabelWindow = 40
 
-// cardLabelPhrases are the label-style forms that gate a Luhn-failing window.
-// Bare "card" is deliberately absent: it appears in prose next to numbers that
-// are not cards ("A mistyped ... is not a card"), and gating on it turned seed
-// negatives into false positives. "card:" is handled separately because the
-// colon is part of the label rather than a word boundary.
-var cardLabelPhrases = []string{
-	"card number",
-	"card no",
-	"credit card",
-	"debit card",
-	"cvv",
-	"cvc",
+// Language selects a card-label keyword set for the Luhn-failing fallback.
+type Language string
+
+const (
+	LanguageEN Language = "en"
+	LanguageDE Language = "de"
+	LanguageNL Language = "nl"
+	LanguageFR Language = "fr"
+	LanguageIT Language = "it"
+	LanguageES Language = "es"
+)
+
+// cardLabelPhrasesByLanguage holds the label-style forms that gate a
+// Luhn-failing window. Bare "card" is deliberately absent in every language:
+// it appears in prose next to numbers that are not cards ("A mistyped ... is
+// not a card"), and gating on it turned seed negatives into false positives.
+// English is the default and is always included; the others are opt-in through
+// NewLuhnValidatorWithLanguages or SetLanguages, so a Spanish "tarjeta" in
+// English text cannot gate a number unless Spanish was requested.
+var cardLabelPhrasesByLanguage = map[Language][]string{
+	LanguageEN: {
+		"card number", "card no", "credit card", "debit card", "cvv", "cvc",
+	},
+	LanguageDE: {
+		"kartennummer", "kreditkarte", "kreditkartennummer", "debitkarte",
+		"kartenprüfnummer", "kartenpruefnummer", "cvv", "cvc",
+	},
+	LanguageNL: {
+		"kaartnummer", "creditcardnummer", "creditcard", "debitcard",
+		"betaalkaart", "pincode", "cvv", "cvc",
+	},
+	LanguageFR: {
+		"numéro de carte", "numero de carte", "carte de crédit",
+		"carte de credit", "carte bancaire", "cvv", "cvc",
+	},
+	LanguageIT: {
+		"numero di carta", "numero carta", "carta di credito",
+		"carta di debito", "cvv", "cvc",
+	},
+	LanguageES: {
+		"número de tarjeta", "numero de tarjeta", "tarjeta de crédito",
+		"tarjeta de credito", "tarjeta de débito", "cvv", "cvc",
+	},
 }
+
+// cardLabelPhrases is the default (English) set.
+var cardLabelPhrases = cardLabelPhrasesByLanguage[LanguageEN]
 
 // cardNetworkNames gate a window when followed by a separator ("Visa: 4111").
 var cardNetworkNames = []string{
@@ -188,7 +253,7 @@ func networkBeforeSeparator(s, name string) bool {
 // hasCardLabelKeyword reports whether a label-style card keyword sits within
 // cardLabelWindow bytes of [start, end). Bare "card" is not enough; see
 // cardLabelPhrases.
-func hasCardLabelKeyword(text string, start, end int) bool {
+func (v *LuhnValidator) hasCardLabelKeyword(text string, start, end int) bool {
 	beforeLo := start - cardLabelWindow
 	if beforeLo < 0 {
 		beforeLo = 0
@@ -204,7 +269,7 @@ func hasCardLabelKeyword(text string, start, end int) bool {
 	// covers it). A label cannot sit inside the digits themselves.
 	window := strings.ToLower(text[beforeLo:start] + " " + text[end:afterHi])
 
-	for _, phrase := range cardLabelPhrases {
+	for _, phrase := range v.phrases {
 		if containsToken(window, phrase) {
 			return true
 		}
@@ -343,7 +408,7 @@ func (v *LuhnValidator) cardSpans(text string, c cardCandidate, ibans []recogniz
 			if !windowBoundedBySeparator(c.text, groups[a:b+1]) {
 				continue
 			}
-			if hasCardLabelKeyword(text, c.start+groups[a].start, c.start+groups[b].end) {
+			if v.hasCardLabelKeyword(text, c.start+groups[a].start, c.start+groups[b].end) {
 				gated = append(gated, cardWindow{a, b})
 			}
 		}

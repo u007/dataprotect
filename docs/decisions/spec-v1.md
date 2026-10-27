@@ -512,6 +512,27 @@ noise: four `YYMMDD-XXXX` values (`000418-9759`, `450317-5152`, `900711-0902`,
 Nordic-ID recognizer is a separate, legitimate feature, but it is not a fix for
 German/Italian `ssn` coverage. No detector change is made.
 
+**Card-label and context word lists are language-selectable (2026-10-27).**
+Both lists were English-only. The Luhn-failing fallback in
+`recognizers/checksum` now accepts card-label phrases per language:
+`NewLuhnValidatorWithLanguages(...)` and `piiscrub.WithCardLanguages(...)` add
+de/nl/fr/it/es to the default English set. The gate still fires only for a
+Luhn-failing window with a card prefix and a standard layout, and English is the
+default, so a Spanish "tarjeta" in English text cannot gate a number unless
+Spanish was requested. `analyzer.WithContextBoostLanguage(lang)` does the same
+for the opt-in context boost; a language that does not list a type falls back to
+the English words for that type. The boost stays off by default.
+
+Measured on the matching split, default → with that language:
+- Dutch `CREDIT_CARD` R 0.6154 → 0.7692, P 0.6154 → 0.6667 (tp 8 → 10)
+- French R 0.4286 → 0.6429, P 0.6000 → 0.6923 (tp 6 → 9)
+- Italian R 0.1333 → 0.3333, P 0.2500 → 0.4545 (tp 2 → 5)
+- German and Spanish unchanged (valid cards, a non-card label, or an invalid
+  network prefix)
+
+The default pipeline is unchanged, so the seed and the pinned nemotron/gretel
+gates are unaffected. A multilingual NLP model remains a separate track.
+
 **Unlabelled spans, reported separately.** A detection that lands on a span the
 corpus labels with a name outside our type map is not counted as wrong in the
 headline. It is set aside into a bucket, and the report shows the precision with

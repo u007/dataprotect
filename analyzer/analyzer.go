@@ -12,9 +12,10 @@ import (
 
 // Analyzer orchestrates multiple recognizers to detect PII in text.
 type Analyzer struct {
-	recognizers   []recognizers.Recognizer
-	minConfidence float64
-	contextBoost  bool
+	recognizers      []recognizers.Recognizer
+	minConfidence    float64
+	contextBoost     bool
+	contextBoostLang string
 }
 
 // Option configures an Analyzer.
@@ -52,6 +53,18 @@ func (a *Analyzer) SetMinConfidence(confidence float64) {
 func WithContextBoost() Option {
 	return func(a *Analyzer) {
 		a.contextBoost = true
+	}
+}
+
+// WithContextBoostLanguage enables context boosting with the keyword set for
+// lang ("de", "nl", "fr", "it", "es"). English is the default and the
+// fallback; a language without a set behaves like WithContextBoost. It is off
+// by default for the same reason as WithContextBoost, and a local-language
+// keyword cannot boost an English entity unless that language is requested.
+func WithContextBoostLanguage(lang string) Option {
+	return func(a *Analyzer) {
+		a.contextBoost = true
+		a.contextBoostLang = lang
 	}
 }
 
@@ -118,7 +131,7 @@ func (a *Analyzer) Analyze(ctx context.Context, text string) ([]recognizers.Enti
 	quantiseEntities(allEntities)
 
 	if a.contextBoost {
-		allEntities = applyContextBoost(text, allEntities, a.minConfidence)
+		allEntities = applyContextBoost(text, allEntities, a.minConfidence, a.contextBoostLang)
 	}
 
 	// Filter by confidence
@@ -189,24 +202,27 @@ func quantiseEntities(entities []recognizers.Entity) {
 // would then keep the inner span, leaving the URL's path and query visible. A URL
 // below minConfidence is dropped by the filter anyway, so it protects nothing and
 // the spans it overlaps are boosted as usual.
-func applyContextBoost(text string, entities []recognizers.Entity, minConfidence float64) []recognizers.Entity {
+func applyContextBoost(text string, entities []recognizers.Entity, minConfidence float64, lang string) []recognizers.Entity {
 	for i := range entities {
 		if entities[i].Type == recognizers.EntityURL {
-			boostEntity(text, &entities[i])
+			boostEntity(text, &entities[i], lang)
 		}
 	}
 	for i := range entities {
 		if entities[i].Type == recognizers.EntityURL || overlapsSurvivingURL(entities[i], entities, minConfidence) {
 			continue
 		}
-		boostEntity(text, &entities[i])
+		boostEntity(text, &entities[i], lang)
 	}
 	return entities
 }
 
 // boostEntity adds the context boost for e's type, if any, to its confidence.
-func boostEntity(text string, e *recognizers.Entity) {
+func boostEntity(text string, e *recognizers.Entity, lang string) {
 	boost := ctxconf.BoostConfidence(text, e.Type, e.Start, e.End)
+	if lang != "" {
+		boost = ctxconf.BoostConfidenceForLanguage(text, e.Type, e.Start, e.End, lang)
+	}
 	if boost == 0 {
 		return
 	}

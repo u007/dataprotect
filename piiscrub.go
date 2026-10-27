@@ -16,8 +16,9 @@ import (
 
 // Scrubber provides a high-level API for PII detection and anonymization.
 type Scrubber struct {
-	analyzer   *analyzer.Analyzer
-	anonymizer *anonymizer.Anonymizer
+	analyzer      *analyzer.Analyzer
+	anonymizer    *anonymizer.Anonymizer
+	cardValidator *checksum.LuhnValidator
 }
 
 // ScrubberOption configures a Scrubber at construction time.
@@ -61,6 +62,18 @@ func WithOperator(entityType recognizers.EntityType, op operators.Operator) Scru
 // SetOperator overrides the anonymization operator for one entity type.
 func (s *Scrubber) SetOperator(entityType recognizers.EntityType, op operators.Operator) {
 	s.anonymizer.SetOperator(entityType, op)
+}
+
+// WithCardLanguages adds card-label keyword sets for the given languages to
+// the default English set. The Luhn-failing fallback is otherwise English-only;
+// pass the languages a deployment expects so a card named by "carte de crédit"
+// or "carta di credito" is still gated when its check digit is wrong.
+func WithCardLanguages(langs ...checksum.Language) ScrubberOption {
+	return func(s *Scrubber) {
+		if s.cardValidator != nil {
+			s.cardValidator.SetLanguages(langs...)
+		}
+	}
 }
 
 // NewScrubber creates a new scrubber with default recognizers and operators.
@@ -116,7 +129,8 @@ func newScrubber(opts ...analyzer.Option) *Scrubber {
 	a.AddRecognizer(regex.NewIPRecognizer())
 	a.AddRecognizer(regex.NewURLRecognizer())
 	a.AddRecognizer(regex.NewBitcoinRecognizer())
-	a.AddRecognizer(checksum.NewLuhnValidator())
+	cardValidator := checksum.NewLuhnValidator()
+	a.AddRecognizer(cardValidator)
 	a.AddRecognizer(checksum.NewIBANValidator())
 	a.AddRecognizer(national.NewSGNRICRecognizer())
 	a.AddRecognizer(national.NewMYICRecognizer())
@@ -149,8 +163,9 @@ func newScrubber(opts ...analyzer.Option) *Scrubber {
 	an.SetOperator(recognizers.EntitySecret, operators.NewRedactOperator())
 
 	return &Scrubber{
-		analyzer:   a,
-		anonymizer: an,
+		analyzer:      a,
+		anonymizer:    an,
+		cardValidator: cardValidator,
 	}
 }
 

@@ -1,6 +1,7 @@
 package context
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/u007/dataprotect/recognizers"
@@ -84,5 +85,48 @@ func TestBoostConfidenceClampsToTextBounds(t *testing.T) {
 	got := BoostConfidence("short", recognizers.EntityEmail, -100, 1000)
 	if got < 0 || got > 0.3 {
 		t.Errorf("boost %f out of range", got)
+	}
+}
+
+// TestBoostConfidenceForLanguage verifies the opt-in language sets. The English
+// default must not fire on a German or French label, and an unknown language
+// falls back to the English words.
+func TestBoostConfidenceForLanguage(t *testing.T) {
+	tests := []struct {
+		name   string
+		text   string
+		value  string
+		entity recognizers.EntityType
+		lang   string // "" means the default BoostConfidence
+		want   bool   // whether the boost is positive
+	}{
+		// "Mobil" is chosen over "Telefon" because the English set's "tel"
+		// is a substring of "Telefon"; the point is a word English misses.
+		{"german phone boosts", "Mobil: 555-123-4567", "555-123-4567", recognizers.EntityPhone, "de", true},
+		{"english default ignores german", "Mobil: 555-123-4567", "555-123-4567", recognizers.EntityPhone, "", false},
+		{"french card boosts", "carte de crédit : 4111 1111 1111 1111", "4111 1111 1111 1111", recognizers.EntityCreditCard, "fr", true},
+		{"italian card boosts", "carta di credito: 4111 1111 1111 1111", "4111 1111 1111 1111", recognizers.EntityCreditCard, "it", true},
+		{"dutch phone boosts", "telefoon: 555-123-4567", "555-123-4567", recognizers.EntityPhone, "nl", true},
+		{"spanish card boosts", "Número de Tarjeta: 4111 1111 1111 1111", "4111 1111 1111 1111", recognizers.EntityCreditCard, "es", true},
+		{"unknown language falls back to english", "email: a@b.com", "a@b.com", recognizers.EntityEmail, "xx", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			start := strings.Index(tt.text, tt.value)
+			if start < 0 {
+				t.Fatalf("value %q not found", tt.value)
+			}
+			end := start + len(tt.value)
+			var got float64
+			if tt.lang == "" {
+				got = BoostConfidence(tt.text, tt.entity, start, end)
+			} else {
+				got = BoostConfidenceForLanguage(tt.text, tt.entity, start, end, tt.lang)
+			}
+			if (got > 0) != tt.want {
+				t.Fatalf("boost = %v, want positive=%v", got, tt.want)
+			}
+		})
 	}
 }
