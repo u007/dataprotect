@@ -141,12 +141,20 @@ type PhoneRecognizer struct {
 //     separate alternative rather than an optional separator on the generic
 //     branch, so a bare "+1234" cannot become a phone just because the
 //     country-code boundary is ambiguous.
+//   - A bare E.164 branch, "+" plus 7-15 digits with no separators
+//     ("+491234567890"). E.164 is defined without separators and the generic
+//     "+" branches required one after the country code, so every canonical
+//     form missed. The length bound is E.164's 15-digit maximum and the first
+//     digit is 1-9 because country codes never start with 0. Recognize rejects
+//     a "+" preceded by a digit, letter, underscore or another "+", so
+//     arithmetic ("1+23456789"), C++1234567 and an email tag
+//     (user+tag@example.com) stay non-phones.
 func NewPhoneRecognizer() *PhoneRecognizer {
 	// Parenthesised (optional "1") | international "+" | bare US, in that order
 	// so the more specific paren branch wins a leftmost match such as
 	// "+1 (555) 867-5309".
 	return &PhoneRecognizer{
-		pattern: regexp.MustCompile(`(?:(?:\+1[\s.\-]?|\b1[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}|\(\+\d{1,3}\)[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\+\d{1,3}[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}(?:[\s.\-]\d{2}){0,3}|\+\d{1,3}\(\d{1,4}\)[ .\-]?\d{1,4}[ .\-]?\d{1,9}(?:[ .\-]\d{2}){0,3}|\b001[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}|\b0[1-9](?:[\s.\-]\d{2}){4}|\b0\d{2}[\s.\-]\d{3}[\s.\-]\d{2}[\s.\-]\d{2}|\b0[2-9]\d(?:[ .\-/][1-9]\d{0,7})(?:[ .\-]\d{2,4}){0,3}|\b0[2-9]\d{2,4}(?:[ .\-/][1-9]\d{0,8})(?:[ .\-]\d{2,4}){0,3}|\b01[5-7]\d{0,1}[ .\-/]?\d{7,8}|\b06[ .\-]?\d{8}|\b0[1-9]\d[ .\-]?\d{7}|\b0[1-9]\d{2}[ .\-]?\d{6}|\b0(?:800|88|85|84|87|900|906|909)(?:[ .\-]\d{2,4})(?:[ .\-]?\d{2,4}){0,3})(?:\s*[xX]\.?\s*\d{1,6})?\b`),
+		pattern: regexp.MustCompile(`(?:(?:\+1[\s.\-]?|\b1[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}|\(\+\d{1,3}\)[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\+\d{1,3}[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}(?:[\s.\-]\d{2}){0,3}|\+\d{1,3}\(\d{1,4}\)[ .\-]?\d{1,4}[ .\-]?\d{1,9}(?:[ .\-]\d{2}){0,3}|\+[1-9]\d{6,14}|\b001[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}|\b0[1-9](?:[\s.\-]\d{2}){4}|\b0\d{2}[\s.\-]\d{3}[\s.\-]\d{2}[\s.\-]\d{2}|\b0[2-9]\d(?:[ .\-/][1-9]\d{0,7})(?:[ .\-]\d{2,4}){0,3}|\b0[2-9]\d{2,4}(?:[ .\-/][1-9]\d{0,8})(?:[ .\-]\d{2,4}){0,3}|\b01[5-7]\d{0,1}[ .\-/]?\d{7,8}|\b06[ .\-]?\d{8}|\b0[1-9]\d[ .\-]?\d{7}|\b0[1-9]\d{2}[ .\-]?\d{6}|\b0(?:800|88|85|84|87|900|906|909)(?:[ .\-]\d{2,4})(?:[ .\-]?\d{2,4}){0,3})(?:\s*[xX]\.?\s*\d{1,6})?\b`),
 	}
 }
 
@@ -196,12 +204,40 @@ func digitRunBefore(s string, i int) int {
 	return n
 }
 
+// canStartPlus reports whether the byte before s[i] can precede a bare E.164
+// "+". A digit, letter, underscore or another "+" means the plus continues a
+// token (arithmetic, C++, an email tag), not that it opens a phone number.
+func canStartPlus(s string, i int) bool {
+	if i == 0 {
+		return true
+	}
+	c := s[i-1]
+	switch {
+	case c >= '0' && c <= '9':
+		return false
+	case c >= 'a' && c <= 'z':
+		return false
+	case c >= 'A' && c <= 'Z':
+		return false
+	case c == '_' || c == '+':
+		return false
+	}
+	return true
+}
+
 // Recognize detects phone numbers in text.
 func (r *PhoneRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	matches := r.pattern.FindAllStringIndex(text, -1)
 	entities := make([]recognizers.Entity, 0, len(matches))
 	for _, m := range matches {
 		span := text[m[0]:m[1]]
+		// An E.164 number may be written without separators (+491234567890).
+		// The branch matches a bare "+" followed by 7-15 digits, so reject a
+		// "+" that continues a token: arithmetic (1+23456789), C++1234567 or
+		// an email tag (user+tag@example.com) is not a phone.
+		if span[0] == '+' && !canStartPlus(text, m[0]) {
+			continue
+		}
 		if span[0] == '0' {
 			d := countDigits(span)
 			// A national (trunk-0) number is at least nine digits, except a

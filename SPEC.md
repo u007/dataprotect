@@ -260,7 +260,7 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 | Recognizer | Entity Type | Method | Target | Measured (553-case seed) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
-| Phone | `PHONE` | Regex (US/international/E.164, plus France, Sweden, Germany and Netherlands national formats) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope. France/Sweden and Germany/Netherlands support added 2026-10-27 — see "Non-English phone formats") |
+| Phone | `PHONE` | Regex (US/international/canonical E.164, plus France, Sweden, Germany and Netherlands national formats) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope. France/Sweden and Germany/Netherlands support added 2026-10-27 — see "Non-English phone formats") |
 | Credit Card | `CREDIT_CARD` | Luhn checksum | >99% P&R | P=0.9811 R=0.9811 (tab-separated groups fixed; the `pos-card-then-year` window defect remains) |
 | SSN | `SSN` | Regex (XXX-XX-XXXX) | >99% P&R | P=1.0000 R=1.0000 (shape-only, by decision) |
 | IP Address | `IP_ADDRESS` | Regex (IPv4); IPv6 candidates validated by `netip` | >99% P&R | P=1.0000 R=1.0000 (version string suppressed) |
@@ -445,10 +445,24 @@ moves from 0.2857 / 0.8580 to 0.2931 / 0.8920, while nemotron is unchanged at
 account and customer IDs the new branches would otherwise have picked up, so
 the pinned benchmark baseline still passes exactly.
 
+**Canonical E.164 without separators (2026-10-27).** E.164 is defined with no
+separators (`+491234567890`), but every `+` branch required one after the
+country code, so the canonical form was missed; `+1…` only worked because the
+bare-US branch happened to accept it. A `\+[1-9]\d{6,14}` branch now matches
+7-15 digits (E.164's maximum; country codes never start with 0), and
+`Recognize` rejects a `+` preceded by a digit, letter, underscore or another
+`+`, so `1+23456789`, `C++1234567` and `user+tag@example.com` stay non-phones.
+
+This also raises precision, because the full number now wins instead of a
+truncated sub-span: gretel combined `PHONE` moves from 0.2931 / 0.8920 to
+0.3059 / 0.8951, and the per-language splits gain recall (German 0.7347 →
+0.7755, Italian 0.7778 → 0.7937, Spanish 0.8252 → 0.8350, English 0.8979 →
+0.9000) while their false positives fall. The seed gate is unchanged and
+nemotron stays exactly at 0.5679 / 0.9982.
+
 Remaining non-English phone gaps are deliberate follow-ups, not silent misses:
-Sweden's rarer groupings (`095-02 69 41`, `08-11 123 456`), the E.164
-no-separator form (`+491234567890`) that the generic `+` branch still misses,
-and France's bare `[+33] …` bracket form. See TODO.md "multi-language".
+Sweden's rarer groupings (`095-02 69 41`, `08-11 123 456`) and France's bare
+`[+33] …` bracket form. See TODO.md "multi-language".
 
 **Unlabelled spans, reported separately.** A detection that lands on a span the
 corpus labels with a name outside our type map is not counted as wrong in the

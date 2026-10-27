@@ -118,6 +118,14 @@ func TestPhoneRecognizer(t *testing.T) {
 		{"netherlands geographic", "tel 020-1234567", 1, "020-1234567"},
 		{"netherlands service", "bel 088 45 41 25", 1, "088 45 41 25"},
 		{"netherlands international (0)", "+31(0)83-3795934", 1, "+31(0)83-3795934"},
+		// E.164 canonical form: "+" and 7-15 digits with no separators.
+		{"e164 germany", "+491234567890", 1, "+491234567890"},
+		{"e164 uk mobile", "call +447911123456 now", 1, "+447911123456"},
+		{"e164 us", "+15551234567", 1, "+15551234567"},
+		{"e164 too short", "+123456", 0, ""},
+		{"e164 too long", "+1234567890123456", 0, ""},
+		{"e164 after a word is not a phone", "C++1234567", 0, ""},
+		{"e164 in an email tag is not a phone", "user+1234567@example.com", 0, ""},
 		// A partial French grouping is not a number, and a bare run is not France.
 		{"incomplete france is not a phone", "code 01 23 45 here", 0, ""},
 	}

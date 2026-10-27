@@ -141,10 +141,14 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
     fragments. PHONE recall German 0.551 → 0.735, Dutch 0.409 → 0.909; seed
     gate unchanged; English/Italian/Spanish precision improved from the floor.
     Numbers in SPEC.md "Germany and Netherlands phone formats".
-  - [ ] **Remaining phone follow-ups**, each only with a documented
-    numbering-plan source (the SG M-prefix precedent): Sweden's rarer
-    groupings (`095-02 69 41`, `08-11 123 456`), and the E.164 no-separator
-    form (`+491234567890`) the generic `+` branch still misses.
+  - [x] **Canonical E.164 without separators.** Done 2026-10-27.
+    `\+[1-9]\d{6,14}` (7-15 digits, E.164's maximum) plus a token-boundary
+    guard so arithmetic, C++ and email tags stay non-phones. Precision rose
+    because the full span now wins; gretel combined PHONE 0.2931/0.8920 →
+    0.3059/0.8951.
+  - [ ] **Remaining phone follow-up**, only with a documented numbering-plan
+    source (the SG M-prefix precedent): Sweden's rarer groupings
+    (`095-02 69 41`, `08-11 123 456`).
   - [ ] **IBAN country grouping** (Germany R 0.316, Italy 0.471) and the
     **national-ID gap behind `ssn`** (German R 0.111, Italian 0.091) — the latter
     is the `national/` package's job, not a language fix.
