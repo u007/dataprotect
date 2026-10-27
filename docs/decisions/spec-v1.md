@@ -485,6 +485,18 @@ subscriber; Swedish `PHONE` recall moves 0.8302 → 0.8868 (tp 44 → 47, fp
 unchanged at 227). France's bare `[+33] …` bracket form remains the only
 deliberate non-English phone gap. See TODO.md "multi-language".
 
+**German/Italian IBAN recall is corpus-side (2026-10-27).** Per-language `IBAN`
+recall is 0.3158 for German and 0.4706 for Italian, but the gap is entirely
+synthetic, checksum-invalid labels. Of the 19 German `IBAN` gold spans, 6 pass
+mod-97 and all 6 are detected (tp=6, fp=3, fn=13); of the 17 Italian spans, 8
+pass and all 8 are detected (tp=8, fp=1, fn=9). The remaining values are
+placeholders such as `DE12 3456 7890 1234 5678 90` (check digits `12`),
+`DE88 1` (truncated) and `IT12B0100032456789012`, which can never pass mod-97.
+Relaxing the checksum to recover them would turn any 15-34 character
+alphanumeric run into an IBAN and destroy precision, so no detector change is
+made. This is a label-quality finding of the same kind as the gretel EMAIL
+decomposition.
+
 **Unlabelled spans, reported separately.** A detection that lands on a span the
 corpus labels with a name outside our type map is not counted as wrong in the
 headline. It is set aside into a bucket, and the report shows the precision with

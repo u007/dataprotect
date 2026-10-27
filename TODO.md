@@ -151,9 +151,13 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
     2-2-2 subscriber (`095-02 69 41`). Swedish PHONE recall 0.8302 → 0.8868;
     gates unchanged. France's bare `[+33] …` bracket form is the only
     remaining deliberate phone gap.
-  - [ ] **IBAN country grouping** (Germany R 0.316, Italy 0.471) and the
-    **national-ID gap behind `ssn`** (German R 0.111, Italian 0.091) — the latter
-    is the `national/` package's job, not a language fix.
+  - [x] **IBAN "country grouping".** Investigated 2026-10-27; no detector
+    change. The German/Italian IBAN recall gap (0.316/0.471) is entirely
+    checksum-invalid synthetic labels: 6 of 19 German and 8 of 17 Italian gold
+    spans pass mod-97, and every one of those is detected. Relaxing mod-97
+    would destroy precision. See SPEC.md.
+  - [ ] **National-ID gap behind `ssn`** (German R 0.111, Italian 0.091) — the
+    `national/` package's job, not a language fix.
   - [ ] **Localise the English-only word lists.** `internal/context/context.go`
     (opt-in boost) and the card keyword gate in `recognizers/checksum`. Add a
     language parameter; do NOT append translations to the global lists, which
