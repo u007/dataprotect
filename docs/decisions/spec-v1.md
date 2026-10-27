@@ -458,7 +458,19 @@ explained rather than assumed away:**
   each address twice while the corpus labels one, and in records that carry any
   email label 106 of 647 email-shaped occurrences were labelled `email` at all.
   This is exactly the corpus-quality risk the spec anticipated: a corpus miss
-  appears as our false positive.
+  appears as our false positive. **Decomposed 2026-10-27:** all 383 exact false
+  positives are corpus-side. 283 (73.9%) are the unlabelled second copy of a
+  markdown `[addr](mailto:addr)` rendering; 76 (19.8%) are email-shaped spans
+  the corpus never labels (CSV/JSON fields, prose, staff tables; none is a
+  non-ASCII concatenation artifact); 24 (6.3%) are the bare address matched
+  inside a decorated gold span that includes markdown brackets, emphasis
+  underscores or the `mailto:` prefix. None is a detector false positive, so
+  this number must not be read as detector precision. The 45 exact false
+  negatives tell the same story: 31 are decorated golds whose inner address the
+  recognizer found, and 14 are placeholder labels that are not addresses at all
+  (`[Claims Email]`, `[insert customer support email]`, `[email protected]`). The
+  schema's unlabelled-span upper bound does not capture any of these, because
+  they carry no label at all rather than an out-of-map label.
 - **nemotron URL (P=0.3053 → 0.9900, R=0.2846 → 0.9229)** — all 701 detections
   overlapped a gold URL, but only 214 matched it exactly. Most of the boundary
   disagreements were a trailing `.` (406) or `,` (64), which the pattern kept.
@@ -737,9 +749,35 @@ opt-in and why `NewScrubber()` never reaches for it on its own.
 |------------|---------|---------|
 | [prose](https://github.com/jdkato/prose) | NLP NER, in the `sidecar/` module only (not the root module) | v2.0.0 |
 | [go-face](https://github.com/Kagami/go-face) | Facial recognition (v2+) | v0.0.0-20240518085811-770585e |
-| [fpe](https://github.com/capitalone/fpe) | Format-preserving encryption (v2+) | v1.0.0 |
 
 ---
+
+### go-face model bundling strategy
+
+The [go-face](https://github.com/Kagami/go-face) library binds to dlib (a C++ ML toolkit) and requires two pre-trained model files:
+
+- `shape_predictor_5_face_landmarks.dat` (~22 MB)
+- `dlib_face_recognition_resnet_model_v1.dat` (~97 MB)
+
+**Decision: download on first use.** Model files are NOT bundled with the binary. On the first call that needs face detection, each missing model is downloaded from dlib.net, decompressed from `.bz2`, and stored in the OS user cache directory (`~/.cache/dataprotect/face-models/` on Linux). Subsequent calls reuse the cached files.
+
+Rationale:
+- Bundling ~120 MB of model files would bloat the binary for users who never use face detection.
+- Download-on-first-use keeps the initial download small and only incurs the cost when face detection is actually needed.
+- Models are cached persistently, so repeated use has no download overhead.
+- Download failures are retried (up to 3 times) and do not prevent future attempts.
+
+Implementation: `sidecar/internal/facedetect/` handles model cache management, download-on-first-use with thread-safe deduplication, and a `FaceDetector` interface. A `StubDetector` is provided that returns `ErrDlibUnavailable` until `libdlib-dev` is installed and go-face is imported.
+
+### FPE library evaluation
+
+The [capitalone/fpe](https://github.com/capitalone/fpe) library (FF1/FF3 per NIST SP 800-38G) was evaluated as a potential dependency for format-preserving encryption. The decision is to **keep the custom FF1 implementation** in `operators/fpe.go` for these reasons:
+
+- The root module is standard-library-only; capitalone/fpe is an external (Apache-2.0) dependency.
+- Our implementation supports radix 2–62; capitalone/fpe's ff1 package supports radix 2–36.
+- Our implementation provides both `Encrypt` and `Decrypt`; capitalone/fpe's ff1 package provides `Encrypt`/`EncryptWithTweak` only.
+- Our implementation allows 8–10 Feistel rounds; capitalone/fpe fixes 10 rounds.
+- Our implementation passes all round-trip, determinism, key/tweak sensitivity, and invalid-input tests (`operators/fpe_test.go`).
 
 ## Testing Strategy
 

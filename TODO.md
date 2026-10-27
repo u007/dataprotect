@@ -113,9 +113,9 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
 - [ ] NLP: ONNX backend (Phase E, optional, future) — see plan section 12.
 - [ ] NLP: managed process mode (Phase F, optional, future) — see plan section 12.
 - [x] Secret recognizers (API keys, tokens, passwords, private keys, entropy-based). Fixed: `recognizers/secret/` package with API key, bearer token, private key and password recognizers, registered in `piiscrub.go` with `EntitySecret` type and redact operator. Tests: `recognizers/secret/secret_test.go`.
-- [ ] Format-preserving encryption (FPE) operator
+- [x] Format-preserving encryption (FPE) operator — done, `operators/fpe.go` (commit 15d4db8).
 - [ ] Image PII detection (facial recognition via go-face)
-- [ ] REST API sidecar
+- [x] REST API sidecar — done, `/v1/scrub` and `/v1/pseudonymize` (commit 181aa07).
 - [ ] Multi-language support
 - [ ] Benchmark suite (OpenNER, Financial PII, Kaggle PII, CoNLL, ai4privacy, PII-Bench, SecretBench)
 
@@ -225,7 +225,7 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
 - [x] **Whole-run Luhn pass skips the network-prefix and layout checks (2026-10-19, fixed).** `LuhnValidator.cardSpans` returns the whole candidate when it passes Luhn, before `validCardPrefix` and `cardGrouping` run, so a 13-19 digit run with prefix 0, 1, 7, 8 or 9, or an odd layout, is reported. Evidence: 26 of the 47 corpus CREDIT_CARD FPs (nemotron 8, gretel 18) have no network prefix, and Presidio `test_credit_card_recognizer-0001` (`1748503543012`, gold no entity) is the one Presidio FP. The `validCardPrefix` comment says `1748503543012` is rejected, which is not what happens. The 2026-10-19 Fixed entry above also says that number is pinned by `TestRawLuhnKeepsCardAboveThaiThreshold`; that test uses `1000000000009`, and no test pins `1748503543012`. A fix changes Thai-ID typing (the `pos-th-id-luhn-valid` cases start with 1), so it needs a decision.
 - **Fixed 2026-10-19:** `cardSpans` now requires `validCardPrefix` on the whole-run path too, so a run whose first digit is 0/1/7/8/9 is no longer reported as a card. `1748503543012` is no longer reported; Thai IDs (first digit 1) are now detected by `THIDRecognizer` (0.95) instead of the card path. Tests updated: `TestLuhnRecognizeReportsThaiValidSpanAsCard`, `TestRawLuhnKeepsCardAboveThaiThreshold`, `TestScrubberTypesLuhnValidThaiIDAsTHID`.
 - [ ] **Gretel CREDIT_CARD spans narrower than the digit run (corpus-side, 2026-10-19).** 15 of 57 gretel gold spans end before a digit or separator that the run continues into. No recognizer change.
-- [ ] **Corpus-side label quality depresses measured precision.** gretel EMAIL
+- [x] **Corpus-side label quality depresses measured precision.** gretel EMAIL
       reads P=0.3281, but spot-checking shows the corpus labels the local part
       (`user_name 90..96 = 'lowe73'`) rather than the full address, markdown
       `[addr](mailto:addr)` renders each address twice while only one
@@ -233,6 +233,20 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
       email-bearing records carry no email label at all. A corpus miss looks
       exactly like our false positive. Before any threshold is recorded from
       these numbers, spot-check a sample of FPs by hand (spec §8 risk 4).
+      **Done 2026-10-27:** hand spot-check of the 383 exact EMAIL false
+      positives, reproduced with a scratch scorer that matched the benchmark
+      exactly (tp=187 fp=383 fn=45). All 383 are corpus-side: 283 (73.9%) the
+      unlabelled second copy of a markdown `[addr](mailto:addr)` rendering; 76
+      (19.8%) email-shaped spans with no label at all (CSV/JSON fields, prose,
+      staff tables; 0 non-ASCII concatenation artifacts); 24 (6.3%) the bare
+      address matched inside a decorated gold span (`[addr]`, `_addr_`,
+      `mailto:addr`). 0 detector-side false positives. FN=45: 31 decorated
+      golds whose inner address the recognizer found, 14 placeholder labels
+      that are not addresses (`[Claims Email]`, `[insert customer support
+      email]`, `[email protected]`). No recognizer change; no EMAIL precision
+      target recorded from this corpus. SPEC.md's gretel EMAIL note carries the
+      decomposition; the schema's unlabelled-span upper bound does not capture
+      these because they carry no label, not an out-of-map label.
 - [x] **gretel PHONE precision (0.2766) is now explained (2026-10-18).** Hand spot-check of 40 FP spans (scratch scorer over the converted gretel set) shows the same root cause as nemotron: the bare 10-digit branch (`\b(?:\+?1...)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}\b`) fires on 10-digit account/transaction/ID numbers in EDI, JSON, invoice and bank contexts (e.g. `1234567890` in `UNB+UNOC:3+1234567890:12`, `0000012345` in X12 control numbers, `NPI: 1234567890`). The corpus labels none of them as PHONE. **Correction 2026-10-19:** the earlier wording said they carry `account_number`/`customer_id` labels. A full scan shows 679 of the 693 gretel FPs carry no label at all, 3 are `SSN` and 1 is `bank_routing_number`. The breakdown is in the 2026-10-19 block of the nemotron entry below. No recognizer change. Threshold not recorded.
 
 ## Closed in the golden-dataset pass

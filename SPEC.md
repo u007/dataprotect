@@ -442,7 +442,19 @@ explained rather than assumed away:**
   each address twice while the corpus labels one, and in records that carry any
   email label 106 of 647 email-shaped occurrences were labelled `email` at all.
   This is exactly the corpus-quality risk the spec anticipated: a corpus miss
-  appears as our false positive.
+  appears as our false positive. **Decomposed 2026-10-27:** all 383 exact false
+  positives are corpus-side. 283 (73.9%) are the unlabelled second copy of a
+  markdown `[addr](mailto:addr)` rendering; 76 (19.8%) are email-shaped spans
+  the corpus never labels (CSV/JSON fields, prose, staff tables; none is a
+  non-ASCII concatenation artifact); 24 (6.3%) are the bare address matched
+  inside a decorated gold span that includes markdown brackets, emphasis
+  underscores or the `mailto:` prefix. None is a detector false positive, so
+  this number must not be read as detector precision. The 45 exact false
+  negatives tell the same story: 31 are decorated golds whose inner address the
+  recognizer found, and 14 are placeholder labels that are not addresses at all
+  (`[Claims Email]`, `[insert customer support email]`, `[email protected]`). The
+  schema's unlabelled-span upper bound does not capture any of these, because
+  they carry no label at all rather than an out-of-map label.
 - **nemotron URL (P=0.3053 → 0.9900, R=0.2846 → 0.9229)** — all 701 detections
   overlapped a gold URL, but only 214 matched it exactly. Most of the boundary
   disagreements were a trailing `.` (406) or `,` (64), which the pattern kept.
