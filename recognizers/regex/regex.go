@@ -91,12 +91,35 @@ type PhoneRecognizer struct {
 // "1" carries — a bare "1" attached to a word is not a country code), branch 2
 // by "+", and branch 3 by its \b. A digit run can contain neither "(" nor "+",
 // which is why those two branches need no \b of their own.
+//
+// Two additions for non-English numbering plans (measured 2026-10-27, see
+// SPEC.md "Corpus measurement" and TODO.md "multi-language"):
+//
+//   - The "+" international branch takes up to three extra digit groups
+//     (?:[\s.\-]\d{2}){0,3} after its original three. France writes
+//     "+33 1 23 45 67 89" (five groups) and Sweden "+46 8 123 456 78" (four),
+//     so the fixed three-group tail truncated both and the truncated span
+//     never matched the gold. The extra groups are REQUIRED to be exactly two
+//     digits and to be separated. That is what keeps the branch from swallowing
+//     an adjacent entity: a 4-digit card group ("4111 1111 ...") or a 3-digit
+//     SSN fragment ("... 0958 123-45-6789") does not satisfy \d{2}, so the
+//     engine backtracks to the original three-group span. The original three
+//     groups are untouched, so an unseparated long tail like
+//     "+46 123 4567890" still resolves through the \d{1,9} group as before.
+//   - Two national branches, both left- and right-bounded by \b: France's
+//     "0X XX XX XX XX" (five digit-pairs, the ARCEP layout) and Sweden's
+//     "0XX-XXX XX XX". Neither has a "+", so the international branch cannot
+//     see them. Both REQUIRE separators between every group, so neither branch
+//     can fire inside a bare digit run: a grouped number is what they add, and
+//     a bare run is still decided by the existing bare-US branch alone. That
+//     separation requirement is deliberate, because bare 10-digit runs are the
+//     corpus's dominant phone false positive.
 func NewPhoneRecognizer() *PhoneRecognizer {
 	// Parenthesised (optional "1") | international "+" | bare US, in that order
 	// so the more specific paren branch wins a leftmost match such as
 	// "+1 (555) 867-5309".
 	return &PhoneRecognizer{
-		pattern: regexp.MustCompile(`(?:(?:\+1[\s.\-]?|\b1[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}|\(\+\d{1,3}\)[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\+\d{1,3}[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\b001[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4})(?:\s*[xX]\.?\s*\d{1,6})?\b`),
+		pattern: regexp.MustCompile(`(?:(?:\+1[\s.\-]?|\b1[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}|\(\+\d{1,3}\)[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\+\d{1,3}[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}(?:[\s.\-]\d{2}){0,3}|\b001[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}|\b0[1-9](?:[\s.\-]\d{2}){4}|\b0\d{2}[\s.\-]\d{3}[\s.\-]\d{2}[\s.\-]\d{2})(?:\s*[xX]\.?\s*\d{1,6})?\b`),
 	}
 }
 

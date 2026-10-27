@@ -116,7 +116,36 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
 - [x] Format-preserving encryption (FPE) operator — done, `operators/fpe.go` (commit 15d4db8).
 - [ ] Image PII detection (facial recognition via go-face)
 - [x] REST API sidecar — done, `/v1/scrub` and `/v1/pseudonymize` (commit 181aa07).
-- [ ] Multi-language support
+- [ ] **Multi-language support. Scoped 2026-10-27; first step done.**
+  The built-in recognizers are format-based, so EMAIL, IP_ADDRESS, IBAN and SECRET
+  are already language-agnostic and hold up across the seven gretel splits. The
+  language-sensitive losses are, in measured priority order: PHONE national
+  formats, the national-ID coverage behind the corpus's `ssn` label, the
+  English-only word lists (opt-in context boost + the default card keyword gate),
+  and the English-centric NLP sidecar model. Per-language PHONE recall before any
+  change: France 0.099, Swedish 0.208, Dutch 0.394, German 0.469, Italian 0.698,
+  Spanish 0.728, English 0.863.
+  - [x] **France + Sweden phone formats.** Done 2026-10-27. The `+` branch takes
+    up to three extra exactly-two-digit groups, plus `\b`-bounded national
+    branches for France (`0X XX XX XX XX`, ARCEP layout) and Sweden
+    (`0XX-XXX XX XX`). PHONE recall France 0.099 → 0.916, Sweden 0.208 → 0.755;
+    false positives also fall (France 214 → 175, Sweden 246 → 233); seed gate
+    unchanged (P=1.0000 R=0.9974, 200/200 negatives). Sources: Wikipedia
+    "Telephone numbers in France" (citing ARCEP), E.164, libphonenumber. Numbers
+    and rationale in SPEC.md "Non-English phone formats".
+  - [ ] **Next phone countries**, each only with a documented numbering-plan
+    source (the SG M-prefix precedent): Sweden's rarer groupings
+    (`095-02 69 41`, `08-11 123 456`), Germany (`0XXX-XXXXXXX`), and the
+    Netherlands (`0X-XXXXXXXX`).
+  - [ ] **IBAN country grouping** (Germany R 0.316, Italy 0.471) and the
+    **national-ID gap behind `ssn`** (German R 0.111, Italian 0.091) — the latter
+    is the `national/` package's job, not a language fix.
+  - [ ] **Localise the English-only word lists.** `internal/context/context.go`
+    (opt-in boost) and the card keyword gate in `recognizers/checksum`. Add a
+    language parameter; do NOT append translations to the global lists, which
+    would boost on e.g. Spanish "tarjeta" inside English text.
+  - [ ] **Separate track: multilingual NLP model** (PERSON/ORGANIZATION/LOCATION).
+    It dominates overall recall but is a model swap, not a recognizer change.
 - [ ] Benchmark suite (OpenNER, Financial PII, Kaggle PII, CoNLL, ai4privacy, PII-Bench, SecretBench)
 
 ## Known gaps in the current MVP

@@ -260,7 +260,7 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 | Recognizer | Entity Type | Method | Target | Measured (553-case seed) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
-| Phone | `PHONE` | Regex (US/international/E.164) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope) |
+| Phone | `PHONE` | Regex (US/international/E.164, plus France and Sweden national formats) | >98% P, >97% R | P=1.0000 R=0.9828 (UK national format missed; out of scope. France/Sweden support added 2026-10-27 — see "Non-English phone formats") |
 | Credit Card | `CREDIT_CARD` | Luhn checksum | >99% P&R | P=0.9811 R=0.9811 (tab-separated groups fixed; the `pos-card-then-year` window defect remains) |
 | SSN | `SSN` | Regex (XXX-XX-XXXX) | >99% P&R | P=1.0000 R=1.0000 (shape-only, by decision) |
 | IP Address | `IP_ADDRESS` | Regex (IPv4); IPv6 candidates validated by `netip` | >99% P&R | P=1.0000 R=1.0000 (version string suppressed) |
@@ -367,6 +367,43 @@ by reverting only that call: nemotron `CREDIT_CARD` 0.9400 / 0.9252 to
 0.9405 / 0.9331 (tp 235 to 237, fn 19 to 17, fp unchanged at 15) and `PHONE`
 0.5668 / 0.9982 to 0.5679 / 0.9982 (fp 425 to 423 — those two were these cases);
 seed, gretel, Presidio and `make test-ner` unchanged.
+
+**Non-English phone formats (2026-10-27).** The `+` international branch capped at
+three digit-groups and there was no national branch for either country, so
+France's `+33 1 23 45 67 89` (five groups) truncated and `01 23 45 67 89` (five
+digit-pairs) never matched. Two changes (`recognizers/regex/regex.go`): the `+`
+branch takes up to three extra groups, each REQUIRED to be exactly two digits and
+separated; and two `\b`-bounded national branches cover France's five digit-pairs
+and Sweden's `0XX-XXX XX XX`. The two-digit requirement is what stops the branch
+swallowing an adjacent entity — a 4-digit card group or a 3-digit SSN fragment
+does not satisfy `\d{2}`, so the engine backtracks to the original three-group
+span (pinned by the seed's phone-next-to-card/SSN test).
+
+Measured on gretel's per-language test splits (same scorer, same schema; case
+counts are the full split, all rows):
+
+| Split | Cases | PHONE R before | PHONE R after | PHONE P before → after |
+|-------|-------|----------------|---------------|------------------------|
+| France | 443 | 0.0986 | **0.9155** | 0.0317 → 0.2708 |
+| Swedish | 455 | 0.2075 | **0.7547** | 0.0428 → 0.1465 |
+| English | 2891 | 0.8625 | 0.8625 | 0.2998 → 0.2989 |
+| German | 453 | 0.4694 | 0.5510 | 0.1631 → 0.1888 |
+| Italian | 448 | 0.6984 | 0.6984 | 0.2767 → 0.2767 |
+| Spanish | 461 | 0.7282 | 0.7767 | 0.3378 → 0.3604 |
+| Dutch | 445 | 0.3939 | 0.4091 | 0.1444 → 0.1500 |
+
+France and Sweden also lose false positives because a full span replaces a
+truncated one (France 214 → 175, Sweden 246 → 233). English adds 4 false
+positives (967 → 971) with recall unchanged. The seed gate is unchanged
+(P=1.0000 R=0.9974, 200/200 negatives clean). The canonical 2000-row samples do
+not move: they do not contain the French pair format (checked), so the combined
+table above still shows gretel PHONE 0.2857 / 0.8580 and nemotron 0.5679 / 0.9982.
+The per-language figures are the measurement of the new formats.
+
+Remaining non-English phone gaps are deliberate follow-ups, not silent misses:
+Sweden's rarer groupings (`095-02 69 41`, `08-11 123 456`), Germany and the
+Netherlands each need their own source-backed branch, and France's bare
+`[+33] …` bracket form is still unmatched. See TODO.md "multi-language".
 
 **Unlabelled spans, reported separately.** A detection that lands on a span the
 corpus labels with a name outside our type map is not counted as wrong in the

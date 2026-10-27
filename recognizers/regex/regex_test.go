@@ -95,6 +95,18 @@ func TestPhoneRecognizer(t *testing.T) {
 		{"not a bare 16-digit card", "4111111111111111", 0, ""},
 		{"not a spaced card", "4111 1111 1111 1111", 0, ""},
 		{"no phone", "no phone here", 0, ""},
+		// France (ARCEP): national five digit-pairs, and the +33 international
+		// form with five digit-groups after the country code.
+		{"france national", "bureau au 01 23 45 67 89", 1, "01 23 45 67 89"},
+		{"france national dots", "num 01.23.45.67.89 confirme", 1, "01.23.45.67.89"},
+		{"france international", "appelez +33 1 23 45 67 89 merci", 1, "+33 1 23 45 67 89"},
+		{"france trunk prefix in parens", "+33 (0)4 43 75 15 16 svp", 1, "+33 (0)4 43 75 15 16"},
+		{"france international hyphen", "+33-1-23456789 maintenant", 1, "+33-1-23456789"},
+		// Sweden: national 0XX-XXX XX XX and the four-group +46 international form.
+		{"sweden national", "ring 070-123 45 67 tack", 1, "070-123 45 67"},
+		{"sweden international", "call +46 8 123 456 78", 1, "+46 8 123 456 78"},
+		// A partial French grouping is not a number, and a bare run is not France.
+		{"incomplete france is not a phone", "code 01 23 45 here", 0, ""},
 	}
 
 	r := NewPhoneRecognizer()
