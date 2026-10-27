@@ -123,6 +123,8 @@ func newScrubber(opts ...analyzer.Option) *Scrubber {
 	a.AddRecognizer(national.NewTHIDRecognizer())
 	a.AddRecognizer(national.NewMYPassportRecognizer())
 	a.AddRecognizer(national.NewSGPassportRecognizer())
+	a.AddRecognizer(national.NewINGSTINRecognizer())
+	a.AddRecognizer(national.NewPHTINRecognizer())
 	a.AddRecognizer(secret.NewSecretRecognizer())
 
 	an := anonymizer.New()
@@ -142,6 +144,8 @@ func newScrubber(opts ...analyzer.Option) *Scrubber {
 	an.SetOperator(recognizers.EntityTHID, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntityMYPassport, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntitySGPassport, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityPHTIN, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityINGSTIN, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntitySecret, operators.NewRedactOperator())
 
 	return &Scrubber{

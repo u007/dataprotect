@@ -355,3 +355,151 @@ func TestSGNRICRecognizeLabelledGlued(t *testing.T) {
 		}
 	}
 }
+
+func TestINGSTINValidate(t *testing.T) {
+	// Check digits computed per the mod-36 Luhn variant published for GSTIN.
+	// 27AAACR5055K1Z7 is Reliance Industries' Maharashtra GSTIN from the
+	// published worked example; check digit 7 was independently recomputed.
+	tests := []struct {
+		name  string
+		gstin string
+		want  bool
+	}{
+		{"valid Maharashtra example", "27AAACR5055K1Z7", true},
+		{"valid Delhi", "07AAAPZ9999A1Z2", true},
+		{"valid Tamil Nadu", "29AABCA1234C1ZB", true},
+		{"valid Gujarat", "33AADEF5678B1ZP", true},
+		{"valid Karnataka", "19AAXXX0000Y1Z1", true},
+		{"wrong check digit", "27AAACR5055K1ZA", false},
+		{"wrong entity code 0", "27AAACR5055K0ZZ", false},
+		{"wrong reserved char", "27AAACR5055K1Y7", false},
+		{"too short", "27AAACR5055K1Z", false},
+		{"lowercase letters", "27aaacr5055k1z7", false},
+		{"no hyphens or dashes", "27AAACR5055K1Z7-extra", false},
+	}
+	v := NewINGSTINValidator()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := v.Validate(tt.gstin); got != tt.want {
+				t.Errorf("Validate(%q) = %v, want %v", tt.gstin, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestINGSTINRecognize(t *testing.T) {
+	r := NewINGSTINRecognizer()
+	text := "Supplier GSTIN 27AAACR5055K1Z7 and customer GSTIN 07AAAPZ9999A1Z2 on the invoice; 27AAACR5055K1ZA is not valid."
+	got, err := r.Recognize(context.Background(), text)
+	if err != nil {
+		t.Fatalf("Recognize: %v", err)
+	}
+	want := []string{"27AAACR5055K1Z7", "07AAAPZ9999A1Z2"}
+	if len(got) != len(want) {
+		t.Fatalf("got %d entities, want %d: %+v", len(got), len(want), got)
+	}
+	for i, e := range got {
+		if e.Type != recognizers.EntityINGSTIN {
+			t.Errorf("entity %d type = %s, want IN_GSTIN", i, e.Type)
+		}
+		if e.Text != want[i] {
+			t.Errorf("entity %d Text = %q, want %q", i, e.Text, want[i])
+		}
+		if text[e.Start:e.End] != e.Text {
+			t.Errorf("entity %d span [%d:%d] does not match Text", i, e.Start, e.End)
+		}
+	}
+}
+
+func TestINGSTINRecognizeRejectsInvalid(t *testing.T) {
+	// Wrong check digit, wrong entity code, wrong reserved char, too short,
+	// lowercase, and embedded in longer tokens all fail.
+	texts := []string{
+		"ref 27AAACR5055K1ZA here",
+		"gstin 27AAACR5055K0ZZ registered",
+		"GSTIN 27AAACR5055K1Y7 filed",
+		"short 27AAACR5055K1Z",
+		"lowercase 27aaacr5055k1z7",
+		"embedded X27AAACR5055K1Z7Y",
+	}
+	r := NewINGSTINRecognizer()
+	for _, text := range texts {
+		got, err := r.Recognize(context.Background(), text)
+		if err != nil {
+			t.Fatalf("Recognize(%q): %v", text, err)
+		}
+		if len(got) != 0 {
+			t.Errorf("Recognize(%q) = %+v, want none", text, got)
+		}
+	}
+}
+
+func TestPHTINValidate(t *testing.T) {
+	tests := []struct {
+		name string
+		tin  string
+		want bool
+	}{
+		{"valid 9-digit individual", "123-456-789", true},
+		{"valid corporation", "000-123-456", true},
+		{"valid with branch code", "123-456-789-000", true},
+		{"valid with branch 001", "123-456-789-001", true},
+		{"first digit 9 individual", "900-000-000", true},
+		{"missing hyphens", "123456789", false},
+		{"too few digits", "12-345-678", false},
+		{"too many digits", "123-456-7890", false},
+		{"letters inside", "12A-456-789", false},
+		{"wrong branch digits", "123-456-789-ABC", false},
+	}
+	v := NewPHTINValidator()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := v.Validate(tt.tin); got != tt.want {
+				t.Errorf("Validate(%q) = %v, want %v", tt.tin, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPHTINRecognize(t *testing.T) {
+	r := NewPHTINRecognizer()
+	text := "TIN 123-456-789 for the head office and 000-123-456-001 for branch one; 123456789 without hyphens is not a TIN."
+	got, err := r.Recognize(context.Background(), text)
+	if err != nil {
+		t.Fatalf("Recognize: %v", err)
+	}
+	want := []string{"123-456-789", "000-123-456-001"}
+	if len(got) != len(want) {
+		t.Fatalf("got %d entities, want %d: %+v", len(got), len(want), got)
+	}
+	for i, e := range got {
+		if e.Type != recognizers.EntityPHTIN {
+			t.Errorf("entity %d type = %s, want PH_TIN", i, e.Type)
+		}
+		if e.Text != want[i] {
+			t.Errorf("entity %d Text = %q, want %q", i, e.Text, want[i])
+		}
+		if text[e.Start:e.End] != e.Text {
+			t.Errorf("entity %d span [%d:%d] does not match Text", i, e.Start, e.End)
+		}
+	}
+}
+
+func TestPHTINRecognizeRejectsInvalid(t *testing.T) {
+	texts := []string{
+		"ref 123456789 on the form",
+		"tin 12-345-678 registered",
+		"TIN 12A-456-789 filed",
+		"bad branch 123-456-789-ABC",
+	}
+	r := NewPHTINRecognizer()
+	for _, text := range texts {
+		got, err := r.Recognize(context.Background(), text)
+		if err != nil {
+			t.Fatalf("Recognize(%q): %v", text, err)
+		}
+		if len(got) != 0 {
+			t.Errorf("Recognize(%q) = %+v, want none", text, got)
+		}
+	}
+}

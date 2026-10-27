@@ -26,6 +26,8 @@ const (
 	EntityTHID         EntityType = "TH_ID"
 	EntityMYPassport   EntityType = "MY_PASSPORT"
 	EntitySGPassport   EntityType = "SG_PASSPORT"
+	EntityPHTIN        EntityType = "PH_TIN"
+	EntityINGSTIN      EntityType = "IN_GSTIN"
 	EntitySecret       EntityType = "SECRET"
 )
 
@@ -49,6 +51,8 @@ var AllEntityTypes = []EntityType{
 	EntityTHID,
 	EntityMYPassport,
 	EntitySGPassport,
+	EntityPHTIN,
+	EntityINGSTIN,
 	EntitySecret,
 }
 
@@ -102,6 +106,10 @@ func EntityTypeFromString(s string) (EntityType, error) {
 		return EntityMYPassport, nil
 	case "SG_PASSPORT":
 		return EntitySGPassport, nil
+	case "PH_TIN":
+		return EntityPHTIN, nil
+	case "IN_GSTIN":
+		return EntityINGSTIN, nil
 	case "SECRET":
 		return EntitySecret, nil
 	default:
