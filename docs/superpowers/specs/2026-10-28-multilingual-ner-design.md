@@ -27,7 +27,7 @@ Non-goals: `MISC`, dates, and every type outside the three NER types; language a
 - D1. Runtime contract: a `onnx` build tag. A plain build contains only the prose backend and no CGO or link step. `go build -tags onnx` adds the ONNX backend. `-backend=onnx` on a plain build returns an error that names the tag.
 - D2. Reference model: multilingual XLM-R base fine-tuned for token classification, int8 quantised (approximately 280 MB). Licence must be Apache-2.0 or MIT. The concrete checkpoint and its licence are recorded in Phase 1; the code is model-agnostic and reads its labels from `config.json`.
 - D3. Artifact supply: explicit paths only. No download at runtime and no implicit cache. Flags: `-model` (a directory containing `model.onnx` and `config.json`), `-tokenizer` (a `tokenizer.json`), `-onnxruntime-lib` (the `libonnxruntime` shared library).
-- D4. Engine: `github.com/yalue/onnxruntime_go` for the session and `github.com/sugarme/tokenizer` (pure Go) for tokenisation, behind a tokenizer seam. Parity with the reference Hugging Face tokenizer is proven by a committed fixture; if it diverges, the seam is reimplemented with `github.com/daulet/tokenizers` (cgo, the exact Hugging Face Rust core).
+- D4. Engine: `github.com/yalue/onnxruntime_go` for the session and `github.com/daulet/tokenizers` (cgo, the exact Hugging Face Rust core) for tokenisation, behind a tokenizer seam. Both modules are already in this machine's module cache. A committed parity fixture guards the adapter's offsets. No pure-Go tokenizer is planned; any future one must pass the same fixture before use.
 - D5. Confidence: every ONNX entity is emitted at the fixed NLP score of 0.80. Overlap between ONNX entities is resolved inside the backend, so the analyzer never compares two NLP entities.
 - D6. Evidence: a committed multilingual golden set scored in record mode, plus a per-language gretel corpus measurement. Accuracy bounds are introduced only after a real measured run, never before.
 
@@ -44,7 +44,7 @@ Files and build tags:
 | `sidecar/internal/ner/onnx_backend.go` | `onnx` | implements `NERBackend` over `Tokenizer` and `Session` |
 | `sidecar/internal/ner/onnx_stub.go` | `!onnx` | same constructor, returns an error naming `-tags onnx` |
 | `sidecar/internal/ner/onnxrt/session.go` | `onnx` | thin `Session` over `onnxruntime_go` |
-| `sidecar/internal/ner/hf_tokenizer.go` | `onnx` | adapts `sugarme/tokenizer` to `Tokenizer` |
+| `sidecar/internal/ner/hf_tokenizer.go` | `onnx` | adapts `daulet/tokenizers` to `Tokenizer` |
 | `sidecar/internal/ner/testdata/tokenizer_parity.json` | all | reference token strings and byte offsets |
 | `sidecar/cmd/piiscrub-sidecar/main.go` | all | flags and backend selection, no build tags |
 | `testdata/golden/ner_multilingual/` | n/a | committed multilingual cases |
@@ -118,17 +118,19 @@ Overlap between ONNX entities is resolved in the backend: for a group of overlap
 
 - `make build-sidecar-onnx`: builds the sidecar with `-tags onnx`.
 - `make test-sidecar-onnx`: runs `go test -tags onnx ./...` inside `sidecar/`; tests that need the runtime library are skipped when it is absent.
-- `make onnx-check`: `cd sidecar && go build -tags onnx ./...`. This is the CI compile gate; it needs no ONNX Runtime installation because the binding compiles against vendored headers and loads the library at runtime.
+- `make onnx-check`: `cd sidecar && go build -tags onnx ./...`. This is the CI compile gate. It needs the Go modules and a C toolchain (cgo), but no ONNX Runtime installation: the binding compiles against vendored headers and loads the library at runtime. The gate has not been run yet, so its green state is unverified until Phase 0.
 - `make test-ner-onnx`: builds the tagged sidecar with the three paths from environment variables, starts it, runs `TestNERMultilingual`, and stops it.
 - `make corpus-nlp` gains `NER_BACKEND` (default `prose`) and passes `-backend=$(NER_BACKEND)`; existing invocations are unchanged.
 - Module hygiene: `go mod tidy` runs inside `sidecar/`; `sidecar/go.sum` and `go.work.sum` are committed; the ONNX modules are version-pinned. The root `go.mod` gains nothing.
-- CI: existing jobs are untouched. A separate job runs `make onnx-check`; it may need a module cache on first run.
+- CI: existing jobs are untouched. A separate job runs `make onnx-check`; it needs a module cache on first run and a C toolchain in the image.
 
 ## 9. Evaluation
 
 The multilingual gate is a new directory, `testdata/golden/ner_multilingual/`, reusing the existing `golden.Case` schema. The English gate at `testdata/golden/ner/` is read by directory, so mixing the sets would silently change its denominators; the two stay separate.
 
 Content: approximately 12 cases per language for de, nl, fr, it, es and sv, mixing prose, structured documents and negatives. Gold spans are authored or curated from human labels. They are never generated from the model's own output.
+
+A case needs a language carrier: `golden.Case` has no language field today, and `Load` rejects unknown JSON fields. Phase 0 therefore adds `Language string` (`json:"language,omitempty"`) to `golden.Case` in the root `golden` package, validated against the six codes when non-empty; an empty value keeps every existing dataset unchanged. Deriving the language from the case id is rejected as an implicit convention. The gate groups its per-language metrics by this field.
 
 `TestNERMultilingual` sits behind the `integration` build tag only. The `onnx` tag belongs to the sidecar build, not the test, because the test talks to the running sidecar over HTTP.
 
@@ -138,7 +140,7 @@ Record mode:
 - Without `-update` and without `metrics.json`, the test skips with the instruction to run with `-update` on a machine that has the artifact.
 - Without `-update` and with `metrics.json`, the test asserts per-language and aggregate typed and span precision and recall against bounded constants.
 
-`metrics.json` records: the language, typed and span tp/fp/fn/precision/recall per language, the aggregate, the model and tokenizer SHA-256, the opset, and the quantisation mode.
+`metrics.json` records: typed and span tp/fp/fn/precision/recall per language (keyed by `Case.Language`), the aggregate, the model and tokenizer SHA-256, the opset, and the quantisation mode.
 
 Bounds policy: bounds are introduced only in a commit that also contains the measured `metrics.json`. Each bound is the measured value minus 0.02, rounded down to two decimals, and the measured numbers are quoted in the test comment and in `SPEC.md`. No bound may be written before the measurement exists.
 
@@ -167,24 +169,24 @@ Corpus measurement: `make corpus-nlp NER_BACKEND=onnx NER_LIMIT=400`, recording 
 
 Decoder cases: plain ASCII; French accented characters; Swedish å, ä, ö; Dutch digraphs; combining marks; special tokens; `B-`/`I-`/`BIOES`; a continuation piece at a span start; whitespace-only spans; spans over the token or byte limit; chunk-boundary duplicates; nested and overlapping entities; an unknown label; a logits/token-count mismatch.
 
-The parity fixture is generated once from the pinned `tokenizer.json` with the reference Hugging Face tokenizer and committed as data, together with that tokenizer's SHA-256. The test loads the same `tokenizer.json`, tokenizes each fixture sentence through the adapter, and compares token strings and byte offsets.
+The parity fixture is generated once from the pinned `tokenizer.json` with the reference Hugging Face tokenizer and committed as data, together with that tokenizer's SHA-256. The test loads the same `tokenizer.json`, tokenizes each fixture sentence through the adapter, and compares token strings and byte offsets. Because `daulet/tokenizers` wraps the same Rust core, this guards the adapter's offset conversion rather than the model's tokenisation rules.
 
 ## 12. Rollout and acceptance
 
-Phase 0 (no runtime artifact or ONNX Runtime install needed; the Go modules must be downloadable): decoder and mapping with tests; the `!onnx` stub; the `onnx` session wrapper and tokenizer adapter; the compile gate; Makefile targets. Acceptance: the default sidecar build and `go test ./sidecar/...` are unchanged; `go build -tags onnx ./...` succeeds; the decoder tests pass; the root suite is unchanged.
+Phase 0 (no runtime artifact or ONNX Runtime install needed; the two Go modules must resolve and a C toolchain must be present): decoder and mapping with tests; the `!onnx` stub; the `onnx` session wrapper and tokenizer adapter; the compile gate; Makefile targets. Acceptance: the default sidecar build and `go test ./sidecar/...` are unchanged; `go build -tags onnx ./...` succeeds; the decoder tests pass; the root suite is unchanged.
 
 Phase 1 (needs ONNX Runtime and the artifact): tokenizer parity fixture; startup validation and warmup; a real-machine run writes `metrics.json`; the per-language corpus table is produced. Acceptance: parity passes, the run completes, and the metrics are committed.
 
 Phase 2: bounds are derived from the measured metrics; docs are updated. Acceptance: the multilingual gate passes with the bounds; the English gate and its bounds are unchanged; `SPEC.md`, `SOURCES.md`, `DATASET_LICENSES.md`, `TODO.md` and `AGENTS.md` describe the backend; `make docs-sync` regenerates `docs/decisions/spec-v1.md`.
 
-No phase may invent an accuracy number. A phase that cannot be run on the implementing machine is recorded as unverified and left for the next phase.
+No phase may invent an accuracy number. A phase that cannot be run on the implementing machine is recorded as unverified and left for the next phase. At the time of writing, the compile gate has not been run: it is a Phase 0 deliverable, and this document does not claim it passes.
 
 ## 13. Risks
 
 | Risk | Mitigation |
 | --- | --- |
 | `onnxruntime_go` headers and the installed `libonnxruntime` differ | pin the module version, document the matching runtime version, fail at startup |
-| the pure-Go tokenizer diverges from Hugging Face | committed parity fixture over multilingual text; fall back to `daulet/tokenizers` behind the same seam |
+| the tokenizer adapter's offsets diverge from Hugging Face | `daulet/tokenizers` is the exact Rust core; the committed parity fixture still guards the adapter's byte offsets |
 | character-to-byte offset conversion is wrong for non-ASCII | dedicated tests per language, `ConvertOffset`, clamping, and a guard against mid-word starts |
 | int8 quantisation degrades accuracy | measure typed and span metrics, and keep the quantisation mode in `metrics.json` |
 | the checkpoint licence is unacceptable | verify before adoption; the model is a flag, not a compile-time choice |
