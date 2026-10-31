@@ -1,7 +1,7 @@
 # Multilingual NER backend — design
 
 Date: 2026-10-28
-Status: approved design; implementation not started
+Status: approved design; Phase 0 partial (2026-10-31): golden.Case.Language; sidecar/internal/ner/decode.go (Token/Tokenizer/Session seams, Decode with BIO/BIOES span assembly, guards, label mapping, dedup, overlap resolution); and the !onnx stub (onnx_stub.go, build tag !onnx) plus untagged ONNXConfig (onnx_config.go), wired into main.go via -model/-tokenizer/-onnxruntime-lib flags (stub returns an error naming -tags onnx) landed with tests; plain build and sidecar tests pass. Tagged backend files (onnx_backend.go, onnxrt/session.go, hf_tokenizer.go, testdata/tokenizer_parity.json), onnx module deps, Makefile targets, and chunk-boundary handling still pending (see TODO.md).
 Track: TODO.md "Multilingual NLP model"
 
 Scope: the optional sidecar (`sidecar/`, a separate Go module), a new committed multilingual golden set, and Makefile targets. The root module, the `/v1/ner` protocol, the default sidecar build and the English prose backend are unchanged.

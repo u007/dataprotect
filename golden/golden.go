@@ -78,6 +78,7 @@ type Case struct {
 	ID       string  `json:"id"`
 	Note     string  `json:"note,omitempty"`
 	Text     string  `json:"text"`
+	Language string  `json:"language,omitempty"`
 	Entities []Label `json:"entities"`
 	// Unlabelled lists spans the source corpus annotates with a label this
 	// dataset does not map to an entity type. They are not gold: the corpus
@@ -684,6 +685,13 @@ func Load(dir string) ([]Case, error) {
 			seen[c.ID] = true
 			if c.Text == "" {
 				return nil, fmt.Errorf("case %q in %s has no text", c.ID, path)
+			}
+			if c.Language != "" {
+				switch c.Language {
+				case "de", "nl", "fr", "it", "es", "sv":
+				default:
+					return nil, fmt.Errorf("case %q in %s has invalid language %q (want one of de, nl, fr, it, es, sv)", c.ID, path, c.Language)
+				}
 			}
 			for i, l := range c.Entities {
 				if _, err := recognizers.EntityTypeFromString(string(l.Type)); err != nil {

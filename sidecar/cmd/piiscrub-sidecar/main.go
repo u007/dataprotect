@@ -16,12 +16,25 @@ import (
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8787", "listen address")
 	backendName := flag.String("backend", "prose", "ner backend")
+	modelDir := flag.String("model", "", "directory containing model.onnx and config.json (onnx backend)")
+	tokenizerPath := flag.String("tokenizer", "", "path to tokenizer.json (onnx backend)")
+	onnxRuntimeLib := flag.String("onnxruntime-lib", "", "path to libonnxruntime (onnx backend)")
 	flag.Parse()
 
 	var b ner.NERBackend
 	switch *backendName {
 	case "prose":
 		b = ner.NewProseBackend()
+	case "onnx":
+		ob, err := ner.NewONNXBackend(ner.ONNXConfig{
+			ModelDir:       *modelDir,
+			TokenizerPath:  *tokenizerPath,
+			ONNXRuntimeLib: *onnxRuntimeLib,
+		})
+		if err != nil {
+			log.Fatalf("onnx backend: %v", err)
+		}
+		b = ob
 	default:
 		log.Fatalf("unknown backend: %s", *backendName)
 	}
