@@ -86,3 +86,6 @@ Thumbs.db
 
 # NOTE: the module path is github.com/u007/dataprotect (renamed 2026-10-15 from the
 # bare `dataprotect`, which consumers could not import). See TODO.md.
+# Machine-local build inputs that are downloaded, never committed. The ONNX
+# compile gate needs libtokenizers.a; `make fetch-libtokenizers` puts it here.
+/.cache/

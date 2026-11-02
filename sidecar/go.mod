@@ -6,7 +6,11 @@ require github.com/u007/dataprotect v0.0.0
 
 replace github.com/u007/dataprotect => ..
 
-require github.com/jdkato/prose/v2 v2.0.0
+require (
+	github.com/daulet/tokenizers v1.27.0
+	github.com/jdkato/prose/v2 v2.0.0
+	github.com/yalue/onnxruntime_go v1.35.0
+)
 
 require (
 	github.com/deckarep/golang-set v1.7.1 // indirect

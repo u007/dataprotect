@@ -1,0 +1,36 @@
+{
+  "tokenizer_sha256": "baf5a78335a5c4f4b243136b0e724b4a3ea9a7831600f4eda62fc65b51d93331",
+  "note": "Token strings, ids, byte offsets and word-start flags for sidecar/internal/ner/testdata/tokenizer.json, a tiny WordPiece tokenizer committed for this test. The pinned multilingual artifact's fixture is deferred to Phase 1 (TODO.md).",
+  "sentences": [
+    {
+      "text": "Hello world",
+      "tokens": [
+        {"token": "hello", "id": 4, "start": 0, "end": 5, "word_start": true, "special": false},
+        {"token": "world", "id": 5, "start": 6, "end": 11, "word_start": true, "special": false}
+      ]
+    },
+    {
+      "text": "unbelievable",
+      "tokens": [
+        {"token": "un", "id": 11, "start": 0, "end": 2, "word_start": true, "special": false},
+        {"token": "##believ", "id": 12, "start": 2, "end": 8, "word_start": false, "special": false},
+        {"token": "##able", "id": 13, "start": 8, "end": 12, "word_start": false, "special": false}
+      ]
+    },
+    {
+      "text": "Walking",
+      "tokens": [
+        {"token": "walk", "id": 6, "start": 0, "end": 4, "word_start": true, "special": false},
+        {"token": "##ing", "id": 7, "start": 4, "end": 7, "word_start": false, "special": false}
+      ]
+    },
+    {
+      "text": "Berlin, Paris",
+      "tokens": [
+        {"token": "berlin", "id": 8, "start": 0, "end": 6, "word_start": true, "special": false},
+        {"token": ",", "id": 10, "start": 6, "end": 7, "word_start": false, "special": false},
+        {"token": "paris", "id": 14, "start": 8, "end": 13, "word_start": true, "special": false}
+      ]
+    }
+  ]
+}

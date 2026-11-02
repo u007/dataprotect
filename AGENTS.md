@@ -11,6 +11,9 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 - `go vet ./...` — run static analysis
 - `go test -v ./recognizers/...` — run recognizer tests
 - `go test -v ./operators/...` — run operator tests
+- `make fetch-libtokenizers` — download the pinned `libtokenizers.a` that the `onnx` tag links (linux/x86_64 only; re-verifies the archive SHA-256 on every run)
+- `make onnx-check` — compile gate for `-tags onnx` (no model or ONNX Runtime needed)
+- `make test-sidecar-onnx` — sidecar tests with `-tags onnx`
 
 ## Architecture
 
@@ -24,6 +27,7 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 - `internal/context/` — context-aware confidence boosting, applied by `Analyzer` when `WithContextBoost()` is set
 - `recognizers/nlp/` — HTTP client recognizer delegating NER to the sidecar (root stays stdlib-only)
 - `sidecar/` — separate Go module: standalone HTTP service embedding prose NER (`cmd/piiscrub-sidecar`). The prose backend decodes prose's TOKEN labels, not its entity output, because prose's coalescer mislabels company names and surnames.
+- The ONNX backend is opt-in at build time: `-tags onnx` adds `onnx_backend.go`, `hf_tokenizer.go` and `onnxrt/`, while a plain build keeps only prose plus the `!onnx` stub that names the tag. `github.com/daulet/tokenizers` links a static `libtokenizers.a` through cgo, so the `onnx` tag needs that library at LINK time — the Go module cache alone is not enough. `make fetch-libtokenizers` downloads the pinned v1.27.0 linux/x86_64 archive, verifies its SHA-256 on every run and unpacks it atomically into the gitignored `.cache/tokenizers`; any other host fails up front. `github.com/yalue/onnxruntime_go` needs no library at build time and loads `libonnxruntime` at runtime from `-onnxruntime-lib`. `NER_ONNX_MODEL` (for `make corpus-nlp NER_BACKEND=onnx`) is a DIRECTORY holding `model.onnx` and `config.json`. Requests are tokenised once and chunked at 400 tokens with a 64-token overlap; a document over 8000 tokens fails the request with an error and is never truncated. Identical spans are deduplicated across chunks, remaining overlaps are resolved pairwise longest-first, and every ONNX entity scores 0.80. The token adapters' parity fixture is `sidecar/internal/ner/testdata/tokenizer_parity.json`.
 
 ## Confidence & Threshold Semantics
 
