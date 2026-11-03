@@ -73,3 +73,9 @@ func TestGretelSpansRejectsMalformed(t *testing.T) {
 		})
 	}
 }
+
+func TestGretelLangRejectsUnknownLanguage(t *testing.T) {
+	if _, _, err := GretelLang("", 0, "Klingon"); err == nil {
+		t.Fatal("expected an error for an unknown gretel language")
+	}
+}

@@ -67,7 +67,7 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
   - **Fixed 2026-10-15: dash- or dot-joined card.** A card next to a CVV or number joined by `-` or `.` (`4111111111111111-123`) was not redacted, and the card digits leaked. A single group is now bounded by a space, hyphen or dot. Cost, measured and accepted: Luhn-passing 13 to 19 digit groups joined by `-` or `.` are reported (gretel CREDIT_CARD fp 26 to 32, nemotron 22 to 23; recall unchanged). See SPEC.md.
   - **Fixed 2026-10-15: spaced IBAN followed by two or more uppercase blocks.** `GB82 WEST 1234 5698 7654 32 ALL FEES` and an invoice line such as `DE89 3704 0044 0532 0130 00 BIC TESTDEFF` now keep the IBAN. `ibanSpan` tries cuts at each space from the right and takes the longest that has the printed shape and passes mod-97. Cost, measured and accepted: Presidio IBAN fp 0 to 3 (P 1.0 to 0.9812). The three are chance mod-97 passes on shorter cuts of negatives (`MC58 A122 2000 0101`, `JO94 CBJO 0010 0000 0000 0131`). The two-shape rule this replaces existed to prevent exactly that. Gretel IBAN unchanged. See SPEC.md.
   - **Fixed 2026-10-19: merged card cluster and chance-passing window.** `4012-8888-8888-1881 4012 8888 8888 1881` no longer merges into one span: `validCardPrefix` rejects windows whose first digit is not a valid card-network prefix (0, 1, 7, 8, 9), so the bridging window `1881401288888888` (starts with `1`) is rejected. `1748503543012` (starts with `1`, passes Luhn by chance) is still reported by the whole-run path per existing tests (`TestRawLuhnKeepsCardAboveThaiThreshold`); retyping to TH_ID is the Scrubber's job. Presidio credit_card P 0.8750 → 0.9412, R 0.8750 → 1.0000 (fn 2 → 0, fp 2 → 1).
-  - **Decision needed:** whether to add a country-length table for IBAN prefixes. The table would reject a cut whose length is not the country's, which removes the chance passes this fix adds.
+  - **Resolved 2026-10-16:** the country-length table was added (`recognizers/checksum/iban_length.go`, 89 countries). It rejects any cut whose length is not the country's and removed the chance passes this fix added. Presidio IBAN is P=1.0000. See the IBAN entry above.
 
 - [x] **IPv6: in scope, detected 2026-10-15 (`06b84dc`).** `2001:db8::1`, `fe80::1`, `::1` and the full form are reported. `netip` validates each candidate, so clock times and MAC addresses stay out. Residual: EDIFACT component separators (`387::9`, `220::5`) are reported as IPv6, and this is a gretel false-positive class. See SPEC.md.
 - [x] **IPv6 label residual. Fixed 2026-10-19.** `text2001:db8::1` and `12345:db8::1` no longer report `db8::1`: the `ipv6Spans` retry skips when the character before the colon is a digit (colon is glued to a longer token, not a label separator). `id:fe80::1` still reports `fe80::1` (colon preceded by a letter, not a digit). Presidio IP FP dropped 19 → 16; tp rose 65 → 66. P 0.7738 → 0.8049, R 0.7386 → 0.7500.
@@ -103,25 +103,25 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
 ## v2+ (after MVP)
 
 - [x] NLP recognizer (prose-based NER for person/org/location)
-  - Implemented: sidecar module + root client (see docs/superpowers/plans/2026-10-20-nlp-sidecar.md). Phases A, B, D done; C deferred, E/F later.
+  - Implemented: sidecar module + root client (plan executed and removed 2026-11-03; see docs/concepts/development-conventions.md and docs/superpowers/specs/2026-10-28-multilingual-ner-design.md). Phases A, B, D done; C delivered later as /v1/scrub + /v1/pseudonymize; E/F later.
   - **NER accuracy measured 2026-10-20.** `testdata/golden/ner/` (92 cases: a 49-case development set the decoder was written against, a 25-case holdout and an 18-case final set) and the `integration`-tagged gate `ner_accuracy_test.go`, run by `make test-ner`. Two metrics, because the NER types share one operator (redact): typed P=0.8395 R=0.8718 (the golden package's type-sensitive metric) and span P=0.9012 R=0.9359 (type-agnostic — the one that says the PII is actually removed). **The generalisation figure is the FIRST evaluation of the final set on unseen text: typed P=0.5333 R=0.6154, span P=0.8667 R=1.0000.** The gate bounds sit below the development baseline, so a regression fails and an improvement is a deliberate bump.
   - **The decoder is ours, not prose's.** prose's own entity output is unusable as-is: its coalescer keeps the first token's label, so "Fernwood Logistics Inc" came back as a GPE and "Samuel Okoye" as an ORGANIZATION. `sidecar/internal/ner/prose.go` decodes prose's TOKEN labels instead, with shape rules (legal forms, institutional head nouns, business head nouns, place head nouns) and closed classes that are never entities (months, seasons, languages, greetings, courtesy titles, communication verbs).
   - **Performance, fixed 2026-10-20.** The sidecar was paying 340 ms of model loading per request: `prose.NewDocument` loads and decodes the 17 MB model on every call when it is given no model. The backend now builds it once with `sync.Once` and passes it via `prose.UsingModel`, which cut the per-request time from 352 ms to 19.6 ms (17x) with byte-identical token output. A race test covers the shared model. End to end, `Analyze` on a 239-byte sample went from 338 ms to 19.6 ms with the sidecar (64x the regex-only path, which is 305 us). Throughput is about 50 requests/second sequential and about 130/second with 16 concurrent callers.
   - **The corpora score it now, and the numbers are much worse (2026-10-20).** The person, organisation and place labels were added to the converter's type maps (`tools/corpusbench/convert/labels.go`), so `first_name`, `last_name`, `name`, `company_name`, `company`, `city`, `country`, `state`, `county`, `postcode` and `street_address` are gold instead of dropped. Scored on 2000 nemotron cases with the same scorer: regex-only exact P=0.8233 R=0.2654, with the sidecar exact P=0.4232 R=0.3903 (overlap R 0.2688 to 0.4704). The regex-only figure is low because the three new types are now in scope and it detects none of them — that is the baseline the NLP path must beat, and it beats it on recall at the cost of precision. Per type with the sidecar: LOCATION P=0.2457 R=0.3556, ORGANIZATION P=0.3077 R=0.1650, PERSON P=0.1307 R=0.0837. The built-in types are untouched (EMAIL P=0.9975 R=0.9975, SSN R=1.0000, URL R=0.9229). **The gap to the hand-written gate is measured, not assumed:** 74% of the corpus gold spans are covered by the detector but only 35% match exactly, and 166 of the 174 covered-but-larger spans are PERSON — the corpora annotate a GIVEN NAME ("Manal") while a NER model reports a FULL NAME ("Manal King"). **Conclusion: the sidecar is good on running prose and poor on form-filling records.** **Re-measured 2026-10-21** after the credit-card keyword gate, the card-over-phone overlap rule and the `api_key` / `http_cookie` → SECRET mapping: regex-only exact P=0.8357 R=0.2886 (overlap 0.8455 / 0.2919), with the sidecar exact P=0.4376 R=0.4135 (overlap 0.5222 / 0.4935); ORGANIZATION with the sidecar is now P=0.3095 R=0.1660, LOCATION and PERSON unchanged. The direction of every conclusion above holds; SPEC.md, "Corpus measurement", carries the current figures and explains why the level moved.
   - **Structured-document false positives, fixed 2026-10-20.** The three prose datasets had a blind spot: the corpora showed the decoder reporting JSON keys, HTTP headers and spreadsheet field labels as names ("Record Number", "Account Number", "SameSite=Lax", "Path=/auth", "Medical Record Number", "Customer ID"). Two rules fix the class: a span carrying a field-path character is a field, and a run whose LEADING words are two or more field names is a label (two, not one, because "Name", "City" and "Company" are both field labels and ordinary words). A fourth dataset file, `testdata/golden/ner/structured.json` (32 cases), guards them. NER detections on the nemotron corpus fell from 4.4 to 2.76 per text, on gretel from 6.6 to 5.90. Mutation-verified: disabling the field-label rule drops typed precision to 0.7907 and the gate fails.
   - **Residual, not fixed:** a brand name with no other signal ("The Orion laptop") is reported as a place. A brand gazetteer would fix it and would be wrong the moment the list is stale, so it is a recorded cost. The held-out set also shows the typed metric is far weaker than the span metric, because prose's head-vs-tail labels are unreliable: a person whose surname carries an ORGANIZATION label is typed as an organisation.
-- [ ] NLP: ONNX backend (Phase E, optional, future) — see plan section 12.
+- [ ] NLP: ONNX backend — the Phase 0 backend landed (commit `aaf04b5`); the Phase 0 remainder and Phase 1 remain, see the Phase 0 remainder item below. The old prose plan's Phase E is superseded by the ONNX plan.
 - [ ] NLP: managed process mode (Phase F, optional, future) — see plan section 12.
-- [ ] NLP: Phase 0 remainder (deferred 2026-10-31; continued 2026-11-01). **Done:** `golden.Case.Language`; `decode.go`; the `!onnx` stub plus untagged `ONNXConfig`, `ValidateONNXConfig` and `loadID2Label` (config.json `id2label`, contiguous from 0); chunking in `chunk.go` (400 tokens, 64-token overlap, 8000-token cap that fails the request, cross-chunk dedup and pairwise longest-first overlap removal); `hf_tokenizer.go` (daulet/tokenizers adapter: byte offsets, an out-of-range offset pair is an error rather than a clamp, `WordStart` from `##`/`▁`/`Ġ` markers and the whitespace-gap rule); `onnxrt/session.go` (onnxruntime_go dynamic session, input/output names read from the model, label dimension for the startup check, ctx checked around the non-cancellable `Run`); `onnx_backend.go` (id2label startup validation, label-count mismatch fails at startup, model/tokenizer SHA-256 logged, one inference per chunk, global offsets, no partial entities on error); ONNX module deps pinned in `sidecar/go.mod`; Makefile `fetch-libtokenizers`, `build-sidecar-onnx`, `test-sidecar-onnx`, `onnx-check`, and `NER_BACKEND`/three path variables on `corpus-nlp`. `make onnx-check` is green (non-vacuous), and `make test-sidecar-onnx` passes including the tagged backend tests. **Still open:** `test-ner-onnx` (needs `testdata/golden/ner_multilingual/`, Phase 1); the parity fixture is a committed tiny WordPiece tokenizer, not the pinned multilingual `tokenizer.json` (Phase 1, which must also record its SHA-256); whether the real checkpoint needs `<s>`/`</s>` around each chunk is unverified (a Phase 1 blocker for `test-ner-onnx`) — the adapter adds no special tokens, so 400 means 400 content tokens; opset and quantisation mode are not logged (only the two SHA-256 values); the separate CI job that runs `make onnx-check` is not added. **Prerequisite correction:** `github.com/daulet/tokenizers` links `libtokenizers.a` through cgo, so a module cache plus a C toolchain is NOT sufficient. `make fetch-libtokenizers` downloads the pinned v1.27.0 linux/x86_64 archive (SHA-256 verified) into the gitignored `.cache/tokenizers`; another platform must pin its own asset and checksum.
+- [ ] NLP: Phase 0 remainder (deferred 2026-10-31; continued 2026-11-01). **Done:** `golden.Case.Language`; `decode.go`; the `!onnx` stub plus untagged `ONNXConfig`, `ValidateONNXConfig` and `loadID2Label` (config.json `id2label`, contiguous from 0); chunking in `chunk.go` (400 tokens, 64-token overlap, 8000-token cap that fails the request, cross-chunk dedup and pairwise longest-first overlap removal); `hf_tokenizer.go` (daulet/tokenizers adapter: byte offsets, an out-of-range offset pair is an error rather than a clamp, `WordStart` from `##`/`▁`/`Ġ` markers and the whitespace-gap rule); `onnxrt/session.go` (onnxruntime_go dynamic session, input/output names read from the model, label dimension for the startup check, ctx checked around the non-cancellable `Run`); `onnx_backend.go` (id2label startup validation, label-count mismatch fails at startup, model/tokenizer SHA-256 logged, one inference per chunk, global offsets, no partial entities on error); ONNX module deps pinned in `sidecar/go.mod`; Makefile `fetch-libtokenizers`, `build-sidecar-onnx`, `test-sidecar-onnx`, `onnx-check`, and `NER_BACKEND`/three path variables on `corpus-nlp`. The `onnx-check` CI workflow is in `.github/workflows/onnx-check.yml`. `make onnx-check` is green (non-vacuous), and `make test-sidecar-onnx` passes including the tagged backend tests. **Still open:** `test-ner-onnx` (needs `testdata/golden/ner_multilingual/`, Phase 1); the parity fixture is a committed tiny WordPiece tokenizer, not the pinned multilingual `tokenizer.json` (Phase 1, which must also record its SHA-256); whether the real checkpoint needs `<s>`/`</s>` around each chunk is unverified (a Phase 1 blocker for `test-ner-onnx`) — the adapter adds no special tokens, so 400 means 400 content tokens; opset and quantisation mode are not logged (only the two SHA-256 values); ONNX Runtime exposes no opset API, so logging it needs a protobuf parse of the model or exporter-reported metadata; no adoptable checkpoint after a survey: Davlan/xlm-roberta-base-ner-hrl is AFL-3.0, Babelscape/wikineural-multilingual-ner is CC BY-NC-SA 4.0, flair/ner-multi covers en/de/nl/es only and names no licence, and the MIT multilingual-xlm-roberta re-uploads (apak, Tirendaz, maydogan) document neither their data nor their languages; the design's Apache-2.0/MIT bar and six-language set remain unmet. The XLM-R configs declare bos 0/eos 2 and max_position_embeddings 514; that is evidence, not proof, that `<s>`/`</s>` are required, so the adapter change is a Phase 1 task, not a result. **Prerequisite correction:** `github.com/daulet/tokenizers` links `libtokenizers.a` through cgo, so a module cache plus a C toolchain is NOT sufficient. `make fetch-libtokenizers` downloads the pinned v1.27.0 linux/x86_64 archive (SHA-256 verified) into the gitignored `.cache/tokenizers`; another platform must pin its own asset and checksum.
 - [ ] NLP: ONNX success-path tests (Phase 1). `onnxrt` has only the failure-path `InitEnvironment` test. Add a success-path `InitEnvironment` test and a `Session.Run` test, both needing a shared `libonnxruntime` and a model directory (`model.onnx` + `config.json`).
 - [ ] NLP: libtokenizers pins for other platforms. `make fetch-libtokenizers` pins linux/x86_64 only and fails up front elsewhere (macOS included). Each platform needs its own pinned asset and SHA-256 in the Makefile before the `onnx` tag can be built there.
-- [ ] NLP: drop the redundant untagged prerequisite. The `corpus-nlp` Makefile target depends on `build-sidecar` even when `NER_BACKEND=onnx`, where the tagged build is what runs. Remove the untagged prerequisite for the onnx case.
-- [ ] NLP: wire `ONNXBackend.Close()` into sidecar shutdown. `Close` releases the session and tokenizer, but nothing calls it yet; `cmd/piiscrub-sidecar/main.go` should call it on the SIGTERM path after the HTTP server stops.
+- [x] NLP: drop the redundant untagged prerequisite. **Done 2026-11-02:** `corpus-nlp` depends on `fetch-libtokenizers` for the onnx backend and has no prerequisite for the prose backend, since the recipe builds its own binary (the `build-sidecar` prerequisite compiled the sidecar twice; dropped 2026-11-03). Verified with `make -n corpus-nlp NER_BACKEND=onnx` (no untagged build) and `make -n corpus-nlp` (single build).
+- [x] NLP: wire `ONNXBackend.Close()` into sidecar shutdown. **Done 2026-11-02:** `main.go` defers `closeBackend`, which calls `Close` on any backend that implements `io.Closer`; `server.Run` now waits for `Shutdown` to finish before returning. Tests: `sidecar/cmd/piiscrub-sidecar/main_test.go` and `sidecar/internal/server/server_test.go`. On a 5s `Shutdown` timeout, `Run` force-closes active connections and waits at most another 5s for handlers to return before `Close`; a handler stuck in a backend that ignores ctx is logged and abandoned (2026-11-03) so the process can exit.
 - [x] Secret recognizers (API keys, tokens, passwords, private keys, entropy-based). Fixed: `recognizers/secret/` package with API key, bearer token, private key and password recognizers, registered in `piiscrub.go` with `EntitySecret` type and redact operator. Tests: `recognizers/secret/secret_test.go`.
 - [x] Format-preserving encryption (FPE) operator — done, `operators/fpe.go` (commit 15d4db8).
 - [ ] Image PII detection (facial recognition via go-face)
 - [x] REST API sidecar — done, `/v1/scrub` and `/v1/pseudonymize` (commit 181aa07).
-- [ ] **Multi-language support. Scoped 2026-10-27; phone formats for France, Sweden, Germany and the Netherlands done.**
+- [ ] **Multi-language support. Scoped 2026-10-27; phone formats for France, Sweden, Germany, the Netherlands, Italy and Spain done.**
   The built-in recognizers are format-based, so EMAIL, IP_ADDRESS, IBAN and SECRET
   are already language-agnostic and hold up across the seven gretel splits. The
   language-sensitive losses are, in measured priority order: PHONE national
@@ -154,8 +154,51 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
   - [x] **Sweden's rarer groupings.** Done 2026-10-27. Added a two-char area
     with a 2-3-3 subscriber (`08-11 123 456`) and a three-char area with a
     2-2-2 subscriber (`095-02 69 41`). Swedish PHONE recall 0.8302 → 0.8868;
-    gates unchanged. France's bare `[+33] …` bracket form is the only
-    remaining deliberate phone gap.
+    gates unchanged. France's bare `[+33] …` bracket form remains a deliberate
+    phone gap.
+  - [x] **Italy and Spain phone formats.** Done 2026-11-02. Italy:
+    `0[26][\s.\-]\d{6,8}` (the only two-digit area codes) and
+    `8\d{2}[\s.\-]\d{3}[\s.\-]\d{3}` (3-3-3 toll-free). Spain: the
+    international branch accepts a 3-digit group with no separator after the
+    country code (`+34927 245 069`), and the two-digit parenthesised form
+    (`(55) 1234-5678`) is matched. A generic `[89]` 3-3-3 branch was rejected:
+    `9xx-…` matched the prefix of a ten-digit number and cost Spanish true
+    positives. Per-language PHONE: Italian P/R 0.3333/0.7937 → 0.3537/0.9206;
+    Spanish 0.3857/0.8350 → 0.4043/0.9029. Combined gretel 0.3059/0.8951 →
+    0.3053/0.8951; nemotron and the seed gate unchanged. Numbers in SPEC.md
+    "Italy and Spain phone formats".
+  - [x] **Mexico City 2-4-4 dashed numbers.** Done 2026-11-02. Added
+    `\b\d{2}[\s.\-]\d{4}[\s.\-]\d{4}\b`, which matches `55-5555-5555`,
+    `55-1234 5678` and `34-9876 5432`. The measured cost was one extra false
+    positive on the Spanish split, not the broad-branch precision collapse the
+    item anticipated, so no prefix or keyword guard was needed. Spanish PHONE
+    0.4043/0.9029 → 0.4226/0.9806 (tp 93 → 101, fp 137 → 138, fn 10 → 2).
+    Italian, combined gretel, nemotron and the seed gate are unchanged.
+  - [x] **North American `011` prefix.** Done 2026-11-02. Added
+    `\b011\d{7,11}`, which recovers `01184960536` in the Spanish split with no
+    extra false positive. Spanish PHONE 0.4226/0.9806 → 0.4250/0.9903
+    (tp 101 → 102, fp 138, fn 2 → 1). The remaining Spanish-split miss is the
+    Swedish `08-957 37 46` shape, not covered by this branch.
+  - [x] **Swedish `08` 2-3-2-2 and 2-3-3-2 forms.** Done 2026-11-02. Added
+    `\b08[\s.\-]\d{3}[\s.\-]\d{2,3}[\s.\-]\d{2,3}`; it fixes `08-957 37 46`
+    (Spanish split) and `08-123 456 78` (Swedish split). Spanish PHONE
+    0.4250/0.9903 → 0.4274/1.0000 (tp 102 → 103, fp 138, fn 1 → 0). Swedish
+    PHONE P/R 0.1715/0.8868 → 0.1702/0.9057 (tp 47 → 48, fp 227 → 234, fn
+    6 → 5); the seven new Swedish false positives are all the unlabelled
+    placeholder `08-123 45 67`, a valid shape the corpus does not label.
+  - [x] **Swedish card and context word lists.** Done 2026-11-02. The opt-in
+    card keyword gate and context booster covered de/nl/fr/it/es but not sv.
+    Added `LanguageSV` (`kortnummer`, `kreditkort`, `betalkort`, ...) and the
+    `sv` context set (`personnummer`, `kreditkort`, `e-post`, `samtal`, ...).
+    English remains the default and the sets are opt-in, so the default
+    numbers are unchanged. Measured with `PII_SCRUB_CARD_LANG=sv` on the
+    Swedish split: CREDIT_CARD R 0.8333 unchanged, P 0.6250 → 0.5882 (tp 10
+    both, fp 6 → 7). The one extra detection is
+    `Kortnummer: 4571 1234 5678 1234` in case `gretel-pii-finance-000449`,
+    which the corpus leaves unlabelled; the 12 gold cards are mostly
+    Luhn-valid or English-labelled, so the Swedish phrases recover none. The
+    context set is unmeasured: the boost is analyzer-level and `piiscrub`
+    does not expose it.
   - [x] **IBAN "country grouping".** Investigated 2026-10-27; no detector
     change. The German/Italian IBAN recall gap (0.316/0.471) is entirely
     checksum-invalid synthetic labels: 6 of 19 German and 8 of 17 Italian gold
@@ -713,8 +756,23 @@ Recorded here so a later reader does not re-raise these as gaps.
       therefore gone with the copy step that needed them, and the usage doc is
       maintained by hand. The script is idempotent and refuses to write a file
       that has no frontmatter.
-- [ ] **The usage doc is still hand-maintained.** When `README.md` changes in
-      a way the usage doc mirrors (entity-type list, seed counts, the NLP
-      sidecar), update `docs/concepts/piiscrub-usage.md` by hand and add a
-      `docs/log.md` entry. Nothing enforces this, and it is the remaining
-      drift risk after `make docs-sync`.
+- [x] **The usage doc is still hand-maintained.** Done 2026-11-02.
+      `scripts/docs_check.py` now reads `recognizers.AllEntityTypes` and fails
+      when the README entity table or its "N types" claim, or the usage doc's
+      seed coverage table, drifts; it also requires the usage doc to name
+      PERSON, ORGANIZATION and LOCATION. The first run caught a real drift:
+      README said 17 types and omitted `PH_TIN`/`IN_GSTIN`, and the usage doc
+      said 5 national recognizers. Both docs now list 19 types and 7 national
+      recognizers. The recognizer counts were enforced on 2026-11-03; see the
+      next item.
+- [x] **Usage-doc prose is still hand-written. Done 2026-11-03.** The four
+      recognizer counts in the Features list are now source-derived: regex
+      (8), national (7) and secret (1) count the packages' `func New*`
+      constructors, and checksum (2) counts the validators `newScrubber`
+      constructs. The bases are disjoint, so IBAN and bitcoin may sit in both
+      a package and an entity-type list without making a count ambiguous. The
+      same numbers are checked in the usage doc's frontmatter description and
+      the bundle index that copies it. Verified by changing "8 regex" to "9":
+      `docs_check: usage regex count 9 != source 8`. The operator count stays
+      "4" by kind (replace, mask, hash, redact); tail-mask and FPE are a
+      variant and an optional operator, not separate kinds.

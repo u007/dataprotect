@@ -173,6 +173,8 @@ func TestLuhnKeywordGatedCardLanguages(t *testing.T) {
 		{"spanish requested gates", []Language{LanguageES}, "Número de Tarjeta: " + num, true},
 		{"german requested gates", []Language{LanguageDE}, "Kreditkarte: " + num, true},
 		{"dutch requested gates", []Language{LanguageNL}, "Creditcardnummer: " + num, true},
+		{"english default does not gate swedish", nil, "Kortnummer: " + num, false},
+		{"swedish requested gates", []Language{LanguageSV}, "Kortnummer: " + num, true},
 		{"english still gates", []Language{LanguageFR}, "credit card " + num, true},
 	}
 

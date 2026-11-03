@@ -10,7 +10,7 @@ tags:
   - quantization
   - agents
   - pii
-timestamp: 2026-11-02T02:26:42Z
+timestamp: 2026-11-03T11:05:47Z
 ---
 
 # AGENTS.md — piiscrub Project
@@ -28,6 +28,7 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 - `go test -v ./operators/...` — run operator tests
 - `make fetch-libtokenizers` — download the pinned `libtokenizers.a` that the `onnx` tag links (linux/x86_64 only; re-verifies the archive SHA-256 on every run)
 - `make onnx-check` — compile gate for `-tags onnx` (no model or ONNX Runtime needed)
+- `.github/workflows/onnx-check.yml` — CI job that runs `make fetch-libtokenizers` then `make onnx-check` on pushes to `main` and on pull requests
 - `make test-sidecar-onnx` — sidecar tests with `-tags onnx`
 
 ## Architecture
@@ -41,7 +42,7 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 - `structured/` — batch processing for CSV
 - `internal/context/` — context-aware confidence boosting, applied by `Analyzer` when `WithContextBoost()` is set
 - `recognizers/nlp/` — HTTP client recognizer delegating NER to the sidecar (root stays stdlib-only)
-- `sidecar/` — separate Go module: standalone HTTP service embedding prose NER (`cmd/piiscrub-sidecar`). The prose backend decodes prose's TOKEN labels, not its entity output, because prose's coalescer mislabels company names and surnames.
+- `sidecar/` — separate Go module: standalone HTTP service embedding prose NER (`cmd/piiscrub-sidecar`). The prose backend decodes prose's TOKEN labels, not its entity output, because prose's coalescer mislabels company names and surnames. On SIGTERM the HTTP server drains first via `Shutdown` for up to `shutdownTimeout` (5s); if that times out, `Close` force-closes connections. `Run` then waits at most another 5s for in-flight handlers. If a backend ignores its context and handlers are still running, it logs "in-flight handlers did not finish within 5s; abandoning them" and returns, so the caller can run `closeBackend`. That releases the ONNX session and tokenizer when the backend implements `io.Closer`. Worst-case shutdown is about 10s (test: `TestRunReturnsWhenInflightHandlerIgnoresContext`).
 - The ONNX backend is opt-in at build time: `-tags onnx` adds `onnx_backend.go`, `hf_tokenizer.go` and `onnxrt/`, while a plain build keeps only prose plus the `!onnx` stub that names the tag. `github.com/daulet/tokenizers` links a static `libtokenizers.a` through cgo, so the `onnx` tag needs that library at LINK time — the Go module cache alone is not enough. `make fetch-libtokenizers` downloads the pinned v1.27.0 linux/x86_64 archive, verifies its SHA-256 on every run and unpacks it atomically into the gitignored `.cache/tokenizers`; any other host fails up front. `github.com/yalue/onnxruntime_go` needs no library at build time and loads `libonnxruntime` at runtime from `-onnxruntime-lib`. `NER_ONNX_MODEL` (for `make corpus-nlp NER_BACKEND=onnx`) is a DIRECTORY holding `model.onnx` and `config.json`. Requests are tokenised once and chunked at 400 tokens with a 64-token overlap; a document over 8000 tokens fails the request with an error and is never truncated. Identical spans are deduplicated across chunks, remaining overlaps are resolved pairwise longest-first, and every ONNX entity scores 0.80. The token adapters' parity fixture is `sidecar/internal/ner/testdata/tokenizer_parity.json`.
 
 ## Confidence & Threshold Semantics
@@ -73,6 +74,7 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
   overlap-resolution outcomes. It is applied BEFORE the confidence filter and
   BEFORE overlap resolution, otherwise it can neither rescue a borderline entity
   nor influence which of two colliding recognizers wins.
+- Context keywords match as whole words (`containsWord` in `internal/context/context.go`): the rune before and after an occurrence must not be a unicode letter, so `id`, `ip`, `tel` and `mail` no longer fire inside `video`, `idag`, `tips` or `email`. Digits and punctuation are boundaries, so `steuer-id`, `e-post`, `IP-adress` and `tel:` still match. Every occurrence is scanned.
 - A boost never applies to a span that overlaps a URL which survives
   `minConfidence` (`overlapsSurvivingURL` in `analyzer.go`). Otherwise a boosted IP
   or card inside a URL can outrank the URL and leave its path and query visible.

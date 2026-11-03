@@ -1,0 +1,37 @@
+name: onnx-check
+
+# Compile gate for the onnx build tag. `make onnx-check` builds the sidecar
+# with `-tags onnx`, which needs the pinned libtokenizers archive (fetched in
+# the step below) but no model and no ONNX Runtime installation. The
+# runtime-dependent tests stay behind `make test-sidecar-onnx`, which needs
+# libonnxruntime and a model directory, so they are not part of this job.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: onnx-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  onnx-check:
+    name: Build onnx-tagged sidecar
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: sidecar/go.mod
+          cache: false
+
+      - name: Fetch the pinned libtokenizers
+        run: make fetch-libtokenizers
+
+      - name: Compile the onnx backend
+        run: make onnx-check

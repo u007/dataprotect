@@ -25,6 +25,12 @@ ROOT = Path(__file__).resolve().parent.parent
 SEED = ROOT / "testdata/golden/seed.json"
 README = ROOT / "README.md"
 USAGE = ROOT / "docs/concepts/piiscrub-usage.md"
+INDEX = ROOT / "docs/index.md"
+ENTITIES = ROOT / "recognizers/recognizers.go"
+REGEX_DIR = ROOT / "recognizers/regex"
+NATIONAL_DIR = ROOT / "recognizers/national"
+SECRET_DIR = ROOT / "recognizers/secret"
+PIISCRUB = ROOT / "piiscrub.go"
 
 
 def fail(message):
@@ -92,6 +98,61 @@ SEED_TYPES = set(PER_TYPE)
 
 def read(path):
     return path.read_text(encoding="utf-8")
+
+
+def count_constructors(directory, pattern):
+    """Count exported constructors in a package's non-test files."""
+    total = 0
+    for path in sorted(directory.glob("*.go")):
+        if path.name.endswith("_test.go"):
+            continue
+        total += len(re.findall(pattern, path.read_text(encoding="utf-8"), re.MULTILINE))
+    return total
+
+
+ENTITY_CONST_RE = re.compile(
+    r'^\s*(Entity\w+)\s+EntityType\s*=\s*"([A-Z_]+)"', re.MULTILINE
+)
+
+
+def load_entity_types(path=ENTITIES):
+    """Return the type strings in recognizers.AllEntityTypes, in source order.
+
+    Read from the source rather than copied here: a copied list would drift the
+    same way the README table did, and the point of the check is to catch that.
+    """
+    text = path.read_text(encoding="utf-8")
+    consts = dict(ENTITY_CONST_RE.findall(text))
+    m = re.search(r"var AllEntityTypes = \[\]EntityType\{(.*?)\n\}", text, re.DOTALL)
+    if not m:
+        fail(f"cannot find AllEntityTypes in {path}")
+    names = re.findall(r"\bEntity\w+\b", m.group(1))
+    unknown = [n for n in names if n not in consts]
+    if unknown:
+        fail(f"AllEntityTypes names without a string constant: {', '.join(unknown)}")
+    if not names:
+        fail("AllEntityTypes is empty")
+    return [consts[n] for n in names]
+
+
+def extract_readme_entity_types(text):
+    """Return the backticked type names in README's 'Entity types' table."""
+    m = re.search(r"### Entity types\n(.*?)(?=\n### |\Z)", text, re.DOTALL)
+    if not m:
+        fail("README has no '### Entity types' section")
+    return re.findall(r"^\|\s*`([A-Z_]+)`\s*\|", m.group(1), re.MULTILINE)
+
+
+def extract_usage_coverage_types(text):
+    """Return the type names in the usage doc's coverage table."""
+    m = re.search(
+        r"Coverage by entity type.*?\n\| Entity type \| Cases \|\n\|[-\s|]+\|\n(.*?)(?=\n\n|\Z)",
+        text,
+        re.DOTALL,
+    )
+    if not m:
+        fail("usage doc has no coverage-by-entity-type table")
+    return re.findall(r"^\|\s*([A-Z_]+)\s*\|", m.group(1), re.MULTILINE)
 
 
 def extract_readme_numbers(text):
@@ -243,6 +304,84 @@ def main():
     for typ in SEED_TYPES:
         if f"usage_type_{typ}" not in u:
             errors.append(f"usage doc missing coverage row for {typ}")
+
+    # 7. README's public entity table must match recognizers.AllEntityTypes.
+    # The table is the documented list, so a type added to the registry but not
+    # the table is a silent API gap, and a table row for a missing type is a
+    # promise the library does not keep.
+    entity_types = load_entity_types()
+    readme_types = extract_readme_entity_types(readme)
+    if len(entity_types) != len(set(entity_types)):
+        errors.append("recognizers.AllEntityTypes contains duplicate types")
+    for typ in entity_types:
+        if typ not in readme_types:
+            errors.append(f"README entity table missing {typ}")
+    for typ in readme_types:
+        if typ not in entity_types:
+            errors.append(f"README entity table lists unknown type {typ}")
+    m = re.search(r"These are the (\d+) types", readme)
+    if not m:
+        errors.append("README must state the entity type count")
+    elif int(m.group(1)) != len(entity_types):
+        errors.append(
+            f"README claims {m.group(1)} entity types, AllEntityTypes has {len(entity_types)}"
+        )
+
+    # 8. Usage coverage table must name exactly the seed's types. A row for an
+    # unknown type would repeat a stale count; a missing row hides a type.
+    usage_types = set(extract_usage_coverage_types(usage))
+    for typ in sorted(SEED_TYPES - usage_types):
+        errors.append(f"usage coverage table missing {typ}")
+    for typ in sorted(usage_types - SEED_TYPES):
+        errors.append(f"usage coverage table lists non-seed type {typ}")
+
+    # 9. Both docs must keep the optional NLP types visible. The README table
+    # check above covers README; the usage doc names them in its Features list.
+    for typ in ("PERSON", "ORGANIZATION", "LOCATION"):
+        if typ not in usage:
+            errors.append(f"usage doc no longer mentions NLP type {typ}")
+
+    # 10. The Features list's recognizer counts must come from source, not
+    # memory. Regex, national and secret are the packages' constructors; the
+    # checksum count is only those newScrubber constructs (Luhn is assigned to a
+    # variable first), which is why it is two while the package ships three.
+    counts = {
+        "regex": count_constructors(REGEX_DIR, r"^func New[A-Za-z0-9_]+\("),
+        "checksum": len(
+            re.findall(r"checksum\.New[A-Za-z0-9_]*Validator\(", read(PIISCRUB))
+        ),
+        "national": count_constructors(NATIONAL_DIR, r"^func New[A-Za-z0-9_]*Recognizer\("),
+        "secret": count_constructors(SECRET_DIR, r"^func New[A-Za-z0-9_]*Recognizer\("),
+    }
+    claims = {
+        "regex": r"\*\*(\d+) regex recognizers\*\*",
+        "checksum": r"\*\*(\d+) checksum validators",
+        "national": r"\*\*(\d+) national ID and passport recognizers\*\*",
+        "secret": r"\*\*(\d+) secret recognizer\*\*",
+    }
+    for name, claim in claims.items():
+        m = re.search(claim, usage)
+        if not m:
+            errors.append(f"usage doc must state the {name} count")
+        elif int(m.group(1)) != counts[name]:
+            errors.append(f"usage {name} count {m.group(1)} != source {counts[name]}")
+
+    # The same numbers are repeated in the usage doc's frontmatter description
+    # and in the bundle index, which copies it.
+    desc_re = re.compile(
+        r"feature list \((\d+) regex, (\d+) checksum, "
+        r"(\d+) national-ID and passport recognizers, (\d+) secret recognizer"
+    )
+    for doc_name, text in (("usage description", usage), ("index", read(INDEX))):
+        m = desc_re.search(text)
+        if not m:
+            errors.append(f"{doc_name} is missing the feature-list counts")
+            continue
+        for i, name in ((1, "regex"), (2, "checksum"), (3, "national"), (4, "secret")):
+            if int(m.group(i)) != counts[name]:
+                errors.append(
+                    f"{doc_name} {name} count {m.group(i)} != source {counts[name]}"
+                )
 
     if errors:
         print("docs_check: DRIFT DETECTED:", file=sys.stderr)

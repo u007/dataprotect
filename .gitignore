@@ -89,3 +89,7 @@ Thumbs.db
 # Machine-local build inputs that are downloaded, never committed. The ONNX
 # compile gate needs libtokenizers.a; `make fetch-libtokenizers` puts it here.
 /.cache/
+
+# Python bytecode from the docs checker.
+__pycache__/
+*.pyc

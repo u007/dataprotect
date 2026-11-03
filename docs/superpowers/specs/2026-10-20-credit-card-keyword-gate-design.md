@@ -1,3 +1,13 @@
+---
+type: Decision
+title: "Credit-card keyword-gated rule — design"
+description: "Hybrid keyword gate for Luhn-valid card numbers; implemented 2026-10-21 in recognizers/checksum"
+resource: recognizers/checksum/checksum.go
+tags: [credit-card, checksum, design]
+timestamp: 2026-11-03T11:51:49Z
+status: active
+---
+
 # Credit-card keyword-gated rule — design (2026-10-20)
 
 Status: IMPLEMENTED 2026-10-21. Decision: 1.c (hybrid). Implementation:

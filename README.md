@@ -10,7 +10,7 @@ piiscrub has no language model of its own. Detection is regex and checksum based
 
 As implemented, the scope is:
 
-- It detects the 17 entity types listed under "Entity types" below.
+- It detects the 19 entity types listed under "Entity types" below.
 - Malaysia and Singapore passports are matched only next to a passport keyword. Thai passports are not covered.
 - Bare domains such as `microsoft.com` are not detected. Phone numbers in national formats (Israel, Japan, UK) are not matched.
 - It is not a formal privacy tool. It gives no k-anonymity or differential-privacy guarantee, and it handles English text only (SPEC.md, "Non-goals").
@@ -137,7 +137,7 @@ Recognizers are added with `AddRecognizer`. Each one reports entities, and `Anal
 
 ### Entity types
 
-These are the 17 types in `recognizers.AllEntityTypes`. The "Scrubber" column is the operator `NewScrubber` applies by default.
+These are the 19 types in `recognizers.AllEntityTypes`. The "Scrubber" column is the operator `NewScrubber` applies by default.
 
 | Type | Detected by | Method and limits | Scrubber operator |
 |---|---|---|---|
@@ -158,6 +158,8 @@ These are the 17 types in `recognizers.AllEntityTypes`. The "Scrubber" column is
 | `TH_ID` | `national.NewTHIDRecognizer` | Thai citizen ID, 13 digits with the mod-11 check digit. A Luhn-valid Thai ID is typed `TH_ID` by `Scrubber` | redact |
 | `MY_PASSPORT` | `national.NewMYPassportRecognizer` | A, H or K and eight digits, next to a passport keyword | redact |
 | `SG_PASSPORT` | `national.NewSGPassportRecognizer` | E or K, seven digits and a letter, next to a passport keyword | redact |
+| `PH_TIN` | `national.NewPHTINRecognizer` | Philippine TIN, nine digits in three groups with an optional three-digit branch. The NIRC §236 checksum formula is not verified | redact |
+| `IN_GSTIN` | `national.NewINGSTINRecognizer` | Indian GSTIN, 15-character shape with the mod-36 check digit; the primary GSTN document is unconfirmed | redact |
 
 The shapes for the national IDs and passports come from the sources in [SOURCES.md](SOURCES.md). The Malaysian and Singapore passport shapes are not confirmed by an official specification.
 

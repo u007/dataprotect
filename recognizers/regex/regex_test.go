@@ -130,6 +130,29 @@ func TestPhoneRecognizer(t *testing.T) {
 		{"e164 too long", "+1234567890123456", 0, ""},
 		{"e164 after a word is not a phone", "C++1234567", 0, ""},
 		{"e164 in an email tag is not a phone", "user+1234567@example.com", 0, ""},
+		// Italy: a two-digit area code with a separator and a 3-3-3
+		// toll-free number. Spain: +34 immediately followed by the first
+		// group, and a parenthesised two-digit area code. These shapes were
+		// measured on gretel's Italian and Spanish splits.
+		{"italy two-digit area", "tel 06-1234567", 1, "06-1234567"},
+		{"italy toll-free", "numero verde 800 123 456", 1, "800 123 456"},
+		{"spain international no space", "llame al +34927 245 069", 1, "+34927 245 069"},
+		{"spain paren two-digit area", "tel (55) 1234-5678", 1, "(55) 1234-5678"},
+		{"spain two-four-four dashed", "telefono 55-5555-5555", 1, "55-5555-5555"},
+		{"spain two-four-four mixed", "telefono 34-9876 5432", 1, "34-9876 5432"},
+		{"spain two-four-four space", "telefono 55-1234 5678", 1, "55-1234 5678"},
+		{"2-4-4 with year middle is a date", "date 12-2024-0101", 0, ""},
+		{"2-4-4 with year middle is a reference", "ref 02-2024-1234", 0, ""},
+		{"2-4-4 dotted is a decimal", "total 12.3456.7890", 0, ""},
+		{"not inside a digit run (2-4-4)", "x55-5555-5555", 0, ""},
+		{"us 011 prefix", "call 01184960536", 1, "01184960536"},
+		{"short 011 run is not a phone", "id 011849605", 0, ""},
+		{"long 011 run is not a phone", "id 011849605361234", 0, ""},
+		{"sweden stockholm two-three-two-two", "tel 08-957 37 46", 1, "08-957 37 46"},
+		{"sweden stockholm two-three-three-two", "tel 08-123 456 78", 1, "08-123 456 78"},
+		{"short 08 run is not a phone", "kod 08-957 37", 0, ""},
+		{"card is not a 2-4-4 phone", "5555-5555-5555-5555", 0, ""},
+		{"italy short area is not a phone", "codice 06-123456", 0, ""},
 		// A partial French grouping is not a number, and a bare run is not France.
 		{"incomplete france is not a phone", "code 01 23 45 here", 0, ""},
 	}

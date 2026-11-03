@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/u007/dataprotect"
@@ -14,10 +15,15 @@ import (
 
 const maxBodyBytes = 1 << 20
 
+// shutdownTimeout is the drain budget: Shutdown gets it to finish active
+// requests, and Run gets it again to wait for in-flight handlers to return.
+const shutdownTimeout = 5 * time.Second
+
 type Server struct {
 	addr     string
 	backend  ner.NERBackend
 	scrubber *piiscrub.Scrubber
+	inflight sync.WaitGroup
 }
 
 func New(addr string, backend ner.NERBackend, scrubber *piiscrub.Scrubber) *Server {
@@ -30,7 +36,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/ner", s.handleNER)
 	mux.HandleFunc("/v1/scrub", s.handleScrub)
 	mux.HandleFunc("/v1/pseudonymize", s.handlePseudonymize)
-	return mux
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.inflight.Add(1)
+		defer s.inflight.Done()
+		mux.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
@@ -153,15 +163,38 @@ func (s *Server) Run(ctx context.Context) error {
 		ReadHeaderTimeout: 10 * time.Second,
 		WriteTimeout:      30 * time.Second,
 	}
+	shutdownDone := make(chan struct{})
 	go func() {
+		defer close(shutdownDone)
 		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
-		hs.Shutdown(shutdownCtx)
+		if err := hs.Shutdown(shutdownCtx); err != nil {
+			log.Printf("piiscrub-sidecar: shutdown: %v; closing active connections", err)
+			if cerr := hs.Close(); cerr != nil {
+				log.Printf("piiscrub-sidecar: close: %v", cerr)
+			}
+		}
 	}()
 	log.Printf("piiscrub-sidecar listening on %s", s.addr)
 	if err := hs.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("listen: %w", err)
+	}
+	// ListenAndServe returns as soon as Shutdown closes the listener, before
+	// in-flight handlers have drained. Wait for Shutdown, then for every
+	// handler, but only for shutdownTimeout: a handler whose backend ignores
+	// ctx would otherwise block here forever. Abandoned handlers are logged
+	// and Run returns so the caller can release backend resources.
+	<-shutdownDone
+	drained := make(chan struct{})
+	go func() {
+		s.inflight.Wait()
+		close(drained)
+	}()
+	select {
+	case <-drained:
+	case <-time.After(shutdownTimeout):
+		log.Printf("piiscrub-sidecar: in-flight handlers did not finish within %s; abandoning them", shutdownTimeout)
 	}
 	return nil
 }

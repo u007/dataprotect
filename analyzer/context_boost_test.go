@@ -84,7 +84,7 @@ func TestContextBoostRunsBeforeConfidenceFilter(t *testing.T) {
 	a := New(WithMinConfidence(0.9), WithContextBoost())
 	a.AddRecognizer(rec)
 
-	got, err := a.Analyze(context.Background(), "your email address is a@b.com")
+	got, err := a.Analyze(context.Background(), "your email contact is a@b.com")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -263,9 +263,9 @@ func TestThresholdBoundaryRegression(t *testing.T) {
 	a := New(WithMinConfidence(0.9), WithContextBoost())
 	a.AddRecognizer(rec)
 
-	// "email" matches the email keyword list and also contains "mail", so two
-	// keywords fire: 0.7 + 0.2 == 0.9.
-	got, err := a.Analyze(context.Background(), "email a@b.com")
+	// "email" and "contact" are two whole-word email keywords, so two fire:
+	// 0.7 + 0.2 == 0.9.
+	got, err := a.Analyze(context.Background(), "email contact a@b.com")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

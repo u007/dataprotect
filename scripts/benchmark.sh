@@ -13,6 +13,10 @@
 # numbers are then directly comparable: the same dataset, the same scorer, the
 # only difference being the recognizer.
 #
+# Set PII_SCRUB_CARD_LANG to add a language's card-label phrases to the Luhn
+# gate (comma-separated checksum.Language codes, e.g. sv). It is opt-in and
+# combines with PII_SCRUB_NLP_URL: the default run is unchanged.
+#
 # The optional case limit scores the FIRST n cases. It exists because the
 # sidecar costs about 20 ms per text, so a full 2000-case corpus takes about
 # 40 seconds. A limited run prints the number of cases it actually scored, so
@@ -62,6 +66,7 @@ import (
 
 	piiscrub "github.com/u007/dataprotect"
 	"github.com/u007/dataprotect/golden"
+	"github.com/u007/dataprotect/recognizers/checksum"
 	"github.com/u007/dataprotect/recognizers/nlp"
 )
 
@@ -111,11 +116,24 @@ func main() {
 
 	// The NLP recognizer is opt-in, so the benchmark is opt-in too. A URL
 	// without a sidecar running scores exactly as it always has.
-	s := piiscrub.NewScrubber()
+	// Card-label languages are opt-in as well: PII_SCRUB_CARD_LANG=sv scores
+	// the split with the Swedish phrases added to the English default.
+	var scrubOpts []piiscrub.ScrubberOption
+	if raw := os.Getenv("PII_SCRUB_CARD_LANG"); raw != "" {
+		var langs []checksum.Language
+		for _, p := range strings.Split(raw, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				langs = append(langs, checksum.Language(p))
+			}
+		}
+		scrubOpts = append(scrubOpts, piiscrub.WithCardLanguages(langs...))
+		fmt.Printf("card-languages: %s\n\n", raw)
+	}
 	if url := os.Getenv("PII_SCRUB_NLP_URL"); url != "" {
-		s = piiscrub.NewScrubberWithRecognizers(nlp.New(url))
+		scrubOpts = append(scrubOpts, piiscrub.WithRecognizer(nlp.New(url)))
 		fmt.Printf("nlp:     %s\n\n", url)
 	}
+	s := piiscrub.NewScrubber(scrubOpts...)
 	if limit > 0 {
 		opts = append(opts, golden.WithCaseLimit(limit))
 	}

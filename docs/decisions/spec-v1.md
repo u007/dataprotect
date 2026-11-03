@@ -1,7 +1,7 @@
 ---
 type: Decision
 title: piiscrub v1 Spec — Scope, Architecture & Non-Goals
-description: 'Architecture decision record for piiscrub v1: why a dependency-free Go PII library instead of Python Presidio, the explicit non-goals, MVP scope versus v2+ phases, core interfaces (Recognizer, Operator, Analyzer, Anonymizer), the actual on-disk package layout, per-recognizer accuracy targets alongside measured results from the 549-case golden seed AND from a 2000-record sample of both fetched corpora (which fall well short of the >99% target, with every large gap explained), operator semantics, the CSV batch contract, pinned dependencies, and the testing/benchmark strategy.'
+description: 'Architecture decision record for piiscrub v1: why a dependency-free Go PII library instead of Python Presidio, the explicit non-goals, MVP scope versus v2+ phases, core interfaces (Recognizer, Operator, Analyzer, Anonymizer), the actual on-disk package layout, per-recognizer accuracy targets alongside measured results from the 553-case golden seed AND from a 2000-record sample of both fetched corpora (which fall well short of the >99% target, with every large gap explained), operator semantics, the CSV batch contract, pinned dependencies, and the testing/benchmark strategy.'
 tags:
   - pii
   - go
@@ -11,7 +11,7 @@ tags:
   - anonymization
   - privacy
   - v1
-timestamp: 2026-10-07T04:56:44Z
+timestamp: 2026-11-03T11:05:47Z
 ---
 
 # piiscrub — Go PII Detection & Anonymization Library
@@ -482,8 +482,42 @@ digits (including the leading 0) and subscriber numbers of 5-8, so the original
 `0XX-XXX XX XX` branch covered only one layout. Two more branches cover a
 two-char area with a 2-3-3 subscriber and a three-char area with a 2-2-2
 subscriber; Swedish `PHONE` recall moves 0.8302 → 0.8868 (tp 44 → 47, fp
-unchanged at 227). France's bare `[+33] …` bracket form remains the only
-deliberate non-English phone gap. See TODO.md "multi-language".
+unchanged at 227). France's bare `[+33] …` bracket form remains a deliberate
+phone gap. See TODO.md "multi-language".
+
+**Italy and Spain (2026-11-02).** Two-digit Italian area codes (`02`, `06`)
+were not matched, because every existing national branch starts with a
+three-digit trunk group; `0[26][\s.\-]\d{6,8}` covers `06-1234567` without
+matching the `01-…` ID shapes that a broader `0[1-9]` branch picked up. The
+`8xx xxx xxx` branch covers Italy's 3-3-3 toll-free form (`800 123 456`).
+Spain writes `+34` immediately before the first group (`+34927 245 069`), so
+the international branch now accepts a 3-digit group with no separator; the
+two-digit parenthesised form (`(55) 1234-5678`) is also matched. A generic
+`[89]` 3-3-3 branch was rejected: `9xx-…` matched the first nine digits of a
+ten-digit number and cost Spanish true positives. The 2-4-4 national form
+(`55-5555-5555`, `55-1234 5678`, `34-9876 5432`) was added in the same change
+with `\b\d{2}[\s.\-]\d{4}[\s.\-]\d{4}\b`; on the Spanish split it recovers
+eight gold spans for one extra false positive, so the broad shape was kept
+rather than a prefix or keyword guard. Two narrow guards were added on
+2026-11-03 after review: the branch's separators are space and hyphen only
+(a dotted `12.3456.7890` is a decimal or version, and no gold span uses a
+dot), and `Recognize` rejects a 2-4-4 span whose middle group reads as a
+year, 19xx or 20xx (`12-2024-0101`, `02-2024-1234` are dated references).
+Re-measured with both guards: Spanish, Italian, Swedish, combined gretel and
+nemotron `PHONE` are all unchanged. Measured on the per-language splits:
+Italian `PHONE` P/R 0.3333/0.7937 → 0.3537/0.9206 (tp 50 → 58, fp 100 → 106);
+Spanish 0.3857/0.8350 → 0.4043/0.9029 → 0.4226/0.9806 (tp 86 → 93 → 101; fp
+137 → 137 → 138; fn 10 → 2). The combined gretel `PHONE` is 0.3053/0.8951
+(from 0.3059/0.8951); nemotron is unchanged at 0.5679/0.9982 and the seed gate
+is unchanged. The bare North American `011` prefix (`01184960536`) was added
+afterwards with `\b011\d{7,11}`; it recovered that miss with no extra false
+positive. Spanish `PHONE` is now 0.4250/0.9903 (tp 102, fp 138, fn 1). Stockholm's
+`08` 2-3-2-2 and 2-3-3-2 forms (`08-957 37 46`, `08-123 456 78`) were then
+added with `\b08[\s.\-]\d{3}[\s.\-]\d{2,3}[\s.\-]\d{2,3}`; Spanish `PHONE`
+reaches 1.0000 recall (tp 103, fp 138, fn 0). Swedish `PHONE` P/R moves
+0.1715/0.8868 → 0.1702/0.9057 (tp 47 → 48, fp 227 → 234, fn 6 → 5). The seven
+new Swedish false positives are all the unlabelled placeholder `08-123 45 67`,
+a valid phone shape the corpus does not label.
 
 **German/Italian IBAN recall is corpus-side (2026-10-27).** Per-language `IBAN`
 recall is 0.3158 for German and 0.4706 for Italian, but the gap is entirely
@@ -516,12 +550,22 @@ German/Italian `ssn` coverage. No detector change is made.
 Both lists were English-only. The Luhn-failing fallback in
 `recognizers/checksum` now accepts card-label phrases per language:
 `NewLuhnValidatorWithLanguages(...)` and `piiscrub.WithCardLanguages(...)` add
-de/nl/fr/it/es to the default English set. The gate still fires only for a
+de/nl/fr/it/es/sv to the default English set. The gate still fires only for a
 Luhn-failing window with a card prefix and a standard layout, and English is the
 default, so a Spanish "tarjeta" in English text cannot gate a number unless
 Spanish was requested. `analyzer.WithContextBoostLanguage(lang)` does the same
 for the opt-in context boost; a language that does not list a type falls back to
 the English words for that type. The boost stays off by default.
+
+Context keywords match whole words: the rune before and after an occurrence must
+not be a unicode letter. Short keywords (`id`, `ip`, `tel`, `adress`, `mail`) no
+longer fire inside ordinary words (`video`, `idag`, `tips`, `hotell`, `email`), which
+had made the boost near-unconditional in every language. Digits and punctuation are
+boundaries, so `steuer-id`, `e-post`, `IP-adress` and `tel:` still match, and every
+occurrence is scanned. A keyword that contains another keyword no longer double-counts
+(`email` no longer also counts `mail`; `telephone` no longer also counts `tel`), so two
+analyzer tests now use two distinct whole-word keywords. Benchmarks do not enable the
+context boost, so corpus numbers are unchanged.
 
 Measured on the matching split, default → with that language:
 - Dutch `CREDIT_CARD` R 0.6154 → 0.7692, P 0.6154 → 0.6667 (tp 8 → 10)
@@ -529,6 +573,11 @@ Measured on the matching split, default → with that language:
 - Italian R 0.1333 → 0.3333, P 0.2500 → 0.4545 (tp 2 → 5)
 - German and Spanish unchanged (valid cards, a non-card label, or an invalid
   network prefix)
+- Swedish (added 2026-11-02) R unchanged at 0.8333, P 0.6250 → 0.5882: the
+  only extra detection is `Kortnummer: 4571 1234 5678 1234` in case
+  `gretel-pii-finance-000449`, a card-shaped, Luhn-failing number the corpus
+  leaves unlabelled. The split's 12 gold cards are mostly Luhn-valid or
+  English-labelled, so the Swedish phrases recover none.
 
 The default pipeline is unchanged, so the seed and the pinned nemotron/gretel
 gates are unaffected. A multilingual NLP model remains a separate track.
@@ -970,9 +1019,9 @@ proves nothing.
 | **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 553-case seed (past the ~500 target); the corpora are measured on demand instead |
 | 2 | NLP recognizer (prose) | SHIPPED (sidecar module + opt-in client; Phases A/B/D of the NLP plan) |
 | 3 | Secret recognizers (patterns + entropy) | SHIPPED |
-| 4 | FPE operator | Later |
+| 4 | FPE operator | **SHIPPED** (`operators/fpe.go`, commit `15d4db8`) |
 | 5 | Image PII detection (go-face) | Later |
-| 6 | REST API sidecar | Later (the NLP sidecar in `sidecar/` exposes /healthz and /v1/ner; /v1/analyze and /v1/anonymize are the deferred part) |
+| 6 | REST API sidecar | **PARTIAL**: `/v1/scrub` and `/v1/pseudonymize` shipped; `/v1/analyze` and `/v1/anonymize` deferred |
 
 ---
 

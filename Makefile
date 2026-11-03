@@ -29,6 +29,11 @@ DATA_ROOT := $(abspath $(or $(DATAPROTECT_DATA_DIR),testdata/external))
 # full-corpus one. 0 means every record.
 LIMIT ?= 2000
 
+# The gretel split scored by `make corpus-lang`. Empty by default: the target
+# refuses to guess, because scoring the wrong language under a requested label
+# would be a false result that looks real.
+CORPUS_LANG ?=
+
 # ONNX backend build inputs. github.com/daulet/tokenizers links a static Rust
 # library through cgo, and that library is NOT part of the Go module cache, so a
 # plain `go build -tags onnx` fails to link until it is present. The pinned
@@ -47,7 +52,7 @@ ONNX_TOKENIZERS_DIR     := $(CURDIR)/.cache/tokenizers
 ONNX_CGO_LDFLAGS        := -L$(ONNX_TOKENIZERS_DIR)
 
 .PHONY: help download list info dry-run benchmark test test-race test-tools build vet fmt \
-        corpus corpus-convert corpus-anonymize corpus-clean corpus-nlp clean-data presidio presidio-fetch \
+        corpus corpus-convert corpus-lang corpus-anonymize corpus-clean corpus-nlp clean-data presidio presidio-fetch \
         build-sidecar test-sidecar vet-sidecar docs-sync test-ner docs-check \
         fetch-libtokenizers build-sidecar-onnx test-sidecar-onnx onnx-check
 
@@ -60,6 +65,7 @@ help:
 	@echo "  make benchmark       score the golden seed set and print the report"
 	@echo "  make corpus-convert  convert both corpora to golden datasets (LIMIT=$(LIMIT))"
 	@echo "  make corpus          convert, then score each corpus and print the report"
+	@echo "  make corpus-lang CORPUS_LANG=Italian   score one gretel language split"
 	@echo "  make corpus-anonymize run Scrubber.Anonymize over every converted case (contract check)"
 	@echo "  make corpus-clean    delete the converted datasets (data is gitignored)"
 	@echo "  make corpus-nlp      score the corpora with the NLP sidecar (starts a sidecar, then stops it)"
@@ -69,7 +75,7 @@ help:
 	@echo "  make build           build every package"
 	@echo "  make vet             run go vet"
 	@echo "  make fmt             fail if any file is not gofmt-clean"
-	@echo "  make docs-check      fail if README.md and the usage doc disagree with the seed set"
+	@echo "  make docs-check      fail if the docs drift from the seed set or the recognizer counts"
 	@echo "  make build-sidecar   build the sidecar module (separate Go module)"
 	@echo "  make test-sidecar    run the sidecar module test suite"
 	@echo "  make vet-sidecar     run go vet in the sidecar module"
@@ -129,6 +135,17 @@ corpus: corpus-convert
 	./scripts/benchmark.sh "$(DATA_ROOT)/nemotron-pii/converted"
 	./scripts/benchmark.sh "$(DATA_ROOT)/gretel-pii-finance/converted"
 
+# Score one gretel language split. The combined split is the default; this
+# target exists so a language-specific recognizer change is measured on its own
+# text instead of being averaged into the combined figure.
+corpus-lang:
+	@test -n "$(CORPUS_LANG)" || { \
+		echo "corpus-lang: set CORPUS_LANG, e.g. make corpus-lang CORPUS_LANG=Italian" >&2; \
+		exit 1; \
+	}
+	cd tools/corpusbench && $(GO) run . convert gretel-pii-finance "$(DATA_ROOT)" $(LIMIT) "$(CORPUS_LANG)"
+	./scripts/benchmark.sh "$(DATA_ROOT)/gretel-pii-finance-$(shell echo "$(CORPUS_LANG)" | tr '[:upper:]' '[:lower:]')/converted"
+
 # Score the corpora WITH the NLP sidecar, for an apples-to-apples comparison
 # with the regex-only score that 'make corpus' prints. The sidecar is started
 # and stopped by the target, and the port must be free: a stale sidecar would
@@ -154,7 +171,7 @@ NER_ONNX_RUNTIME_LIB ?=
 CORPUS_NLP_TAGS := $(if $(filter onnx,$(NER_BACKEND)),-tags onnx,)
 CORPUS_NLP_CGO  := $(if $(filter onnx,$(NER_BACKEND)),CGO_LDFLAGS="$(ONNX_CGO_LDFLAGS)",)
 
-corpus-nlp: build-sidecar $(if $(filter onnx,$(NER_BACKEND)),fetch-libtokenizers,)
+corpus-nlp: $(if $(filter onnx,$(NER_BACKEND)),fetch-libtokenizers)
 	@if curl -sf $(NER_URL)/healthz >/dev/null 2>&1; then \
 		echo "a sidecar is already listening on $(NER_URL); stop it first." >&2; \
 		exit 1; \
@@ -181,8 +198,8 @@ corpus-anonymize:
 	$(GO) run ./cmd/corpusanon "$(DATA_ROOT)/nemotron-pii/converted" "$(DATA_ROOT)/gretel-pii-finance/converted"
 
 corpus-clean:
-	rm -rf "$(DATA_ROOT)/nemotron-pii/converted" "$(DATA_ROOT)/gretel-pii-finance/converted"
-	@echo "removed converted datasets — 'make corpus-convert' regenerates them"
+	rm -rf "$(DATA_ROOT)/nemotron-pii/converted" "$(DATA_ROOT)/gretel-pii-finance/converted" "$(DATA_ROOT)"/gretel-pii-finance-*/converted
+	@echo "removed converted datasets (combined and per-language) — 'make corpus-convert' regenerates them"
 
 test-tools:
 	cd tools/corpusbench && $(GO) test ./...

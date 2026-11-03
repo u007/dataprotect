@@ -3,6 +3,8 @@ package context
 
 import (
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/u007/dataprotect/recognizers"
 )
@@ -84,6 +86,15 @@ var BoostContextByLanguage = map[string]map[recognizers.EntityType][]string{
 		recognizers.EntityIBAN:       {"iban", "banco", "cuenta"},
 		recognizers.EntityBitcoin:    {"bitcoin", "btc", "cartera"},
 	},
+	"sv": {
+		recognizers.EntityEmail:      {"e-post", "mail", "kontakt"},
+		recognizers.EntityPhone:      {"telefon", "tel", "mobil", "samtal", "fax"},
+		recognizers.EntityCreditCard: {"kreditkort", "kortnummer", "betalkort", "kontokort"},
+		recognizers.EntitySSN:        {"personnummer", "samordningsnummer", "id"},
+		recognizers.EntityIP:         {"ip", "adress", "server", "host"},
+		recognizers.EntityIBAN:       {"iban", "bank", "konto"},
+		recognizers.EntityBitcoin:    {"bitcoin", "btc", "plånbok"},
+	},
 }
 
 // BoostConfidence adjusts entity confidence based on the English context words.
@@ -104,8 +115,8 @@ func BoostConfidenceForLanguage(text string, entity recognizers.EntityType, star
 	return boostConfidence(text, start, end, words)
 }
 
-// boostConfidence is the shared scorer: it counts matching keywords in the
-// 50-byte window around the entity, 0.1 each, capped at 0.3.
+// boostConfidence is the shared scorer: it counts matching keywords as whole
+// words in the 50-byte window around the entity, 0.1 each, capped at 0.3.
 func boostConfidence(text string, start, end int, contextWords []string) float64 {
 	if len(contextWords) == 0 {
 		return 0.0
@@ -124,7 +135,7 @@ func boostConfidence(text string, start, end int, contextWords []string) float64
 
 	boost := 0.0
 	for _, word := range contextWords {
-		if strings.Contains(surrounding, word) {
+		if containsWord(surrounding, word) {
 			boost += 0.1
 		}
 	}
@@ -132,4 +143,29 @@ func boostConfidence(text string, start, end int, contextWords []string) float64
 		boost = 0.3
 	}
 	return boost
+}
+
+// containsWord reports whether word occurs in s with a word boundary on both
+// sides: the rune immediately before and the rune immediately after the
+// occurrence must not be a letter (a missing rune at either end of s counts as
+// a boundary). Digits and punctuation such as '-', ':' and '.' are boundaries,
+// so "steuer-id" and "tel:" match. Every occurrence is checked, so a word that
+// first appears inside a longer word ("video" for "id") does not hide a later
+// standalone one. word may contain spaces; the boundary applies to the outer
+// ends of the phrase only. word must be non-empty.
+func containsWord(s, word string) bool {
+	for i := 0; ; {
+		j := strings.Index(s[i:], word)
+		if j < 0 {
+			return false
+		}
+		start := i + j
+		end := start + len(word)
+		before, _ := utf8.DecodeLastRuneInString(s[:start])
+		after, _ := utf8.DecodeRuneInString(s[end:])
+		if !unicode.IsLetter(before) && !unicode.IsLetter(after) {
+			return true
+		}
+		i = start + 1
+	}
 }

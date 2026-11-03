@@ -135,6 +135,15 @@ type PhoneRecognizer struct {
 //     already resolved through the bare-US branch; what these add is the
 //     4-5-digit-area and multi-group forms (`0221-123456`, `029-85 10 71`,
 //     `06-12345678`).
+//   - Italy and Spain (2026-11-02). Italy's only two-digit area codes are
+//     02 and 06, so `0[26][\s.\-]\d{6,8}` covers `06-1234567` without the
+//     `01-...` ID shapes a broader `0[1-9]` branch picked up; `8xx xxx xxx`
+//     covers the 3-3-3 toll-free form. Spain writes `+34` immediately before
+//     the first group (`+34927 245 069`), so the international branch accepts
+//     a 3-digit group with no separator; the two-digit parenthesised form
+//     (`(55) 1234-5678`) is also matched. A generic `[89]` 3-3-3 branch was
+//     rejected: `9xx-...` matched the prefix of a ten-digit number and cost
+//     Spanish true positives.
 //   - A "+NN(0)" branch with no space (e.g. "+31(0)83-3795934"). The generic
 //     "+" branch required a separator after the country code, so the common
 //     German/Dutch "+49(0)30..." / "+31(0)20..." spelling missed. It is a
@@ -149,12 +158,33 @@ type PhoneRecognizer struct {
 //     a "+" preceded by a digit, letter, underscore or another "+", so
 //     arithmetic ("1+23456789"), C++1234567 and an email tag
 //     (user+tag@example.com) stay non-phones.
+//   - A 2-4-4 national form (measured 2026-11-02): gretel's Spanish split
+//     writes "55-5555-5555", "55-1234 5678" and "34-9876 5432", which the
+//     3-3-4 branch cannot see. The branch is anchored on both sides and
+//     requires a separator between every group, so a bare ten-digit run is
+//     still not a phone. On the Spanish split it recovered eight gold spans
+//     for one extra false positive, so the broad shape was kept instead of a
+//     prefix or keyword guard. Two guards keep it from firing on other
+//     shapes: its separators are space and hyphen only, because dotted
+//     2.4.4 strings are decimals or versions and no gold span uses a dot;
+//     and Recognize rejects a span whose middle 4-digit group reads as a
+//     year (19xx or 20xx), because dated and invoice references such as
+//     "12-2024-0101" are not phones. No gold span has a year-like middle group.
+//   - A bare North American "011" international prefix (measured 2026-11-02):
+//     "01184960536" was the last non-Swedish Spanish-split miss. The branch is
+//     bounded on both sides and cannot start inside a longer digit run; on the
+//     Spanish split it recovered one gold span with no extra false positive.
+//   - Stockholm's "08" 2-3-2-2 and 2-3-3-2 forms (measured 2026-11-02):
+//     "08-957 37 46" was the last Spanish-split miss, and "08-123 456 78" is a
+//     Swedish-split gold. The branch fixes both. It also matches the unlabelled
+//     placeholder "08-123 45 67" in seven Swedish cases; those are valid phone
+//     shapes the corpus does not label, not malformed detections.
 func NewPhoneRecognizer() *PhoneRecognizer {
 	// Parenthesised (optional "1") | international "+" | bare US, in that order
 	// so the more specific paren branch wins a leftmost match such as
 	// "+1 (555) 867-5309".
 	return &PhoneRecognizer{
-		pattern: regexp.MustCompile(`(?:(?:\+1[\s.\-]?|\b1[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}|\(\+\d{1,3}\)[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\+\d{1,3}[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}(?:[\s.\-]\d{2}){0,3}|\+\d{1,3}\(\d{1,4}\)[ .\-]?\d{1,4}[ .\-]?\d{1,9}(?:[ .\-]\d{2}){0,3}|\+[1-9]\d{6,14}|\b001[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}|\b0[1-9](?:[\s.\-]\d{2}){4}|\b0\d{2}[\s.\-]\d{3}[\s.\-]\d{2}[\s.\-]\d{2}|\b0[1-9][ .\-]\d{2}[ .\-]\d{3}[ .\-]\d{3}|\b0[1-9]\d[ .\-]\d{2}[ .\-]\d{2}[ .\-]\d{2}|\b0[2-9]\d(?:[ .\-/][1-9]\d{0,7})(?:[ .\-]\d{2,4}){0,3}|\b0[2-9]\d{2,4}(?:[ .\-/][1-9]\d{0,8})(?:[ .\-]\d{2,4}){0,3}|\b01[5-7]\d{0,1}[ .\-/]?\d{7,8}|\b06[ .\-]?\d{8}|\b0[1-9]\d[ .\-]?\d{7}|\b0[1-9]\d{2}[ .\-]?\d{6}|\b0(?:800|88|85|84|87|900|906|909)(?:[ .\-]\d{2,4})(?:[ .\-]?\d{2,4}){0,3})(?:\s*[xX]\.?\s*\d{1,6})?\b`),
+		pattern: regexp.MustCompile(`(?:(?:\+1[\s.\-]?|\b1[\s.\-]?)?\(\d{3}\)[\s.\-]?\d{3}[\s.\-]?\d{4}|\(\d{2}\)[\s.\-]?\d{3,4}[\s.\-]\d{4}|\(\+\d{1,3}\)[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\+\d{1,3}[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}(?:[\s.\-]\d{2}){0,3}|\+\d{1,3}\d{3}[\s.\-]\d{2,4}(?:[\s.\-]\d{2,4}){1,2}|\+\d{1,3}\(\d{1,4}\)[ .\-]?\d{1,4}[ .\-]?\d{1,9}(?:[ .\-]\d{2}){0,3}|\+[1-9]\d{6,14}|\b001[\s.\-](?:\(\d{1,4}\)|\d{1,4})[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}|\b011\d{7,11}|\b(?:\+?1[\s.\-]?)?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4}|\b0[1-9](?:[\s.\-]\d{2}){4}|\b0[26][\s.\-]\d{6,8}|\b8\d{2}[\s.\-]\d{3}[\s.\-]\d{3}|\b0\d{2}[\s.\-]\d{3}[\s.\-]\d{2}[\s.\-]\d{2}|\b0[1-9][ .\-]\d{2}[ .\-]\d{3}[ .\-]\d{3}|\b0[1-9]\d[ .\-]\d{2}[ .\-]\d{2}[ .\-]\d{2}|\b0[2-9]\d(?:[ .\-/][1-9]\d{0,7})(?:[ .\-]\d{2,4}){0,3}|\b0[2-9]\d{2,4}(?:[ .\-/][1-9]\d{0,8})(?:[ .\-]\d{2,4}){0,3}|\b01[5-7]\d{0,1}[ .\-/]?\d{7,8}|\b06[ .\-]?\d{8}|\b0[1-9]\d[ .\-]?\d{7}|\b0[1-9]\d{2}[ .\-]?\d{6}|\b0(?:800|88|85|84|87|900|906|909)(?:[ .\-]\d{2,4})(?:[ .\-]?\d{2,4}){0,3}|\b08[\s.\-]\d{3}[\s.\-]\d{2,3}[\s.\-]\d{2,3}|\b\d{2}[ \-]\d{4}[ \-]\d{4})(?:\s*[xX]\.?\s*\d{1,6})?\b`),
 	}
 }
 
@@ -225,6 +255,25 @@ func canStartPlus(s string, i int) bool {
 	return true
 }
 
+// isYearLike2x4x4 reports whether span has the 2-4-4 shape (two digits, a
+// space or hyphen, four digits, a space or hyphen, four digits) and its middle
+// four-digit group reads as a year, 19xx or 20xx. Such a span is a date or a
+// reference number ("12-2024-0101", "02-2024-1234"), not a phone.
+func isYearLike2x4x4(span string) bool {
+	if len(span) < 12 {
+		return false
+	}
+	for _, i := range []int{0, 1, 3, 4, 5, 6, 8, 9, 10, 11} {
+		if span[i] < '0' || span[i] > '9' {
+			return false
+		}
+	}
+	if (span[2] != ' ' && span[2] != '-') || (span[7] != ' ' && span[7] != '-') {
+		return false
+	}
+	return (span[3] == '1' && span[4] == '9') || (span[3] == '2' && span[4] == '0')
+}
+
 // Recognize detects phone numbers in text.
 func (r *PhoneRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	matches := r.pattern.FindAllStringIndex(text, -1)
@@ -236,6 +285,9 @@ func (r *PhoneRecognizer) Recognize(ctx context.Context, text string) ([]recogni
 		// "+" that continues a token: arithmetic (1+23456789), C++1234567 or
 		// an email tag (user+tag@example.com) is not a phone.
 		if span[0] == '+' && !canStartPlus(text, m[0]) {
+			continue
+		}
+		if isYearLike2x4x4(span) {
 			continue
 		}
 		if span[0] == '0' {

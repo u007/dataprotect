@@ -3,6 +3,7 @@ package convert
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/u007/dataprotect/golden"
 )
@@ -82,10 +83,45 @@ type gretelRow struct {
 //
 // limit bounds how many records are read in file order; 0 means all of them.
 func Gretel(dataRoot string, limit int) ([]golden.Case, golden.Schema, error) {
+	return gretelFrom(dataRoot, gretelRelPath, limit)
+}
+
+// gretelFrom converts the gretel parquet file at rel, relative to dataRoot,
+// with the field extraction, span parser and label map shared by every gretel
+// split.
+func gretelFrom(dataRoot, rel string, limit int) ([]golden.Case, golden.Schema, error) {
 	return convertParquet[gretelRow](
-		corpusGretel, dataRoot, gretelRelPath, limit,
+		corpusGretel, dataRoot, rel, limit,
 		func(r gretelRow) (text, spans string) { return r.Text, r.Spans },
 		GretelSpans,
 		GretelLabels,
 	)
+}
+
+// gretelLanguages maps the split name accepted on the command line to the
+// exact file stem gretel uses. "France" is the upstream spelling for the
+// French split; "French" is accepted as an alias.
+var gretelLanguages = map[string]string{
+	"english": "English",
+	"france":  "France",
+	"french":  "France",
+	"german":  "German",
+	"italian": "Italian",
+	"spanish": "Spanish",
+	"swedish": "Swedish",
+	"dutch":   "Dutch",
+}
+
+// GretelLang converts one per-language gretel test split. The combined split
+// is the default because one conversion covers the whole corpus; a
+// per-language split exists so a language-specific change can be measured on
+// its own text instead of being averaged into the combined figure.
+func GretelLang(dataRoot string, limit int, lang string) ([]golden.Case, golden.Schema, error) {
+	name, ok := gretelLanguages[strings.ToLower(strings.TrimSpace(lang))]
+	if !ok {
+		return nil, golden.Schema{}, fmt.Errorf(
+			"gretel: unknown language %q; want English, France, German, Italian, Spanish, Swedish or Dutch", lang)
+	}
+	rel := "gretel-pii-finance/data/" + name + "_test-00000-of-00001.parquet"
+	return gretelFrom(dataRoot, rel, limit)
 }

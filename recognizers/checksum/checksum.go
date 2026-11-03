@@ -160,6 +160,7 @@ const (
 	LanguageFR Language = "fr"
 	LanguageIT Language = "it"
 	LanguageES Language = "es"
+	LanguageSV Language = "sv"
 )
 
 // cardLabelPhrasesByLanguage holds the label-style forms that gate a
@@ -192,6 +193,9 @@ var cardLabelPhrasesByLanguage = map[Language][]string{
 	LanguageES: {
 		"número de tarjeta", "numero de tarjeta", "tarjeta de crédito",
 		"tarjeta de credito", "tarjeta de débito", "cvv", "cvc",
+	},
+	LanguageSV: {
+		"kortnummer", "kreditkort", "kreditkortsnummer", "betalkort", "debitkort",
 	},
 }
 

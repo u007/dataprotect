@@ -108,7 +108,16 @@ func TestBoostConfidenceForLanguage(t *testing.T) {
 		{"italian card boosts", "carta di credito: 4111 1111 1111 1111", "4111 1111 1111 1111", recognizers.EntityCreditCard, "it", true},
 		{"dutch phone boosts", "telefoon: 555-123-4567", "555-123-4567", recognizers.EntityPhone, "nl", true},
 		{"spanish card boosts", "Número de Tarjeta: 4111 1111 1111 1111", "4111 1111 1111 1111", recognizers.EntityCreditCard, "es", true},
+		{"swedish card boosts", "Kortnummer: 4111 1111 1111 1111", "4111 1111 1111 1111", recognizers.EntityCreditCard, "sv", true},
+		{"english default ignores swedish card", "Kortnummer: 4111 1111 1111 1111", "4111 1111 1111 1111", recognizers.EntityCreditCard, "", false},
+		{"swedish phone boosts", "Samtal: 555-123-4567", "555-123-4567", recognizers.EntityPhone, "sv", true},
+		{"swedish email hyphen boosts", "E-post: a@b.com", "a@b.com", recognizers.EntityEmail, "sv", true},
+		{"swedish bitcoin non-ascii boosts", "Plånbok: 1BoatSLRHtKNngkdXEeobR76b53LETtpyT", "1BoatSLRHtKNngkdXEeobR76b53LETtpyT", recognizers.EntityBitcoin, "sv", true},
 		{"unknown language falls back to english", "email: a@b.com", "a@b.com", recognizers.EntityEmail, "xx", true},
+		{"swedish ssn ignores id inside video idag sida", "video idag sida 123-45-6789", "123-45-6789", recognizers.EntitySSN, "sv", false},
+		{"swedish ip hyphen compound boosts", "IP-adress: 10.0.0.1", "10.0.0.1", recognizers.EntityIP, "sv", true},
+		{"english ip ignores ip inside zip ship", "zip ship 10.0.0.1", "10.0.0.1", recognizers.EntityIP, "", false},
+		{"english phone colon boundary boosts", "tel: 555-123-4567", "555-123-4567", recognizers.EntityPhone, "", true},
 	}
 
 	for _, tt := range tests {
@@ -126,6 +135,39 @@ func TestBoostConfidenceForLanguage(t *testing.T) {
 			}
 			if (got > 0) != tt.want {
 				t.Fatalf("boost = %v, want positive=%v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestContainsWord pins the whole-word rule: a letter on either side of an
+// occurrence disqualifies it, any other rune (or the edge of s) is a boundary,
+// and a later standalone occurrence still counts.
+func TestContainsWord(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		word string
+		want bool
+	}{
+		{"standalone", "call id now", "id", true},
+		{"inside longer word", "video", "id", false},
+		{"followed by letter", "idag", "id", false},
+		{"preceded by letter", "sida", "id", false},
+		{"hyphen boundary", "steuer-id", "id", true},
+		{"colon boundary", "tel:", "tel", true},
+		{"digit boundary", "1ip", "ip", true},
+		{"later standalone occurrence", "video id", "id", true},
+		{"edge of string", "ip", "ip", true},
+		{"multi-word phrase", "tarjeta de crédito:", "tarjeta de crédito", true},
+		{"multi-word phrase inside word", "xtarjeta de crédito", "tarjeta de crédito", false},
+		{"non-ascii phrase boundary", "sécurité sociale.", "sécurité sociale", true},
+		{"non-ascii letter before phrase", "éa", "a", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := containsWord(tt.s, tt.word); got != tt.want {
+				t.Errorf("containsWord(%q, %q) = %v, want %v", tt.s, tt.word, got, tt.want)
 			}
 		})
 	}

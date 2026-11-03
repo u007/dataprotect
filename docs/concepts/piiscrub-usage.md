@@ -1,7 +1,7 @@
 ---
 type: Concept
 title: piiscrub — Usage & Quick Start
-description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum, 5 national-ID and passport recognizers, 1 secret recognizer, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 553-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
+description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum, 7 national-ID and passport recognizers, 1 secret recognizer, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 553-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
 tags:
   - pii
   - go
@@ -20,8 +20,10 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 
 - **8 regex recognizers** — email, phone, SSN, IP, URL, IBAN, bitcoin, plus a
   shape-only credit-card recognizer
-- **5 national ID and passport recognizers** — Singapore NRIC/FIN, Malaysia MyKad and
-  Thailand citizen ID, each validated by its own rule. Malaysia and Singapore passports need a passport keyword; Thailand passports are not covered yet
+- **7 national ID and passport recognizers** — Singapore NRIC/FIN and passports,
+  Malaysia MyKad and passports, Thai citizen ID, Philippine TIN, and Indian GSTIN,
+  each validated by its own rule. Malaysia and Singapore passports need a passport
+  keyword; Thailand passports are not covered yet
 - **2 checksum validators, wired into the default pipeline** — Luhn (credit
   cards), mod-97 (IBAN). Cards are detected by Luhn at 0.99, plus a
   Luhn-failing window at 0.85 when a label-style keyword ("card number",
@@ -198,6 +200,11 @@ converted dataset carries a `schema.json` naming the entity types it labels, and
 the scorer excludes detections of any other type from the false-positive count
 instead of counting them. Without that, a corpus labelling only PERSON/ORG/LOC
 would score a correct EMAIL detection as a false positive.
+
+To score a language split with its own card-label phrases, set
+`PII_SCRUB_CARD_LANG` to the checksum language code, for example
+`PII_SCRUB_CARD_LANG=it ./scripts/benchmark.sh <split>/converted`. It applies
+`piiscrub.WithCardLanguages` and combines with `PII_SCRUB_NLP_URL`.
 
 | | nemotron (2000 of 100000) | gretel (2000 of 5596) |
 |---|---|---|

@@ -1,8 +1,17 @@
+---
+type: Decision
+title: "Corpus converter and corpus scoring mode — design"
+description: "Design for tools/corpusbench Parquet→golden conversion and in-schema corpus scoring; implemented"
+resource: tools/corpusbench
+tags: [corpus, benchmark, design]
+timestamp: 2026-11-03T11:51:49Z
+status: active
+---
+
 # Corpus Converter + Corpus Scoring Mode — Design
 
 - **Date:** 2026-10-08
-- **Status:** APPROVED 2026-10-08 (human review: "continue/next"). Implementation
-  has not started; no code exists yet.
+- **Status:** APPROVED 2026-10-08; IMPLEMENTED (tools/corpusbench, `make corpus`, `make corpus-lang`). Measured results live in docs/decisions/spec-v1.md.
 - **Decisions taken at approval** (both reversible):
   - `fax_number → PHONE` stands as a corpus-label mapping. If it depresses
     precision the *map* is revisited (§5.5), never the recognizer.
@@ -376,7 +385,7 @@ the fail-fast guard, or the schema filter must each fail its intended test.
 
 - BITCOIN coverage (neither corpus labels it) — needs a third corpus or a
   hand-authored seed extension.
-- Per-language scoring of gretel's separate language files.
+- Per-language scoring of gretel's separate language files. (done 2026-11-02: `make corpus-lang CORPUS_LANG=<lang>`, `convert.GretelLang`)
 - Corpus-scoring thresholds as a CI gate (blocked: corpus data cannot be
   committed, so CI cannot see it).
 - An end-to-end anonymize check over corpus cases (would require resolving gold

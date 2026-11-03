@@ -1,6 +1,48 @@
 # Directory Update Log
 
+## 2026-11-03
+
+* **Update**: piiscrub — sidecar shutdown is bounded: `Run` gives `Shutdown` `shutdownTimeout` (5s) to drain, then `Close` force-closes, then waits at most another 5s for in-flight handlers and abandons them with a log line so `closeBackend` still runs. Previously `Run` blocked forever on `inflight.Wait()`; worst case is about 10s. Test `TestRunReturnsWhenInflightHandlerIgnoresContext`. ([concepts/development-conventions.md](/concepts/development-conventions.md))
+
+* **Update**: piiscrub — context-boost keywords match whole words only (`containsWord` in `internal/context/context.go`): a unicode letter on either side blocks a match, so `id`/`ip`/`tel`/`mail` no longer fire inside ordinary words; digits and punctuation remain boundaries. A keyword that contains another no longer double-counts, so two analyzer tests now use distinct whole-word keywords. Corpus numbers unchanged (benchmarks do not enable the boost). ([decisions/spec-v1.md](/decisions/spec-v1.md), [concepts/development-conventions.md](/concepts/development-conventions.md))
+
+* **Update**: piiscrub — the phone 2-4-4 branch accepts space and hyphen separators only (no dot), and `Recognize` rejects a 2-4-4 span whose middle group is 19xx or 20xx (`isYearLike2x4x4`), so `12-2024-0101` and `12.3456.7890` are no longer redacted as phones. Measured unchanged: Spanish PHONE 0.4274/1.0000, Italian 0.3537/0.9206, Swedish 0.1702/0.9057, combined gretel 0.3060/0.8981, nemotron 0.5679/0.9982. ([decisions/spec-v1.md](/decisions/spec-v1.md))
+
+* **Update**: piiscrub — `scripts/docs_check.py` now derives the Features-list recognizer counts from source: regex (8), national (7) and secret (1) from the packages' exported constructors, and checksum (2) from the validators `newScrubber` constructs. The same four numbers are checked in the usage doc's frontmatter description and in this bundle's index, so the prose can no longer drift from the code. Verified by changing "8 regex" to "9" and seeing the check fail. ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md))
+
+* **Update**: piiscrub — OKF frontmatter added to the corpus converter design. Status marked IMPLEMENTED (tools/corpusbench, `make corpus`, `make corpus-lang`) and the per-language scoring deferred item marked done 2026-11-02. Body otherwise unchanged. ([superpowers/specs/2026-10-08-corpus-converter-design.md](/superpowers/specs/2026-10-08-corpus-converter-design.md))
+
+* **Update**: piiscrub — OKF frontmatter added to the credit-card keyword-gate design (implemented 2026-10-21 in recognizers/checksum). Body unchanged. ([superpowers/specs/2026-10-20-credit-card-keyword-gate-design.md](/superpowers/specs/2026-10-20-credit-card-keyword-gate-design.md))
+
+* **Update**: piiscrub — OKF frontmatter added to the multilingual NER design (Phase 0 landed 2026-11-01; Phase 1 blocked on a licence-compliant checkpoint). Body unchanged. ([superpowers/specs/2026-10-28-multilingual-ner-design.md](/superpowers/specs/2026-10-28-multilingual-ner-design.md))
+
+* **Deprecation**: piiscrub — corpus converter implementation plan executed in October 2026; the design is retained in the spec. ([superpowers/plans/2026-10-08-corpus-converter.md](/superpowers/plans/2026-10-08-corpus-converter.md))
+
+* **Deprecation**: piiscrub — NLP sidecar implementation plan executed (phases A, B, D); status line and phase C row corrected to point at /v1/scrub and /v1/pseudonymize. ([superpowers/plans/2026-10-20-nlp-sidecar.md](/superpowers/plans/2026-10-20-nlp-sidecar.md))
+
+* **Deletion**: piiscrub — corpus converter implementation plan removed after deprecation; design retained in superpowers/specs/2026-10-08-corpus-converter-design.md ([superpowers/plans/2026-10-08-corpus-converter.md](/superpowers/plans/2026-10-08-corpus-converter.md))
+
+* **Deletion**: piiscrub — NLP sidecar implementation plan removed after deprecation; phases A, B, D executed and the ONNX follow-on design is superpowers/specs/2026-10-28-multilingual-ner-design.md ([superpowers/plans/2026-10-20-nlp-sidecar.md](/superpowers/plans/2026-10-20-nlp-sidecar.md))
+
 ## 2026-11-02
+
+* **Update**: piiscrub — the opt-in Swedish (`sv`) card keyword and context word sets were missing from the de/nl/fr/it/es coverage. Added `LanguageSV` (`kortnummer`, `kreditkort`, `betalkort`) and the `sv` context set (`personnummer`, `kreditkort`, `e-post`, `samtal`). English remains the default and the sets are opt-in. Measured with `PII_SCRUB_CARD_LANG=sv` on the Swedish split: CREDIT_CARD recall unchanged (0.8333), precision 0.6250 → 0.5882 (one extra detection: `Kortnummer: 4571 1234 5678 1234`, unlabelled by the corpus). `scripts/benchmark.sh` gained `PII_SCRUB_CARD_LANG`; the Italian split reproduces the documented 0.1333 → 0.3333 recall. ([decisions/spec-v1.md](/decisions/spec-v1.md))
+
+* **Update**: piiscrub — ONNX Phase 1 is not delivered. The checkpoint survey found no compliant option: Davlan/xlm-roberta-base-ner-hrl is AFL-3.0, Babelscape/wikineural-multilingual-ner is CC BY-NC-SA 4.0, flair/ner-multi covers four languages with no licence on its card, and the MIT XLM-R re-uploads document no training data. No model or libonnxruntime is available here. The `<s>`/`</s>` expectation is an inference from the XLM-R config (`bos_token_id 0`, `eos_token_id 2`, `max_position_embeddings 514`), not a verified result. ([superpowers/specs/2026-10-28-multilingual-ner-design.md](/superpowers/specs/2026-10-28-multilingual-ner-design.md))
+
+* **Update**: piiscrub — Stockholm's `08` 2-3-2-2 and 2-3-3-2 phone forms (`08-957 37 46`, `08-123 456 78`) are now matched by `\b08[\s.\-]\d{3}[\s.\-]\d{2,3}[\s.\-]\d{2,3}`. Spanish PHONE reaches 1.0000 recall (tp 103, fp 138, fn 0); Swedish P/R 0.1715/0.8868 → 0.1702/0.9057, with the seven new Swedish false positives all the unlabelled placeholder `08-123 45 67`. ([decisions/spec-v1.md](/decisions/spec-v1.md))
+
+* **Update**: piiscrub — the bare North American `011` international prefix (`01184960536`) is now matched by `\b011\d{7,11}`. Spanish per-language PHONE 0.4226/0.9806 → 0.4250/0.9903 (tp 101 → 102, fp 138, fn 2 → 1); combined gretel, nemotron and the seed gate are unchanged. The only remaining Spanish-split miss is the Swedish `08-957 37 46` shape. ([decisions/spec-v1.md](/decisions/spec-v1.md))
+
+* **Update**: piiscrub — the onnx compile gate now runs in GitHub Actions: `.github/workflows/onnx-check.yml` fetches the pinned libtokenizers and runs `make onnx-check` on pushes to `main` and on pull requests. It needs no model or libonnxruntime; the runtime-dependent `make test-sidecar-onnx` stays local. ([concepts/development-conventions.md](/concepts/development-conventions.md))
+
+* **Update**: piiscrub — `scripts/docs_check.py` now enforces the documented entity list: it reads `recognizers.AllEntityTypes` and fails when the README type table (or its "N types" claim) or the usage doc's seed coverage table drifts. The first run caught a real drift: README still said 17 types and omitted `PH_TIN`/`IN_GSTIN`; both docs now list 19 types, the usage doc's 5 national recognizers became 7, and the index description was corrected to 7 national recognizers and the 553-case seed. ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md), [index.md](/index.md))
+
+* **Update**: piiscrub — Spain's 2-4-4 national form (`55-5555-5555`, `55-1234 5678`, `34-9876 5432`) is now matched by `\b\d{2}[\s.\-]\d{4}[\s.\-]\d{4}\b`. Spanish per-language PHONE moved 0.4043/0.9029 → 0.4226/0.9806 (tp 93 → 101, fp 137 → 138, fn 10 → 2); the two residual misses are a Swedish number and a bare eleven-digit run. Italian, combined gretel, nemotron and the seed gate are unchanged. ([decisions/spec-v1.md](/decisions/spec-v1.md))
+
+* **Update**: piiscrub — Italian and Spanish phone formats: a two-digit `0[26]` area branch, an `8xx` 3-3-3 toll-free branch, a `+NN`-no-space grouped branch and a two-digit parenthesised branch. Per-language PHONE: Italian P/R 0.3333/0.7937 → 0.3537/0.9206; Spanish 0.3857/0.8350 → 0.4043/0.9029. The combined gretel PHONE is 0.3053/0.8951; nemotron 0.5679/0.9982 and the seed gate are unchanged. A per-language scoring target (`make corpus-lang CORPUS_LANG=...`) was added. ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md), [decisions/spec-v1.md](/decisions/spec-v1.md))
+
+* **Update**: piiscrub — sidecar shutdown now releases backend resources: `main.go` defers `closeBackend` (calls `Close` on any `io.Closer`) and `server.Run` waits for `Shutdown` to drain before returning; `corpus-nlp` no longer builds the untagged sidecar for `NER_BACKEND=onnx`; the phase table now records FPE as shipped and the REST sidecar as partial ([concepts/development-conventions.md](/concepts/development-conventions.md), [decisions/spec-v1.md](/decisions/spec-v1.md)). This supersedes the earlier 2026-11-02 entry below that said `Close()` was not called.
 
 * **Update**: piiscrub — ONNX NER request-path wording corrected to match code: an over-8000-token document now fails the request (`planChunks`) instead of being truncated with a logged warning; cross-chunk overlap resolution is pairwise longest-first (`mergeChunkEntities`), not longest-wins grouping; `WordStart` rule spelled out (special tokens, `##`, zero-width pieces, bare `▁`/`Ġ` continuation, whitespace-gap test); `config.json` `id2label` validation (contiguous from 0, an `O` label, B-/I-/E-/S- prefixes); `NER_ONNX_MODEL` documented as a directory and `make fetch-libtokenizers` as linux/x86_64-only with per-run SHA-256 re-verification ([docs/superpowers/specs/2026-10-28-multilingual-ner-design.md](/superpowers/specs/2026-10-28-multilingual-ner-design.md))
 
