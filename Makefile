@@ -42,11 +42,25 @@ CORPUS_LANG ?=
 # it compiles against vendored headers and loads libonnxruntime at runtime from
 # the -onnxruntime-lib path.
 #
-# The asset and checksum are for linux/x86_64. Another platform must add its own
-# pair from the same pinned release before the targets can work there.
+# The asset and checksum are chosen by host. All four SHA-256 values were
+# measured from the pinned v1.27.0 release assets; only linux/x86_64 has been
+# built and run, the other three are untested. Any other host fails in
+# fetch-libtokenizers.
 ONNX_TOKENIZERS_VERSION := v1.27.0
+ONNX_HOST := $(shell uname -sm)
+ifeq ($(ONNX_HOST),Linux x86_64)
 ONNX_TOKENIZERS_ASSET   := libtokenizers.linux-x86_64.tar.gz
 ONNX_TOKENIZERS_SHA256  := 72556cdca798dd4ea7cdaba308e5f0d68a8cb93b67c96edf485b7a0edd7b07f4
+else ifeq ($(ONNX_HOST),Linux aarch64)
+ONNX_TOKENIZERS_ASSET   := libtokenizers.linux-arm64.tar.gz
+ONNX_TOKENIZERS_SHA256  := e96545ad05930c26f51f63d932ee6d3bbd32bbed149e102c5290d587a2293067
+else ifeq ($(ONNX_HOST),Darwin arm64)
+ONNX_TOKENIZERS_ASSET   := libtokenizers.darwin-arm64.tar.gz
+ONNX_TOKENIZERS_SHA256  := fb84b8b2e349a5952767ffe80ccd862fc44084de47f3b0cc3f0b7c9d4e649cf7
+else ifeq ($(ONNX_HOST),Darwin x86_64)
+ONNX_TOKENIZERS_ASSET   := libtokenizers.darwin-x86_64.tar.gz
+ONNX_TOKENIZERS_SHA256  := 6239efe5a81fde8089ef2df8ae710366542b4e5deab6d8ecb74d7d1862db2ddb
+endif
 ONNX_TOKENIZERS_URL     := https://github.com/daulet/tokenizers/releases/download/$(ONNX_TOKENIZERS_VERSION)/$(ONNX_TOKENIZERS_ASSET)
 ONNX_TOKENIZERS_DIR     := $(CURDIR)/.cache/tokenizers
 ONNX_CGO_LDFLAGS        := -L$(ONNX_TOKENIZERS_DIR)
@@ -241,11 +255,11 @@ vet-sidecar:
 # or stale libtokenizers.a. A different archive would be linked into the binary,
 # and the failure it caused later would look like a model bug.
 #
-# The pinned asset is linux/x86_64 only, so any other host fails here with a
-# message instead of a checksum error on a wrong-platform download.
+# A host with no pinned asset fails here with a message instead of a checksum
+# error on a wrong-platform download.
 fetch-libtokenizers:
-	@test "$$(uname -sm)" = "Linux x86_64" || { \
-		echo "fetch-libtokenizers: the pinned $(ONNX_TOKENIZERS_ASSET) is Linux x86_64 only; this host is $$(uname -sm)." >&2; \
+	@test -n "$(ONNX_TOKENIZERS_ASSET)" || { \
+		echo "fetch-libtokenizers: no pinned libtokenizers asset for host $(ONNX_HOST)." >&2; \
 		exit 1; \
 	}
 	@set -e; \
@@ -256,7 +270,7 @@ fetch-libtokenizers:
 		curl -sSLf -o "$$archive.part" "$(ONNX_TOKENIZERS_URL)"; \
 		mv "$$archive.part" "$$archive"; \
 	fi; \
-	echo "$(ONNX_TOKENIZERS_SHA256)  $$archive" | sha256sum -c - || { \
+	echo "$(ONNX_TOKENIZERS_SHA256)  $$archive" | { if command -v sha256sum >/dev/null 2>&1; then sha256sum -c -; else shasum -a 256 -c -; fi; } || { \
 		echo "fetch-libtokenizers: $$archive does not match the pinned SHA-256; delete it and rerun." >&2; \
 		exit 1; \
 	}; \
