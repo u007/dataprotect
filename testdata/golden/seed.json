@@ -745,6 +745,24 @@
     "entities": []
   },
   {
+    "id": "neg-bitcoin-bad-checksum-p2sh",
+    "note": "P2SH shape (version byte 5), last character changed: the Base58Check checksum must fail.",
+    "text": "Multisig deposit to 3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLz was rejected at intake.",
+    "entities": []
+  },
+  {
+    "id": "neg-bitcoin-bad-checksum-taproot",
+    "note": "Taproot bc1p shape (BIP-350 vector), last character changed: the bech32m checksum must fail.",
+    "text": "Taproot payout to bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jjq cleared overnight.",
+    "entities": []
+  },
+  {
+    "id": "neg-bitcoin-mixed-case-bech32",
+    "note": "bech32 with one upper-case letter in a lower-case address: BIP-173 forbids mixed case, so the validator must reject it.",
+    "text": "Settlement landed at bc1qW508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4 this morning.",
+    "entities": []
+  },
+  {
     "id": "pos-card-then-cvv",
     "note": "Card followed by a space and a three-digit CVV. The card and the CVV formed one digit run that failed Luhn, so the card was not redacted.",
     "text": "Charged card 4111111111111111 123 at the till.",

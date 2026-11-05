@@ -19,11 +19,11 @@ const datasetDir = "../testdata/golden"
 // moves recall by a large fraction — so a shrinking dataset would silently
 // weaken the gate rather than fail it. Ratcheted with each batch: it tracks the
 // current seed count, so any drop below it fails.
-const minCases = 553
+const minCases = 556
 
 // Gate thresholds.
 //
-// These are the MEASURED baseline, not a target. The seed set is 551 cases, past
+// These are the MEASURED baseline, not a target. The seed set is 556 cases, past
 // the ~500 SPEC.md calls for; claiming ">99% precision/recall" here would
 // make the gate a rubber stamp. Each constant is the EXACT measured value, so
 // any regression fails immediately and any improvement is a deliberate
@@ -126,9 +126,14 @@ const minCases = 553
 // floor). The positive matched exactly (tp 383 to 384) and the negative stayed
 // clean, so the bound went from 383/384 to 384/385.
 //
-// The measured baseline is exact P=1.0000 R=0.9974 (tp=384 fp=0 fn=1), overlap
-// P=1.0000 R=0.9974 (tp=384 fp=0 fn=1), and 200 of 200 negative cases clean. The
-// one miss is pos-phone-trunk-zero, a documented scope decision.
+// Batch 24 (2026-11-04) added 3 BITCOIN negatives: a P2SH and a taproot address
+// with a bad checksum, and a mixed-case bech32 address (BIP-173 forbids mixed
+// case). All stayed clean, so minCases moved from 553 to 556.
+//
+// The measured baseline is exact P=1.0000 R=1.0000 (tp=385 fp=0 fn=0), overlap
+// P=1.0000 R=1.0000 (tp=385 fp=0 fn=0), and 203 of 203 negative cases clean.
+// pos-phone-trunk-zero, the one earlier miss, is detected now, so the recall
+// bounds moved from 384/385 to 1.0.
 // These numbers describe this hand-labelled seed set, NOT the detector in general —
 // testdata/external are scored by `make corpus` but are not that set (see
 // TODO.md). Each constant equals its measured ratio, so the gate still fails on
@@ -153,9 +158,9 @@ const minCases = 553
 // pos-card-then-year now reports "4111 1111 1111 1111 2024" against gold
 // "4111 1111 1111 1111". Overlap recall stays 1.0; exact bounds are re-measured.
 const (
-	minExactPrecision = 1.0           // tp=384 fp=0 -> 384/384 (see note)
-	minExactRecall    = 384.0 / 385.0 // tp=384 fn=1 -> 384/385 (see note)
-	minOverlapRecall  = 384.0 / 385.0 // tp=384 fn=1 -> 384/385 (see note)
+	minExactPrecision = 1.0 // tp=385 fp=0 -> 385/385 (see note)
+	minExactRecall    = 1.0 // tp=385 fn=0 -> 385/385 (see note)
+	minOverlapRecall  = 1.0 // tp=385 fn=0 -> 385/385 (see note)
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled

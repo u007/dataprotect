@@ -286,6 +286,11 @@ func TestMYICRecognizeBareWithKeyword(t *testing.T) {
 		{"mykad label", "MyKad 900515103421 on file", "900515103421"},
 		{"ic no label", "IC no: 630916123456", "630916123456"},
 		{"kp label", "KP 000229081234 checked", "000229081234"},
+		{"my ic", "my ic 801214105423", "801214105423"},
+		{"my i/c colon", "my i/c: 801214105423", "801214105423"},
+		{"ic is", "my ic is 801214105423", "801214105423"},
+		{"ic number is", "my ic number is 801214105423", "801214105423"},
+		{"mykad colon", "mykad: 801214105423", "801214105423"},
 	}
 	r := NewMYICRecognizer()
 	for _, tt := range tests {
@@ -312,6 +317,8 @@ func TestMYICRecognizeBareRejected(t *testing.T) {
 		"tic 900515103421 on the form",
 		"MyKad 900231103421 on file",
 		"MyKad 9005151034211 on file",
+		"my ic is a card 801214105423",
+		"ref is 801214105423",
 	}
 	r := NewMYICRecognizer()
 	for _, text := range texts {
