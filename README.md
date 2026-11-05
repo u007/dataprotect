@@ -415,6 +415,8 @@ Updated 2026-10-21: the seed set is now 551 cases, because two bare-provider-tok
 
 Updated 2026-10-22: the seed set is now 553 cases, because one positive and one negative were added for the Google Gemini auth key (`AQ.`), the format AI Studio issues instead of `AIza` keys. The gate re-measures at exact and overlap P=1.0000 R=0.9974 with tp=384 fp=0 fn=1, and 200 of 200 negative cases clean. Neither corpus moved: the new shape detects nothing in nemotron or gretel, so it adds no false positives either.
 
+Updated 2026-11-04: the seed set is now 556 cases, because three BITCOIN negatives were added (a bad P2SH checksum, a bad taproot checksum and a mixed-case bech32 address). The gate re-measures at exact and overlap P=1.0000 R=1.0000 with tp=385 fp=0 fn=0, and 203 of 203 negative cases clean; `pos-phone-trunk-zero`, the earlier single miss, is now detected. The corpora were not re-run.
+
 ### Sources
 
 Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DATA_DIR` to keep them elsewhere; the fetch script and the Makefile both read it. Each fetched directory holds a `PROVENANCE.txt` with the revision, and each converted directory holds `schema.json`, which records the input's SHA-256 and the row bound.
@@ -432,8 +434,8 @@ Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DAT
 
 | Dataset | Cases | Match | Precision | Recall | F1 | tp / fp / fn |
 |---|---|---|---|---|---|---|
-| Golden seed | 553 | exact span | 1.0000 | 0.9974 | 0.9987 | 384 / 0 / 1 |
-| Golden seed | 553 | byte overlap | 1.0000 | 0.9974 | 0.9987 | 384 / 0 / 1 |
+| Golden seed | 556 | exact span | 1.0000 | 1.0000 | 1.0000 | 385 / 0 / 0 |
+| Golden seed | 556 | byte overlap | 1.0000 | 1.0000 | 1.0000 | 385 / 0 / 0 |
 | Nemotron-PII | 2000 | exact span | 0.8357 | 0.2886 | 0.4290 | 2655 / 522 / 6546 |
 | Nemotron-PII | 2000 | byte overlap | 0.8455 | 0.2919 | 0.4340 | 2686 / 491 / 6515 |
 | Gretel PII finance | 2000 | exact span | 0.3816 | 0.0957 | 0.1530 | 696 / 1128 / 6576 |

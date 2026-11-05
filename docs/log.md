@@ -1,5 +1,11 @@
 # Directory Update Log
 
+## 2026-11-04
+
+* **Update**: piiscrub — seed grew 553 to 556: three BITCOIN negatives (bad P2SH checksum, bad taproot checksum, mixed-case bech32), so 353 positive and 203 negative, and `minCases` is 556. Measured exact and overlap P=1.0000 R=1.0000 (tp=385 fp=0 fn=0), 203/203 negatives clean; the `pos-phone-trunk-zero` miss is now detected, so the earlier R=0.9974 baseline is superseded. Verified by `go test ./golden/` and the seed file. ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md))
+
+* **Update**: piiscrub — multilingual NER design corrected: `make fetch-libtokenizers` now picks the pinned v1.27.0 asset and SHA-256 by host (linux x86_64 and arm64, darwin arm64 and x86_64), with only linux/x86_64 built and run; `make test-ner-onnx` is marked Phase 1 because the target does not exist yet; the §12 compile-gate sentence now records `make onnx-check` green on 2026-11-01. ([superpowers/specs/2026-10-28-multilingual-ner-design.md](/superpowers/specs/2026-10-28-multilingual-ner-design.md))
+
 ## 2026-11-03
 
 * **Update**: piiscrub — sidecar shutdown is bounded: `Run` gives `Shutdown` `shutdownTimeout` (5s) to drain, then `Close` force-closes, then waits at most another 5s for in-flight handlers and abandons them with a log line so `closeBackend` still runs. Previously `Run` blocked forever on `inflight.Wait()`; worst case is about 10s. Test `TestRunReturnsWhenInflightHandlerIgnoresContext`. ([concepts/development-conventions.md](/concepts/development-conventions.md))

@@ -5,7 +5,7 @@ okf_version: 0.1
 # concepts
 
 - [piiscrub — Development Conventions & Confidence Semantics](concepts/development-conventions.md) - Contributor and agent conventions for piiscrub: build and test commands, package map, confidence and threshold semantics (inclusive >=, 1e-9 quantisation via roundConfidence, and why Go constant arithmetic makes float-precision tests silently vacuous), overlap tie-breaking policy, Go 1.24 idioms, and the rule against real PII in test fixtures.
-- [piiscrub — Usage & Quick Start](concepts/piiscrub-usage.md) - Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum, 7 national-ID and passport recognizers, 1 secret recognizer, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 553-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.
+- [piiscrub — Usage & Quick Start](concepts/piiscrub-usage.md) - Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum, 7 national-ID and passport recognizers, 1 secret recognizer, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 556-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.
 
 # decisions
 

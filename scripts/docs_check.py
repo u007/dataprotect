@@ -60,15 +60,15 @@ def load_seed(path=SEED):
 # unless the seed or the detector changes. They are captured here as the
 # expected values, cross-checked against the seed counts below.
 AGGREGATE = {
-    "total": 553,
+    "total": 556,
     "positive": 353,
-    "negative": 200,
-    "tp": 384,
+    "negative": 203,
+    "tp": 385,
     "fp": 0,
-    "fn": 1,
+    "fn": 0,
     "precision": "1.0000",
-    "recall": "0.9974",
-    "f1": "0.9987",
+    "recall": "1.0000",
+    "f1": "1.0000",
 }
 
 # Per-type coverage expected values, computed from seed.json by hand and
