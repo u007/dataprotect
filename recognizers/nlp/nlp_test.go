@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -185,5 +188,88 @@ func TestNLPUnknownTypeSkipped(t *testing.T) {
 	}
 	if len(got) != 1 {
 		t.Fatalf("len: %d", len(got))
+	}
+}
+
+func TestManagedFromEnvRequiresBinary(t *testing.T) {
+	t.Setenv("PII_SCRUB_NLP_URL", "")
+	t.Setenv("PII_SCRUB_NLP_BINARY", "")
+	rec, err := ManagedFromEnv(context.Background())
+	if err == nil || rec != nil {
+		t.Fatalf("unset binary: got %v, %v; want error", rec, err)
+	}
+	if !strings.Contains(err.Error(), "PII_SCRUB_NLP_BINARY is not set") {
+		t.Fatalf("error: %v", err)
+	}
+}
+
+func TestManagedFromEnvRejectsURLAndBinary(t *testing.T) {
+	t.Setenv("PII_SCRUB_NLP_URL", "http://127.0.0.1:8787")
+	t.Setenv("PII_SCRUB_NLP_BINARY", os.Args[0])
+	rec, err := ManagedFromEnv(context.Background())
+	if err == nil || rec != nil {
+		t.Fatalf("both set: got %v, %v; want error and no child", rec, err)
+	}
+	if !strings.Contains(err.Error(), "both set") {
+		t.Fatalf("error: %v", err)
+	}
+}
+
+// TestManagedFromEnvStartsChild wraps the fake sidecar in a shell script,
+// because ManagedFromEnv passes no arguments: the script re-execs the test
+// binary in fake-sidecar mode and the library appends -addr.
+func TestManagedFromEnvStartsChild(t *testing.T) {
+	self, err := filepath.Abs(os.Args[0])
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	args, pidfile := fakeArgs(t, "healthy")
+	script := filepath.Join(t.TempDir(), "sidecar.sh")
+	body := "#!/bin/sh\nexec '" + self + "'"
+	for _, a := range args {
+		body += " '" + a + "'"
+	}
+	body += " \"$@\"\n"
+	if err := os.WriteFile(script, []byte(body), 0o700); err != nil {
+		t.Fatalf("write wrapper: %v", err)
+	}
+
+	t.Setenv("PII_SCRUB_NLP_URL", "")
+	t.Setenv("PII_SCRUB_NLP_BINARY", script)
+	rec, err := ManagedFromEnv(context.Background())
+	if err != nil {
+		t.Fatalf("ManagedFromEnv: %v", err)
+	}
+	if !rec.Health() {
+		t.Fatal("recognizer should be healthy after start")
+	}
+	got, err := rec.Recognize(context.Background(), "John Smith")
+	if err != nil {
+		t.Fatalf("Recognize: %v", err)
+	}
+	if len(got) != 1 || got[0].Text != "John" {
+		t.Fatalf("Recognize: got %+v", got)
+	}
+	pid := readPid(t, pidfile)
+	if err := rec.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	assertReaped(t, pid)
+}
+
+func TestFromEnvRejectsBinary(t *testing.T) {
+	t.Setenv("PII_SCRUB_NLP_URL", "")
+	t.Setenv("PII_SCRUB_NLP_BINARY", "/bin/true")
+	if r, err := FromEnv(); err == nil || r != nil {
+		t.Fatalf("FromEnv = (%v, %v), want error pointing at ManagedFromEnv", r, err)
+	}
+}
+
+func TestFromEnvURL(t *testing.T) {
+	t.Setenv("PII_SCRUB_NLP_URL", "http://127.0.0.1:1")
+	t.Setenv("PII_SCRUB_NLP_BINARY", "")
+	r, err := FromEnv()
+	if err != nil || r == nil {
+		t.Fatalf("FromEnv = (%v, %v), want recognizer", r, err)
 	}
 }

@@ -153,14 +153,16 @@ type MYICRecognizer struct {
 // NewMYICRecognizer creates a Malaysia MyKad recognizer.
 //
 // The keyed pattern takes Purview's identity-card keywords (MyKad, IC, KP,
-// NRIC and so on), one bounded separator, up to two filler words (is, number,
-// no, as in "my ic number is ..."), then twelve digits. Only the digits
+// NRIC and so on), one bounded separator, then up to two filler words (is,
+// number, no, as in "my ic number is ..."), then twelve digits. The two filler
+// words must differ: "no no" is not a filler run, so it does not match. RE2
+// has no backreferences, so the distinct pairs are spelled out. Only the digits
 // are captured. The boundary before the keyword stops "ic" matching inside a
 // word, and the mandatory separator keeps the keyword to a whole token.
 func NewMYICRecognizer() *MYICRecognizer {
 	return &MYICRecognizer{
 		pattern:   regexp.MustCompile(`\b\d{6}-\d{2}-\d{4}\b`),
-		keyed:     regexp.MustCompile(`(?i)\b(?:digital application card|i/c no|i/c|ic no|ic|id card|identification card|identity card|k/p no|k/p|kad akuan diri|kad aplikasi digital|kad pengenalan malaysia|kp no|kp|mykad|mykas|mykid|mypr|mytentera|malaysia identity card|malaysian identity card|nric|personal identification card)[^A-Za-z0-9]{1,8}(?:(?:is|number|no)[^A-Za-z0-9]{1,8}){0,2}(\d{12})\b`),
+		keyed:     regexp.MustCompile(`(?i)\b(?:digital application card|i/c no|i/c|ic no|ic|id card|identification card|identity card|k/p no|k/p|kad akuan diri|kad aplikasi digital|kad pengenalan malaysia|kp no|kp|mykad|mykas|mykid|mypr|mytentera|malaysia identity card|malaysian identity card|nric|personal identification card)[^A-Za-z0-9]{1,8}(?:(?:is|number|no)[^A-Za-z0-9]{1,8}|is[^A-Za-z0-9]{1,8}(?:number|no)[^A-Za-z0-9]{1,8}|number[^A-Za-z0-9]{1,8}(?:is|no)[^A-Za-z0-9]{1,8}|no[^A-Za-z0-9]{1,8}(?:is|number)[^A-Za-z0-9]{1,8})?(\d{12})\b`),
 		validator: NewMYICValidator(),
 	}
 }

@@ -3,6 +3,7 @@
 package nlp
 
 import (
+	"log/slog"
 	"os"
 	"os/exec"
 	"syscall"
@@ -15,7 +16,7 @@ func setProcessGroup(cmd *exec.Cmd) {
 }
 
 // terminate asks the child's whole process group to exit.
-func terminate(p *os.Process) error { return syscall.Kill(-p.Pid, syscall.SIGTERM) }
+func terminate(p *os.Process, _ *slog.Logger) error { return syscall.Kill(-p.Pid, syscall.SIGTERM) }
 
 // kill ends the child's whole process group.
 func kill(p *os.Process) error { return syscall.Kill(-p.Pid, syscall.SIGKILL) }

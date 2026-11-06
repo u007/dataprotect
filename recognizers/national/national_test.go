@@ -290,6 +290,7 @@ func TestMYICRecognizeBareWithKeyword(t *testing.T) {
 		{"my i/c colon", "my i/c: 801214105423", "801214105423"},
 		{"ic is", "my ic is 801214105423", "801214105423"},
 		{"ic number is", "my ic number is 801214105423", "801214105423"},
+		{"ic no is distinct pair", "my ic no is 801214105423", "801214105423"},
 		{"mykad colon", "mykad: 801214105423", "801214105423"},
 	}
 	r := NewMYICRecognizer()
@@ -310,8 +311,8 @@ func TestMYICRecognizeBareWithKeyword(t *testing.T) {
 }
 
 func TestMYICRecognizeBareRejected(t *testing.T) {
-	// No keyword, a keyword inside a word, a bad date under a keyword, and a
-	// 13-digit run are all out.
+	// No keyword, a keyword inside a word, a bad date under a keyword, a
+	// 13-digit run, and a repeated filler word are all out.
 	texts := []string{
 		"ref 900515103421 on the form",
 		"tic 900515103421 on the form",
@@ -319,6 +320,8 @@ func TestMYICRecognizeBareRejected(t *testing.T) {
 		"MyKad 9005151034211 on file",
 		"my ic is a card 801214105423",
 		"ref is 801214105423",
+		"mykad no no 801214105423",
+		"my ic is is 801214105423",
 	}
 	r := NewMYICRecognizer()
 	for _, text := range texts {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/u007/dataprotect/recognizers"
@@ -22,6 +24,27 @@ const (
 	managedStopTimeout  = 5 * time.Second
 	managedPollInterval = 50 * time.Millisecond
 	managedProbeTimeout = time.Second
+	// managedStderrTail bounds the child stderr kept for startup errors.
+	managedStderrTail = 4 << 10
+	// managedStartAttempts bounds how many fresh ports startManaged tries when the
+	// child cannot bind its port. The port is probed and then released before the
+	// child binds it, so another process can take it in between.
+	managedStartAttempts = 3
+)
+
+// bindFailureMarkers are the stderr fragments a child prints when it cannot bind
+// its port: Go's wording on Unix and on Windows.
+var bindFailureMarkers = []string{
+	"address already in use",
+	"Only one usage of each socket address",
+}
+
+var (
+	// errPortTaken marks a startup in which the child exited because it could not
+	// bind its port. startManaged retries these and only these.
+	errPortTaken = errors.New("port already in use")
+	// errManagedClosed is what Recognize returns once Close has begun.
+	errManagedClosed = errors.New("nlp managed: recognizer is closed")
 )
 
 var _ recognizers.Recognizer = (*ManagedRecognizer)(nil)
@@ -32,6 +55,7 @@ var _ recognizers.Recognizer = (*ManagedRecognizer)(nil)
 type ManagedRecognizer struct {
 	*NLPRecognizer
 	proc      *managedProcess
+	closing   atomic.Bool
 	closeOnce sync.Once
 	closeErr  error
 }
@@ -41,7 +65,15 @@ type ManagedRecognizer struct {
 // picks a free loopback port and passes it as -addr, so args must not set
 // -addr. The caller must Close the result to stop the process. On Unix the child
 // runs in its own process group and shutdown sends SIGTERM to the group; on
-// Windows only the child is signalled and Close returns an error (see TODO.md).
+// Windows the child gets CTRL_BREAK_EVENT and is killed after the stop timeout
+// if still running. Without a shared console it is killed without a drain. The
+// Windows path is untested at runtime (see TODO.md).
+//
+// ctx also bounds the child's lifetime: when ctx ends before Close is called, the
+// sidecar is stopped as Close would stop it, so a caller that never calls Close
+// does not leak it. Pass a context that lives as long as the recognizer. If the
+// child cannot bind its port, startup is retried on a fresh port, up to
+// managedStartAttempts times.
 func StartManaged(ctx context.Context, binary string, args []string, opts ...Option) (*ManagedRecognizer, error) {
 	return startManaged(ctx, binary, args, managedStartTimeout, managedStopTimeout, opts)
 }
@@ -56,6 +88,23 @@ func startManaged(ctx context.Context, binary string, args []string, startTimeou
 		}
 	}
 
+	var lastErr error
+	for attempt := 1; attempt <= managedStartAttempts; attempt++ {
+		m, err := startManagedOnce(ctx, binary, args, startTimeout, stopTimeout, opts)
+		if err == nil {
+			return m, nil
+		}
+		if !errors.Is(err, errPortTaken) {
+			return nil, err
+		}
+		lastErr = err
+	}
+	return nil, fmt.Errorf("nlp managed: child could not bind a port in %d attempts: %w", managedStartAttempts, lastErr)
+}
+
+// startManagedOnce makes one startup attempt on a freshly chosen loopback port.
+// A failure in which the child could not bind wraps errPortTaken.
+func startManagedOnce(ctx context.Context, binary string, args []string, startTimeout, stopTimeout time.Duration, opts []Option) (*ManagedRecognizer, error) {
 	addr, err := freeLoopbackAddr()
 	if err != nil {
 		return nil, fmt.Errorf("nlp managed: choose loopback port: %w", err)
@@ -71,24 +120,71 @@ func startManaged(ctx context.Context, binary string, args []string, startTimeou
 		return nil, fmt.Errorf("nlp managed: start %s: %w", binary, err)
 	}
 	if err := proc.awaitHealthy(ctx, rec.url, startTimeout); err != nil {
-		return nil, errors.Join(fmt.Errorf("nlp managed: %s: %w", binary, err), proc.stop())
+		stopErr := proc.stop()
+		return nil, errors.Join(proc.startFailure(binary, err), stopErr)
 	}
 	// A child that lost the port race exits at once while another service on
 	// that port may answer the probe, so a child that is already gone means the
 	// answer did not come from it.
 	select {
 	case <-proc.done:
-		return nil, fmt.Errorf("nlp managed: %s exited right after the health check passed (wait: %v)", binary, proc.waitErr)
+		return nil, proc.startFailure(binary, fmt.Errorf("exited right after the health check passed (wait: %v)", proc.waitErr))
 	default:
 	}
 
+	m := &ManagedRecognizer{NLPRecognizer: rec, proc: proc}
+	go m.stopWhenDone(ctx)
 	rec.logger.Info("nlp sidecar started", "binary", binary, "pid", proc.cmd.Process.Pid, "addr", addr)
-	return &ManagedRecognizer{NLPRecognizer: rec, proc: proc}, nil
+	return m, nil
+}
+
+// stopWhenDone ties the child to ctx. If ctx ends before the child exits, the
+// sidecar is stopped as Close stops it. Once the child has exited, it returns.
+func (m *ManagedRecognizer) stopWhenDone(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		if err := m.Close(); err != nil {
+			m.logger.Warn("nlp sidecar stop after context ended failed", "err", err)
+		}
+	case <-m.proc.done:
+	}
+}
+
+// Recognize implements recognizers.Recognizer. Once Close has begun it returns
+// a closed error. If the child has exited, it returns the exit status with the
+// child's stderr tail. A request that fails while either holds reports that
+// state in place of the transport error.
+func (m *ManagedRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
+	if err := m.stateErr(); err != nil {
+		return m.fail(err)
+	}
+	entities, err := m.NLPRecognizer.Recognize(ctx, text)
+	if cause := m.stateErr(); cause != nil && (err != nil || m.LastError() != nil) {
+		return m.fail(cause)
+	}
+	return entities, err
+}
+
+// stateErr returns why the sidecar can no longer serve requests, or nil while
+// it can. Close sets closing before it signals the child, so a request that
+// fails after that point always sees the closed state.
+func (m *ManagedRecognizer) stateErr() error {
+	if m.closing.Load() {
+		return errManagedClosed
+	}
+	select {
+	case <-m.proc.done:
+		return m.proc.withStderr(fmt.Errorf("nlp managed: sidecar process exited (wait: %v)", m.proc.waitErr))
+	default:
+		return nil
+	}
 }
 
 // Close stops the sidecar: SIGTERM first, then Kill once the stop timeout has
-// passed. It is idempotent; every call returns the result of the first.
+// passed. It is idempotent; every call returns the result of the first. Requests
+// that run during or after Close fail with a closed error.
 func (m *ManagedRecognizer) Close() error {
+	m.closing.Store(true)
 	m.closeOnce.Do(func() {
 		m.closeErr = m.proc.stop()
 	})
@@ -100,15 +196,18 @@ type managedProcess struct {
 	cmd         *exec.Cmd
 	logger      *slog.Logger
 	stopTimeout time.Duration
+	stderr      *tailBuffer
 	done        chan struct{}
 	waitErr     error // written before done is closed; read only after <-done
 }
 
 // spawnManaged is the only place a managed sidecar process is spawned. The
-// child's stderr goes to this process's stderr, where the sidecar logs.
+// child's stderr goes to this process's stderr, where the sidecar logs, and
+// its last managedStderrTail bytes are kept for startup errors.
 func spawnManaged(logger *slog.Logger, stopTimeout time.Duration, binary string, argv []string) (*managedProcess, error) {
+	stderr := &tailBuffer{max: managedStderrTail}
 	cmd := exec.Command(binary, argv...)
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = io.MultiWriter(os.Stderr, stderr)
 	setProcessGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		return nil, err
@@ -117,6 +216,7 @@ func spawnManaged(logger *slog.Logger, stopTimeout time.Duration, binary string,
 		cmd:         cmd,
 		logger:      logger,
 		stopTimeout: stopTimeout,
+		stderr:      stderr,
 		done:        make(chan struct{}),
 	}
 	go func() {
@@ -152,6 +252,74 @@ func (p *managedProcess) awaitHealthy(ctx context.Context, base string, timeout 
 	}
 }
 
+// startFailure wraps a failed startup with the child's recent stderr, so the
+// error reports why the child died and not only its exit status. It must be
+// called after the child has exited. When the child could not bind its port,
+// the result also wraps errPortTaken so startManaged retries on a fresh port.
+func (p *managedProcess) startFailure(binary string, cause error) error {
+	err := p.withStderr(fmt.Errorf("nlp managed: %s: %w", binary, cause))
+	if !p.portTaken() {
+		return err
+	}
+	p.logger.Warn("nlp sidecar could not bind its port", "binary", binary, "err", err)
+	return fmt.Errorf("%w: %w", errPortTaken, err)
+}
+
+// portTaken reports whether the child has exited with a bind failure on stderr.
+// It must be called after the child has exited, so stderr is complete.
+func (p *managedProcess) portTaken() bool {
+	select {
+	case <-p.done:
+	default:
+		return false
+	}
+	tail := p.stderr.String()
+	for _, marker := range bindFailureMarkers {
+		if strings.Contains(tail, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// withStderr appends the child's recent stderr to err, so a failed startup
+// reports why the child died and not only its exit status.
+func (p *managedProcess) withStderr(err error) error {
+	tail := strings.TrimSpace(p.stderr.String())
+	if tail == "" {
+		return err
+	}
+	return fmt.Errorf("%w; sidecar stderr (tail): %s", err, tail)
+}
+
+// tailBuffer is an io.Writer that keeps only the last max bytes written to it.
+// The child's stderr copy writes to it while startup errors read it, so access
+// is locked.
+type tailBuffer struct {
+	mu  sync.Mutex
+	max int
+	buf []byte
+}
+
+// Write appends p and drops the oldest bytes beyond max. It never fails.
+func (t *tailBuffer) Write(p []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.buf = append(t.buf, p...)
+	if over := len(t.buf) - t.max; over > 0 {
+		n := copy(t.buf, t.buf[over:])
+		t.buf = t.buf[:n]
+	}
+	return len(p), nil
+}
+
+// String returns the retained bytes.
+func (t *tailBuffer) String() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return string(t.buf)
+}
+
 func probeHealthz(ctx context.Context, client *http.Client, base string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/healthz", nil)
 	if err != nil {
@@ -178,7 +346,7 @@ func probeHealthz(ctx context.Context, client *http.Client, base string) error {
 	return nil
 }
 
-// stop sends SIGTERM, waits up to stopTimeout for the child to exit, then
+// stop sends the platform stop signal (SIGTERM on Unix), waits up to stopTimeout for the child to exit, then
 // kills it. It returns nil once the child has been reaped.
 func (p *managedProcess) stop() error {
 	select {
@@ -188,9 +356,9 @@ func (p *managedProcess) stop() error {
 	}
 
 	pid := p.cmd.Process.Pid
-	if err := terminate(p.cmd.Process); err != nil {
+	if err := terminate(p.cmd.Process, p.logger); err != nil {
 		if !errors.Is(err, os.ErrProcessDone) {
-			return fmt.Errorf("send SIGTERM to sidecar pid %d: %w", pid, err)
+			return fmt.Errorf("send stop signal to sidecar pid %d: %w", pid, err)
 		}
 		<-p.done
 		return nil
@@ -204,7 +372,7 @@ func (p *managedProcess) stop() error {
 	case <-timer.C:
 	}
 
-	p.logger.Warn("sidecar ignored SIGTERM, killing", "pid", pid, "timeout", p.stopTimeout)
+	p.logger.Warn("sidecar ignored stop signal, killing", "pid", pid, "timeout", p.stopTimeout)
 	if err := kill(p.cmd.Process); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return fmt.Errorf("kill sidecar pid %d after %s: %w", pid, p.stopTimeout, err)
 	}

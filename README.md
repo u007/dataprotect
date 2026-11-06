@@ -211,9 +211,14 @@ s := piiscrub.NewScrubber(
 
 `NewScrubber()` reads no environment variable and makes no network call, so the
 golden tests stay deterministic. If you want the URL from the environment, read
-it yourself (`os.Getenv("PII_SCRUB_NLP_URL")`) or call `nlp.FromEnv()`, and
-pass the recognizer in. `PII_SCRUB_NLP_URL` must be set in the deployment
+it yourself (`os.Getenv("PII_SCRUB_NLP_URL")`) or call `nlp.FromEnv()` (it returns an error if
+`PII_SCRUB_NLP_BINARY` is set), and pass the recognizer in. `PII_SCRUB_NLP_URL` must be set in the deployment
 environment for the sidecar to be used; it is documented in `.env.example`.
+
+To have the library start the sidecar itself, set `PII_SCRUB_NLP_BINARY` to the
+`piiscrub-sidecar` binary path (instead of `PII_SCRUB_NLP_URL`) and call
+`nlp.ManagedFromEnv(ctx)`, then `Close` the result. Setting both variables is an
+error. `nlp.FromEnv()` returns an error when `PII_SCRUB_NLP_BINARY` is set.
 
 `nlp.New("")` is a disabled recognizer: it returns no entities and no error. A
 configured but broken sidecar is an error, because `Analyze` aborts on a

@@ -220,10 +220,32 @@ func (r *NLPRecognizer) log(err error) {
 }
 
 // FromEnv builds an NLPRecognizer from PII_SCRUB_NLP_URL. Returns a disabled
-// recognizer (nil-safe) when the env var is unset/empty.
-func FromEnv() *NLPRecognizer {
-	// Avoid importing os in the root? stdlib os is fine.
-	return New(getEnv("PII_SCRUB_NLP_URL"))
+// recognizer (nil-safe) when the env var is unset/empty. It fails when
+// PII_SCRUB_NLP_BINARY is set, because that variable starts a managed child,
+// which FromEnv cannot do; call ManagedFromEnv instead.
+func FromEnv() (*NLPRecognizer, error) {
+	if getEnv("PII_SCRUB_NLP_BINARY") != "" {
+		return nil, fmt.Errorf("nlp: PII_SCRUB_NLP_BINARY is set; FromEnv only reads PII_SCRUB_NLP_URL, call ManagedFromEnv to start the managed sidecar")
+	}
+	return New(getEnv("PII_SCRUB_NLP_URL")), nil
+}
+
+// ManagedFromEnv starts the sidecar binary named by PII_SCRUB_NLP_BINARY with
+// StartManaged and returns it. The binary path is the opt-in, so one variable
+// carries both the switch and the path. It fails when that variable is unset,
+// and when PII_SCRUB_NLP_URL is also set, because the URL selects an external
+// sidecar and the binary starts a managed child. The caller must Close the
+// result. ctx also bounds the child's lifetime: when it ends, the child stops.
+func ManagedFromEnv(ctx context.Context) (*ManagedRecognizer, error) {
+	url := getEnv("PII_SCRUB_NLP_URL")
+	binary := getEnv("PII_SCRUB_NLP_BINARY")
+	if binary == "" {
+		return nil, fmt.Errorf("nlp managed: PII_SCRUB_NLP_BINARY is not set")
+	}
+	if url != "" {
+		return nil, fmt.Errorf("nlp managed: PII_SCRUB_NLP_URL and PII_SCRUB_NLP_BINARY are both set; set only one (URL uses an external sidecar, BINARY starts a managed child)")
+	}
+	return StartManaged(ctx, binary, nil)
 }
 
 func getEnv(key string) string {

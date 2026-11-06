@@ -45,5 +45,5 @@ Almost every open item is blocked on external things: model licensing, downloads
 
 ## 2026-11-05: MyKad and LLM second pass
 - Keyword-free bare 12-digit MyKad stays undetected by default: 20 of 229 bare 12-digit runs in the corpora pass the date check (about 9%).
-- Allowed filler words (`is`, `number`, `no`) between the keyword and the digits, so `my ic is 801214105423` is detected.
+- Allowed filler words (`is`, `number`, `no`) between the keyword and the digits, so `my ic is 801214105423` is detected. Up to two, and the two must differ: `mykad no no <digits>` is not matched.
 - LLM second pass: designed, not built. You asked for it as an optional flag. See `DESIGN-llm-second-pass.md` for the options and my choices.
