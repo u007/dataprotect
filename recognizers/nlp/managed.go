@@ -30,6 +30,9 @@ const (
 	// child cannot bind its port. The port is probed and then released before the
 	// child binds it, so another process can take it in between.
 	managedStartAttempts = 3
+	// managedStopWaitDelay bounds how long Wait lingers on the stderr pipe after
+	// the child exits, when a grandchild still holds it open.
+	managedStopWaitDelay = time.Second
 )
 
 // bindFailureMarkers are the stderr fragments a child prints when it cannot bind
@@ -207,7 +210,12 @@ type managedProcess struct {
 func spawnManaged(logger *slog.Logger, stopTimeout time.Duration, binary string, argv []string) (*managedProcess, error) {
 	stderr := &tailBuffer{max: managedStderrTail}
 	cmd := exec.Command(binary, argv...)
-	cmd.Stderr = io.MultiWriter(os.Stderr, stderr)
+	// The tail goes first and the forward to os.Stderr never fails, so a closed or
+	// broken stderr cannot stop the copy and block the child on a full pipe.
+	cmd.Stderr = io.MultiWriter(stderr, bestEffortWriter{os.Stderr})
+	// A grandchild that outlives the child holds the stderr pipe open, and Wait
+	// would block on it. WaitDelay bounds that wait so done always closes.
+	cmd.WaitDelay = managedStopWaitDelay
 	setProcessGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		return nil, err
@@ -305,11 +313,26 @@ type tailBuffer struct {
 func (t *tailBuffer) Write(p []byte) (int, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	n := len(p)
+	if len(p) > t.max {
+		p = p[len(p)-t.max:]
+	}
 	t.buf = append(t.buf, p...)
 	if over := len(t.buf) - t.max; over > 0 {
-		n := copy(t.buf, t.buf[over:])
-		t.buf = t.buf[:n]
+		copied := copy(t.buf, t.buf[over:])
+		t.buf = t.buf[:copied]
 	}
+	return n, nil
+}
+
+// bestEffortWriter forwards to w and reports success even when w fails. The
+// child's stderr is also kept in the tail buffer, so a broken forward target
+// must not abort the copy.
+type bestEffortWriter struct{ w io.Writer }
+
+func (b bestEffortWriter) Write(p []byte) (int, error) {
+	// intentionally not logged: logging here would write to the same broken stderr.
+	_, _ = b.w.Write(p)
 	return len(p), nil
 }
 

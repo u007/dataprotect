@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -219,6 +220,9 @@ func TestManagedFromEnvRejectsURLAndBinary(t *testing.T) {
 // because ManagedFromEnv passes no arguments: the script re-execs the test
 // binary in fake-sidecar mode and the library appends -addr.
 func TestManagedFromEnvStartsChild(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a /bin/sh wrapper script")
+	}
 	self, err := filepath.Abs(os.Args[0])
 	if err != nil {
 		t.Fatalf("abs: %v", err)

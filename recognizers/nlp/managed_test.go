@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -466,6 +467,9 @@ func TestManagedCloseIdempotent(t *testing.T) {
 // must stop that grandchild too, which only works when the whole process group
 // is signalled.
 func TestManagedCloseStopsWrappedChild(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a /bin/sh wrapper script")
+	}
 	script := filepath.Join(t.TempDir(), "wrap.sh")
 	body := "#!/bin/sh\n\"" + os.Args[0] + "\" \"$@\" &\nwait\n"
 	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {

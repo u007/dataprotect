@@ -11,7 +11,7 @@ tags:
   - anonymization
   - privacy
   - v1
-timestamp: 2026-11-03T11:05:47Z
+timestamp: 2026-11-06T16:00:01Z
 ---
 
 # piiscrub — Go PII Detection & Anonymization Library
@@ -800,7 +800,12 @@ root talks to it over HTTP.
 - `NewScrubber()` stays env-free and deterministic. A caller wires the NLP
   recognizer explicitly with `NewScrubberWithRecognizers(nlp.New(url))` or
   `NewScrubber(WithRecognizer(...))`. The env var `PII_SCRUB_NLP_URL` is read
-  by the caller (or `nlp.FromEnv()`), never by `NewScrubber()`.
+  by the caller (or `nlp.FromEnv()`), never by `NewScrubber()`. The managed
+  opt-in is `PII_SCRUB_NLP_BINARY` (the sidecar binary path), read by
+  `nlp.ManagedFromEnv(ctx)`, which starts the child through `StartManaged`; it
+  fails when both it and `PII_SCRUB_NLP_URL` are set. The variable is the
+  opt-in because it needs a path anyway, so a boolean plus a path would be two
+  variables for one choice.
 - NLP entities carry confidence 0.80. Overlap resolution keeps the higher
   confidence; every built-in type scores at least 0.85 (the keyword-gated
   national ID and passport rules; regex, checksum and secret are 0.95 and up),

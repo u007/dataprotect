@@ -1,5 +1,9 @@
 # Directory Update Log
 
+## 2026-11-06
+
+* **Update**: piiscrub — NLP managed sidecar gains an env opt-in (`002835c`): `PII_SCRUB_NLP_BINARY` names the `piiscrub-sidecar` binary and is read by `nlp.ManagedFromEnv(ctx)`, which starts the child through `StartManaged`; set it instead of `PII_SCRUB_NLP_URL`, because setting both is an error. `nlp.FromEnv()` now returns `(*NLPRecognizer, error)`, reads only the URL, and errors when the binary variable is set. The bundle also records the managed lifecycle: ctx-bounded child, bind-failure retry (3 attempts), 4 KiB stderr tail on startup errors, and `errManagedClosed` from `Recognize`. ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md), [decisions/spec-v1.md](/decisions/spec-v1.md), [concepts/development-conventions.md](/concepts/development-conventions.md))
+
 ## 2026-11-04
 
 * **Update**: piiscrub — seed grew 553 to 556: three BITCOIN negatives (bad P2SH checksum, bad taproot checksum, mixed-case bech32), so 353 positive and 203 negative, and `minCases` is 556. Measured exact and overlap P=1.0000 R=1.0000 (tp=385 fp=0 fn=0), 203/203 negatives clean; the `pos-phone-trunk-zero` miss is now detected, so the earlier R=0.9974 baseline is superseded. Verified by `go test ./golden/` and the seed file. ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md))

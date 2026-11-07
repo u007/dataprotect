@@ -9,7 +9,7 @@ tags:
   - usage
   - anonymization
   - csv
-timestamp: 2026-11-04T16:10:06Z
+timestamp: 2026-11-06T16:00:01Z
 ---
 
 # piiscrub — Go PII Detection & Anonymization Library
@@ -250,10 +250,18 @@ s := piiscrub.NewScrubber(
 `NewScrubber()` reads no environment variable and makes no network call, so the
 golden tests stay deterministic. The sidecar URL comes from the caller, or from
 `PII_SCRUB_NLP_URL` read by the caller (`nlp.FromEnv()`); that variable must be
-set in the deployment environment for the sidecar to be used. A configured but
-broken sidecar is an error; `nlp.New(url, nlp.WithNLPBestEffort())` is the
-opt-in mode that logs the failure and keeps the pipeline running. See
-[spec-v1](../decisions/spec-v1.md), "NLP Sidecar".
+set in the deployment environment for the sidecar to be used. To have the
+library start the sidecar itself, set `PII_SCRUB_NLP_BINARY` to the
+`piiscrub-sidecar` binary instead: `nlp.ManagedFromEnv(ctx)` starts it on a free
+loopback port and returns a `*ManagedRecognizer`, which the caller must `Close`
+(ctx also stops the child when it ends). Set only one of the two variables;
+setting both is an error. `nlp.FromEnv()` reads only the URL and returns
+`(*NLPRecognizer, error)`, erroring when the binary variable is set so the
+managed mode is never silently ignored; an unset URL still yields a disabled,
+nil-safe recognizer with no error. A configured but broken sidecar is an error;
+`nlp.New(url, nlp.WithNLPBestEffort())` is the opt-in mode that logs the failure
+and keeps the pipeline running. See [spec-v1](../decisions/spec-v1.md), "NLP
+Sidecar".
 
 The sidecar's accuracy is measured. `make test-ner` starts a sidecar, scores
 the detector against `testdata/golden/ner/` and stops it again: typed
