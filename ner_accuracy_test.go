@@ -112,6 +112,18 @@ const (
 func nerRecognizer(t *testing.T) *nlp.NLPRecognizer {
 	t.Helper()
 	url := os.Getenv("PII_SCRUB_NLP_URL")
+	binary := os.Getenv("PII_SCRUB_NLP_BINARY")
+	if binary != "" && url != "" {
+		t.Fatal("PII_SCRUB_NLP_URL and PII_SCRUB_NLP_BINARY are both set; set only one (URL uses an external sidecar, BINARY starts a managed child)")
+	}
+	if binary != "" {
+		m, err := nlp.ManagedFromEnv(context.Background())
+		if err != nil {
+			t.Skipf("managed sidecar: %v", err)
+		}
+		t.Cleanup(func() { _ = m.Close() })
+		return m.NLPRecognizer
+	}
 	if url == "" {
 		t.Skip("PII_SCRUB_NLP_URL is not set; the NER gate needs a running sidecar")
 	}

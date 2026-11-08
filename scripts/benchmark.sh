@@ -129,7 +129,20 @@ func main() {
 		scrubOpts = append(scrubOpts, piiscrub.WithCardLanguages(langs...))
 		fmt.Printf("card-languages: %s\n\n", raw)
 	}
-	if url := os.Getenv("PII_SCRUB_NLP_URL"); url != "" {
+	if binary := os.Getenv("PII_SCRUB_NLP_BINARY"); binary != "" {
+		if url := os.Getenv("PII_SCRUB_NLP_URL"); url != "" {
+			fmt.Fprintln(os.Stderr, "benchmark: PII_SCRUB_NLP_URL and PII_SCRUB_NLP_BINARY are both set; set only one (URL uses an external sidecar, BINARY starts a managed child)")
+			os.Exit(1)
+		}
+		m, err := nlp.ManagedFromEnv(context.Background())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "benchmark: managed sidecar:", err)
+			os.Exit(1)
+		}
+		defer m.Close()
+		scrubOpts = append(scrubOpts, piiscrub.WithRecognizer(m))
+		fmt.Printf("nlp:     %s (managed)\n\n", binary)
+	} else if url := os.Getenv("PII_SCRUB_NLP_URL"); url != "" {
 		scrubOpts = append(scrubOpts, piiscrub.WithRecognizer(nlp.New(url)))
 		fmt.Printf("nlp:     %s\n\n", url)
 	}

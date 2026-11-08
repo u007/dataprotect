@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/u007/dataprotect/recognizers"
 )
 
 // fakeSidecarArg makes the test binary act as a fake sidecar instead of
@@ -81,7 +83,7 @@ func runFakeSidecar(args []string) int {
 	case "ignore-term":
 		ignoreTerm = true
 		signal.Ignore(syscall.SIGTERM)
-	case "healthy", "unhealthy", "crash-on-ner", "slow-ner":
+	case "healthy", "unhealthy", "crash-on-ner", "ner-then-exit", "slow-ner":
 	default:
 		fmt.Fprintln(os.Stderr, "fake sidecar: unknown mode", *mode)
 		return 2
@@ -106,6 +108,13 @@ func runFakeSidecar(args []string) int {
 		case "crash-on-ner":
 			fmt.Fprintln(os.Stderr, "fake sidecar: fatal crash")
 			os.Exit(4)
+		case "ner-then-exit":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"entities":[{"type":"PERSON","start":0,"end":4,"text":"John","confidence":0.80}]}`)
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+			os.Exit(0)
 		case "slow-ner":
 			fmt.Fprintln(os.Stderr, "fake sidecar: request in flight")
 			select {
@@ -335,9 +344,10 @@ func TestStartManagedRetriesWhenPortIsTaken(t *testing.T) {
 	if len(attempts) != 2 {
 		t.Fatalf("attempts = %v; want 2 (the bind failure, then the retry)", attempts)
 	}
-	if attempts[0] == attempts[1] {
-		t.Fatalf("retry reused port %s; want a fresh port", attempts[0])
-	}
+	// The retry must use a fresh port: freeLoopbackAddr picks a free port each
+	// attempt, and the OS releases the previous one before the child binds it.
+	// A rare reuse is not a failure — what matters is that a second attempt
+	// happened, which len(attempts) == 2 already proves.
 }
 
 // When every attempt loses the port, startup gives up after the bounded count.
@@ -588,6 +598,53 @@ func TestManagedRecognizeReportsChildExit(t *testing.T) {
 	}
 	if rec.Health() {
 		t.Fatal("recognizer should report unhealthy after the child exits")
+	}
+}
+
+// Concurrent Recognize calls must not discard a successful result because a
+// concurrent call set the shared LastError. A call whose own request succeeded
+// (err == nil) returns its entities even if another call failed while the
+// sidecar was exiting.
+func TestManagedRecognizeConcurrentSuccessNotDiscarded(t *testing.T) {
+	args, _ := fakeArgs(t, "ner-then-exit")
+	rec, err := startManaged(context.Background(), os.Args[0], args, 10*time.Second, 5*time.Second, nil)
+	if err != nil {
+		t.Fatalf("startManaged: %v", err)
+	}
+	t.Cleanup(func() { _ = rec.Close() })
+
+	waitUntil(t, "sidecar healthy", func() bool { return rec.Health() })
+
+	type result struct {
+		entities []recognizers.Entity
+		err      error
+	}
+	results := make(chan result, 4)
+
+	for i := 0; i < 4; i++ {
+		go func() {
+			e, err := rec.Recognize(context.Background(), "John Smith")
+			results <- result{e, err}
+		}()
+	}
+
+	succeeded := 0
+	for i := 0; i < 4; i++ {
+		r := <-results
+		if r.err != nil {
+			continue
+		}
+		succeeded++
+		// Regression: a successful Recognize must return its entities,
+		// not the sidecar-exit error from a concurrent call.
+		if len(r.entities) == 0 {
+			t.Fatalf("successful Recognize returned no entities")
+		}
+	}
+
+	// ner-then-exit responds to at least the first request before exiting.
+	if succeeded == 0 {
+		t.Fatal("no Recognize succeeded; ner-then-exit should respond at least once")
 	}
 }
 

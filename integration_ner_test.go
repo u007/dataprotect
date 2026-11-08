@@ -13,6 +13,33 @@ import (
 
 func TestIntegrationNER(t *testing.T) {
 	url := os.Getenv("PII_SCRUB_NLP_URL")
+	binary := os.Getenv("PII_SCRUB_NLP_BINARY")
+	if binary != "" && url != "" {
+		t.Fatal("PII_SCRUB_NLP_URL and PII_SCRUB_NLP_BINARY are both set; set only one (URL uses an external sidecar, BINARY starts a managed child)")
+	}
+	if binary != "" {
+		m, err := nlp.ManagedFromEnv(context.Background())
+		if err != nil {
+			t.Skipf("managed sidecar: %v", err)
+		}
+		t.Cleanup(func() { _ = m.Close() })
+		s := NewScrubberWithRecognizers(m)
+		entities, err := s.Analyze(context.Background(), "John Smith lives in New York.")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("entities: %+v", entities)
+		found := false
+		for _, e := range entities {
+			if e.Type == recognizers.EntityPerson {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("expected PERSON entity")
+		}
+		return
+	}
 	if url == "" {
 		t.Skip("PII_SCRUB_NLP_URL not set")
 	}

@@ -156,14 +156,18 @@ func (m *ManagedRecognizer) stopWhenDone(ctx context.Context) {
 // Recognize implements recognizers.Recognizer. Once Close has begun it returns
 // a closed error. If the child has exited, it returns the exit status with the
 // child's stderr tail. A request that fails while either holds reports that
-// state in place of the transport error.
+// state in place of the transport error. Terminal states (closed or exited)
+// bypass best-effort: best-effort swallows transient transport errors, but a
+// closed or exited sidecar is not transient, so the error is always returned.
 func (m *ManagedRecognizer) Recognize(ctx context.Context, text string) ([]recognizers.Entity, error) {
 	if err := m.stateErr(); err != nil {
-		return m.fail(err)
+		m.healthy.Store(false)
+		return nil, err
 	}
 	entities, err := m.NLPRecognizer.Recognize(ctx, text)
-	if cause := m.stateErr(); cause != nil && (err != nil || m.LastError() != nil) {
-		return m.fail(cause)
+	if cause := m.stateErr(); cause != nil && err != nil {
+		m.healthy.Store(false)
+		return nil, cause
 	}
 	return entities, err
 }

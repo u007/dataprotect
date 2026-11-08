@@ -130,6 +130,12 @@ build:
 vet:
 	$(GO) vet ./...
 
+# Verify the Windows-specific sidecar lifecycle code compiles. Cannot run
+# Windows tests on Linux, so this is a compile+vet gate only.
+check-windows:
+	GOOS=windows $(GO) build ./...
+	GOOS=windows $(GO) vet ./...
+
 fmt:
 	@test -x "$(GOFMT)" || { echo "gofmt not found at $(GOFMT)"; exit 1; }
 	@unformatted="$$($(GOFMT) -l .)"; \
@@ -186,6 +192,16 @@ CORPUS_NLP_TAGS := $(if $(filter onnx,$(NER_BACKEND)),-tags onnx,)
 CORPUS_NLP_CGO  := $(if $(filter onnx,$(NER_BACKEND)),CGO_LDFLAGS="$(ONNX_CGO_LDFLAGS)",)
 
 corpus-nlp: $(if $(filter onnx,$(NER_BACKEND)),fetch-libtokenizers)
+	@if [ -n "${PII_SCRUB_NLP_BINARY:-}" ]; then \
+		if [ -n "${PII_SCRUB_NLP_URL:-}" ]; then \
+			echo "PII_SCRUB_NLP_URL and PII_SCRUB_NLP_BINARY are both set; set only one (URL uses an external sidecar, BINARY starts a managed child)" >&2; \
+			exit 1; \
+		fi; \
+		PII_SCRUB_NLP_BINARY="$(PII_SCRUB_NLP_BINARY)" ./scripts/benchmark.sh "$(DATA_ROOT)/nemotron-pii/converted" $(NER_LIMIT) ; \
+		status=$$?; \
+		PII_SCRUB_NLP_BINARY="$(PII_SCRUB_NLP_BINARY)" ./scripts/benchmark.sh "$(DATA_ROOT)/gretel-pii-finance/converted" $(NER_LIMIT) ; \
+		exit $$status; \
+	fi
 	@if curl -sf $(NER_URL)/healthz >/dev/null 2>&1; then \
 		echo "a sidecar is already listening on $(NER_URL); stop it first." >&2; \
 		exit 1; \
