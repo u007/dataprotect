@@ -1,5 +1,9 @@
 # Directory Update Log
 
+## 2026-11-09
+
+* **Update**: piiscrub — terminal managed-sidecar states bypass `WithBestEffort` (`ac7c6fd`): `ManagedRecognizer.Recognize` returns the error directly instead of `m.fail` once `Close` has begun or the child has exited, so a closed or exited sidecar always reports `errManagedClosed` / "sidecar process exited" even under best-effort. Only transient transport errors are logged and dropped. ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md), [decisions/spec-v1.md](/decisions/spec-v1.md), [concepts/development-conventions.md](/concepts/development-conventions.md))
+
 ## 2026-11-06
 
 * **Update**: piiscrub — NLP managed sidecar gains an env opt-in (`002835c`): `PII_SCRUB_NLP_BINARY` names the `piiscrub-sidecar` binary and is read by `nlp.ManagedFromEnv(ctx)`, which starts the child through `StartManaged`; set it instead of `PII_SCRUB_NLP_URL`, because setting both is an error. `nlp.FromEnv()` now returns `(*NLPRecognizer, error)`, reads only the URL, and errors when the binary variable is set. The bundle also records the managed lifecycle: ctx-bounded child, bind-failure retry (3 attempts), 4 KiB stderr tail on startup errors, and `errManagedClosed` from `Recognize`. ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md), [decisions/spec-v1.md](/decisions/spec-v1.md), [concepts/development-conventions.md](/concepts/development-conventions.md))

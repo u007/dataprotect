@@ -601,6 +601,69 @@ func TestManagedRecognizeReportsChildExit(t *testing.T) {
 	}
 }
 
+// Under WithBestEffort, transient transport errors are logged and dropped, but
+// terminal states are not: once Close has begun, Recognize returns the closed
+// error rather than nil, nil.
+func TestManagedRecognizeBestEffortClosedReturnsError(t *testing.T) {
+	args, _ := fakeArgs(t, "healthy")
+	rec, err := startManaged(context.Background(), os.Args[0], args, 10*time.Second, 5*time.Second, []Option{WithBestEffort()})
+	if err != nil {
+		t.Fatalf("startManaged: %v", err)
+	}
+	t.Cleanup(func() { _ = rec.Close() })
+
+	waitUntil(t, "sidecar healthy", func() bool { return rec.Health() })
+
+	if err := rec.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	_, err = rec.Recognize(context.Background(), "John Smith")
+	if err == nil {
+		t.Fatal("Recognize after Close under best-effort: got nil, nil; want an error")
+	}
+	if !strings.Contains(err.Error(), "closed") {
+		t.Fatalf("err = %v; want containing %q", err, "closed")
+	}
+	if rec.Health() {
+		t.Fatal("recognizer should report unhealthy after Close")
+	}
+}
+
+// Under WithBestEffort, a first Recognize that fails as a transport error is
+// swallowed (nil, nil), but once the child exits the terminal state takes over
+// and later Recognize calls return the exit error.
+func TestManagedRecognizeBestEffortExitedReturnsError(t *testing.T) {
+	args, _ := fakeArgs(t, "crash-on-ner")
+	rec, err := startManaged(context.Background(), os.Args[0], args, 10*time.Second, 5*time.Second, []Option{WithBestEffort()})
+	if err != nil {
+		t.Fatalf("startManaged: %v", err)
+	}
+	t.Cleanup(func() { _ = rec.Close() })
+
+	waitUntil(t, "sidecar healthy", func() bool { return rec.Health() })
+
+	// First call: the child crashes while serving /v1/ner. Best-effort swallows
+	// the transport error, so nil, nil is expected here.
+	if _, err := rec.Recognize(context.Background(), "John Smith"); err != nil {
+		t.Fatalf("first Recognize under best-effort: got %v; want nil, nil", err)
+	}
+	waitUntil(t, "child to exit", func() bool { return isDone(rec.proc) })
+
+	// Second call: terminal state bypasses best-effort, so the exit error is
+	// returned, not swallowed.
+	_, err = rec.Recognize(context.Background(), "John Smith")
+	if err == nil {
+		t.Fatal("Recognize after child exit under best-effort: got nil, nil; want an error")
+	}
+	if !strings.Contains(err.Error(), "sidecar process exited") {
+		t.Fatalf("err = %v; want containing %q", err, "sidecar process exited")
+	}
+	if rec.Health() {
+		t.Fatal("recognizer should report unhealthy after child exit")
+	}
+}
+
 // Concurrent Recognize calls must not discard a successful result because a
 // concurrent call set the shared LastError. A call whose own request succeeded
 // (err == nil) returns its entities even if another call failed while the

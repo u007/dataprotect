@@ -795,8 +795,10 @@ root talks to it over HTTP.
   sets `ReadHeaderTimeout` and `WriteTimeout`, and shuts down on SIGTERM.
 - The root client is `recognizers/nlp.NLPRecognizer`. An empty URL disables it
   (`Recognize` returns `nil, nil`). A configured-but-broken sidecar is an
-  error, because `Analyzer.Analyze` aborts on a recognizer error; the opt-in
-  best-effort mode is the only path that drops one.
+  error, because `Analyzer.Analyze` aborts on a recognizer error. The opt-in
+  best-effort mode drops transient transport errors only: terminal states (a
+  closed recognizer or an exited sidecar process) bypass best-effort and always
+  return the error, never `nil, nil`.
 - `NewScrubber()` stays env-free and deterministic. A caller wires the NLP
   recognizer explicitly with `NewScrubberWithRecognizers(nlp.New(url))` or
   `NewScrubber(WithRecognizer(...))`. The env var `PII_SCRUB_NLP_URL` is read

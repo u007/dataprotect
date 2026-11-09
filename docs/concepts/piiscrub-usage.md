@@ -259,8 +259,11 @@ setting both is an error. `nlp.FromEnv()` reads only the URL and returns
 `(*NLPRecognizer, error)`, erroring when the binary variable is set so the
 managed mode is never silently ignored; an unset URL still yields a disabled,
 nil-safe recognizer with no error. A configured but broken sidecar is an error;
-`nlp.New(url, nlp.WithNLPBestEffort())` is the opt-in mode that logs the failure
-and keeps the pipeline running. See [spec-v1](../decisions/spec-v1.md), "NLP
+`nlp.New(url, nlp.WithNLPBestEffort())` is the opt-in mode that logs transient
+transport failures and keeps the pipeline running. It does not swallow terminal
+states: once a managed sidecar is closed or its process has exited, `Recognize`
+returns that error even under best-effort, because the sidecar will not recover
+on its own. See [spec-v1](../decisions/spec-v1.md), "NLP
 Sidecar".
 
 The sidecar's accuracy is measured. `make test-ner` starts a sidecar, scores
