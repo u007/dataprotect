@@ -4,6 +4,8 @@
 ## 2026-11-10
 
 * **Creation**: Licensing & Provenance — Opt-In Disclosure Pattern ([concepts/licensing-and-provenance.md](/concepts/licensing-and-provenance.md))
+* **Update**: piiscrub — image PII path wired (`3ef0e65`): `sidecar/internal/facedetect` gains `RealDetector`, backed by `github.com/Kagami/go-face` (CC0-1.0, verified from the module cache `COPYING`), and `NewDetector()` now prefers it when dlib and both models resolve, falling back to `StubDetector` otherwise. dlib is a separate `libdlib-dev` system dependency (Boost-1.0, verified from `/usr/share/doc/libdlib-dev/copyright`), not vendored. `DetectFaces` JPEG-encodes the image, runs `face.Recognize`, and reports `Confidence` 1.0 because go-face returns no score; `Close` releases the recognizer. The two dlib model weights (`shape_predictor_5_face_landmarks.dat`, `dlib_face_recognition_resnet_model_v1.dat`) are still downloaded on first use from dlib.net and their licences remain **unverified** (flagged in `THIRD_PARTY.md`). Also fixes `detector_test.go`'s `cacheDirFunc` save/restore at six sites, which saved the `cacheDir` wrapper instead of `cacheDirFunc` and recursed into a stack overflow once the tests could run without BLAS/LAPACK dev headers. Tests: 8/8 facedetect pass, but the `RealDetector` path is **not** exercised — the models are not downloaded, so `StubDetector` is what runs; sidecar and root build/vet/test are green, gofmt and `make docs-check` clean. The commit is 22 files, +1628/−38 because it also carries the t7–t10 follow-up tree (MyKad weak-candidate path, `recognizers/judge`, LLM second-pass wiring). ([concepts/licensing-and-provenance.md](/concepts/licensing-and-provenance.md), [decisions/spec-v1.md](/decisions/spec-v1.md))
+
 ## 2026-11-09
 
 
