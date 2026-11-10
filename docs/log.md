@@ -1,5 +1,9 @@
 # Directory Update Log
 
+
+## 2026-11-10
+
+* **Creation**: Licensing & Provenance — Opt-In Disclosure Pattern ([concepts/licensing-and-provenance.md](/concepts/licensing-and-provenance.md))
 ## 2026-11-09
 
 

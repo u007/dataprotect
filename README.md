@@ -543,6 +543,33 @@ piiscrub is released under the MIT licence; see [LICENSE](LICENSE).
 
 The corpora named above are not covered by that licence and are not redistributed here. Each carries its own terms, recorded in [DATASET_LICENSES.md](DATASET_LICENSES.md). Nemotron-PII (CC-BY-4.0) and the gretel corpus (Apache-2.0 with NOTICE) require attribution. When you publish a result, cite the dataset and its revision, as the tables above do. Do not copy corpus content into `testdata/golden/`.
 
+### Optional components
+
+Some features live behind optional components. Each component carries its own
+licence, and you inherit that component's terms only when you choose to use it:
+
+| Component | Licence (SPDX) | Trigger | You are bound if you… |
+|-----------|---------------|---------|----------------------|
+| piiscrub core | MIT | any import of `github.com/u007/dataprotect` | use any part of the library |
+| `onnxruntime_go` | Apache-2.0 *(unverified — module download blocked)* | `NER_BACKEND=onnx` sidecar build (`make build-sidecar-onnx`) | compile/run the sidecar with `-tags onnx` |
+| `go-face` | CC0-1.0 | `NewDetector()` when `libdlib-dev` is present | call face detection |
+| dlib library | Boost-1.0 | `libdlib-dev` installed | compile the sidecar via cgo |
+| `shape_predictor_5_face_landmarks.dat` | verify (dlib.net model) | `RealDetector.DetectFaces()` | download the model on first face detection |
+| `dlib_face_recognition_resnet_model_v1.dat` | verify (dlib.net model) | `RealDetector.DetectFaces()` | download the model on first face detection |
+| Benchmark datasets | per [DATASET_LICENSES.md](DATASET_LICENSES.md) | `make corpus` / `make corpus-nlp` | score or convert any corpus |
+
+If you do not opt into a component, its licence does not affect your use of
+piiscrub. The root module stays standard-library-only; `go-face` and
+`onnxruntime_go` live only in the separate `sidecar/` module.
+
+For full third-party terms with source URLs and obligations, see
+[THIRD_PARTY.md](THIRD_PARTY.md).
+
+*Not legal advice: this table documents upstream licences as recorded at the
+time of writing. Licences can change. Some corpus terms (notably ai4privacy's
+staff-count restriction) may restrict commercial use of anything trained or
+evaluated on them. For a commercial launch, have counsel confirm.*
+
 ## More
 
 - [SPEC.md](SPEC.md): architecture, recognizer rules, corpus measurement and Presidio measurement.
