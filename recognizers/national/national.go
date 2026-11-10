@@ -41,6 +41,11 @@ var sgOffset = map[byte]int{'S': 0, 'T': 4, 'F': 0, 'G': 4}
 
 var sgShape = regexp.MustCompile(`^[STFG]\d{7}[A-Z]$`)
 
+// weakConfidence is the score for bare-digit MyKad candidates that have no
+// identity-card keyword. It is deliberately below the default 0.70 floor so
+// the optional LLM second pass is the only path that can promote them.
+const weakConfidence = 0.50
+
 // SGNRICValidator checks a Singapore NRIC or FIN by its check letter.
 type SGNRICValidator struct{}
 
@@ -143,10 +148,13 @@ func daysIn(mm, yy int) int {
 // MYICRecognizer finds Malaysia MyKad numbers in two forms. The printed
 // hyphenated form is matched on its own. Twelve bare digits are matched only
 // after an identity-card keyword, because a bare 12-digit run has no shape that
-// separates it from any other number.
+// separates it from any other number. Bare digits without a keyword are emitted
+// as weak candidates (confidence below the default 0.70 floor) so the optional
+// LLM second pass can confirm them; with the pass disabled they are dropped.
 type MYICRecognizer struct {
 	pattern   *regexp.Regexp
 	keyed     *regexp.Regexp
+	bare      *regexp.Regexp
 	validator *MYICValidator
 }
 
@@ -163,6 +171,7 @@ func NewMYICRecognizer() *MYICRecognizer {
 	return &MYICRecognizer{
 		pattern:   regexp.MustCompile(`\b\d{6}-\d{2}-\d{4}\b`),
 		keyed:     regexp.MustCompile(`(?i)\b(?:digital application card|i/c no|i/c|ic no|ic|id card|identification card|identity card|k/p no|k/p|kad akuan diri|kad aplikasi digital|kad pengenalan malaysia|kp no|kp|mykad|mykas|mykid|mypr|mytentera|malaysia identity card|malaysian identity card|nric|personal identification card)[^A-Za-z0-9]{1,8}(?:(?:is|number|no)[^A-Za-z0-9]{1,8}|is[^A-Za-z0-9]{1,8}(?:number|no)[^A-Za-z0-9]{1,8}|number[^A-Za-z0-9]{1,8}(?:is|no)[^A-Za-z0-9]{1,8}|no[^A-Za-z0-9]{1,8}(?:is|number)[^A-Za-z0-9]{1,8})?(\d{12})\b`),
+		bare:      regexp.MustCompile(`\b\d{12}\b`),
 		validator: NewMYICValidator(),
 	}
 }
@@ -201,8 +210,61 @@ func (r *MYICRecognizer) Recognize(ctx context.Context, text string) ([]recogniz
 			Confidence: 0.85,
 		})
 	}
+
+	// Bare 12-digit runs without an identity-card keyword are weak candidates.
+	// They are emitted below the default floor so the optional LLM second pass
+	// can confirm them; with the pass disabled they are dropped by the filter.
+	// Skip spans already claimed by the keyed path to avoid duplicates.
+	claimed := keyedSpans(text, r.keyed)
+	for _, m := range r.bare.FindAllStringIndex(text, -1) {
+		if overlapsAny(m[0], m[1], claimed) {
+			continue
+		}
+		// Belt and suspenders beyond \b: a match must not sit inside a longer
+		// digit run. RE2 has no lookaround, so check the neighbours directly.
+		if (m[0] > 0 && isDigit(text[m[0]-1])) || (m[1] < len(text) && isDigit(text[m[1]])) {
+			continue
+		}
+		digits := text[m[0]:m[1]]
+		ic := digits[0:6] + "-" + digits[6:8] + "-" + digits[8:12]
+		if !r.validator.Validate(ic) {
+			continue
+		}
+		entities = append(entities, recognizers.Entity{
+			Type:       recognizers.EntityMYIC,
+			Start:      m[0],
+			End:        m[1],
+			Text:       digits,
+			Confidence: weakConfidence,
+			Weak:       true,
+		})
+	}
 	return entities, nil
 }
+
+// keyedSpans returns the [start,end) spans of all matches of the keyed pattern,
+// so the bare path can skip overlaps.
+func keyedSpans(text string, re *regexp.Regexp) [][2]int {
+	var spans [][2]int
+	for _, m := range re.FindAllStringSubmatchIndex(text, -1) {
+		// Group 1 (m[2],m[3]) is the captured digits; the full match is m[0],m[1].
+		spans = append(spans, [2]int{m[0], m[1]})
+	}
+	return spans
+}
+
+// overlapsAny reports whether [s,e) overlaps any existing span.
+func overlapsAny(s, e int, spans [][2]int) bool {
+	for _, sp := range spans {
+		if s < sp[1] && e > sp[0] {
+			return true
+		}
+	}
+	return false
+}
+
+// isDigit reports whether b is an ASCII digit.
+func isDigit(b byte) bool { return b >= '0' && b <= '9' }
 
 var thShape = regexp.MustCompile(`^\d(?:-\d{4}-\d{5}-\d{2}-\d|\d{12})$`)
 

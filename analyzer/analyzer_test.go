@@ -2,7 +2,9 @@ package analyzer
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/u007/dataprotect/recognizers"
 )
@@ -116,5 +118,136 @@ func TestAnalyzePropagatesError(t *testing.T) {
 
 	if _, err := a.Analyze(context.Background(), "text"); err != context.Canceled {
 		t.Errorf("got err %v, want context.Canceled", err)
+	}
+}
+
+// stubJudge confirms or rejects weak candidates for test purposes.
+type stubJudge struct {
+	confirm bool
+	err     error
+}
+
+func (s *stubJudge) Judge(ctx context.Context, entityType recognizers.EntityType, candidate, window string) (bool, error) {
+	return s.confirm, s.err
+}
+
+// TestAnalyzeWeakCandidateDroppedWithoutJudge verifies that a weak candidate
+// is dropped when no judge is configured, even with minConfidence below its
+// score.
+func TestAnalyzeWeakCandidateDroppedWithoutJudge(t *testing.T) {
+	a := New(WithMinConfidence(0.0))
+	a.AddRecognizer(&stubRecognizer{
+		name: "weak",
+		entities: []recognizers.Entity{
+			{Type: recognizers.EntityMYIC, Start: 0, End: 12, Text: "900515103421", Confidence: 0.50, Weak: true},
+		},
+	})
+
+	entities, err := a.Analyze(context.Background(), "900515103421 on file")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 0 {
+		t.Errorf("got %d entities, want 0 (weak candidate dropped without judge)", len(entities))
+	}
+}
+
+// TestAnalyzeWeakCandidateConfirmedByJudge verifies that a weak candidate
+// confirmed by the judge is promoted to keywordGateConfidence and reported.
+func TestAnalyzeWeakCandidateConfirmedByJudge(t *testing.T) {
+	a := New(WithMinConfidence(0.7), WithLLMJudge(&stubJudge{confirm: true}))
+	a.AddRecognizer(&stubRecognizer{
+		name: "weak",
+		entities: []recognizers.Entity{
+			{Type: recognizers.EntityMYIC, Start: 0, End: 12, Text: "900515103421", Confidence: 0.50, Weak: true},
+		},
+	})
+
+	entities, err := a.Analyze(context.Background(), "MyKad 900515103421 on file")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 {
+		t.Fatalf("got %d entities, want 1", len(entities))
+	}
+	if entities[0].Confidence != keywordGateConfidence {
+		t.Errorf("confidence = %v, want %v (promoted by judge)", entities[0].Confidence, keywordGateConfidence)
+	}
+	if entities[0].Weak {
+		t.Errorf("Weak = true, want false (confirmed candidate is no longer weak)")
+	}
+}
+
+// TestAnalyzeWeakCandidateRejectedByJudge verifies that a weak candidate
+// rejected by the judge is dropped.
+func TestAnalyzeWeakCandidateRejectedByJudge(t *testing.T) {
+	a := New(WithMinConfidence(0.0), WithLLMJudge(&stubJudge{confirm: false}))
+	a.AddRecognizer(&stubRecognizer{
+		name: "weak",
+		entities: []recognizers.Entity{
+			{Type: recognizers.EntityMYIC, Start: 0, End: 12, Text: "900515103421", Confidence: 0.50, Weak: true},
+		},
+	})
+
+	entities, err := a.Analyze(context.Background(), "order 900515103421 shipped")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 0 {
+		t.Errorf("got %d entities, want 0 (weak candidate rejected by judge)", len(entities))
+	}
+}
+
+// TestAnalyzeJudgeErrorPropagates verifies that a judge error aborts Analyze.
+func TestAnalyzeJudgeErrorPropagates(t *testing.T) {
+	a := New(WithLLMJudge(&stubJudge{err: context.Canceled}))
+	a.AddRecognizer(&stubRecognizer{
+		name: "weak",
+		entities: []recognizers.Entity{
+			{Type: recognizers.EntityMYIC, Start: 0, End: 12, Text: "900515103421", Confidence: 0.50, Weak: true},
+		},
+	})
+
+	if _, err := a.Analyze(context.Background(), "900515103421 on file"); err != context.Canceled {
+		t.Errorf("got err %v, want context.Canceled", err)
+	}
+}
+
+// TestAnalyzeTypedNilJudgeTreatedAsDisabled verifies that a typed-nil Judge
+// (a non-nil interface wrapping a nil pointer) is treated as disabled, so
+// weak candidates are dropped instead of panicking.
+func TestAnalyzeTypedNilJudgeTreatedAsDisabled(t *testing.T) {
+	var j *stubJudge // nil pointer
+	a := New(WithMinConfidence(0.0), WithLLMJudge(j))
+	a.AddRecognizer(&stubRecognizer{
+		name: "weak",
+		entities: []recognizers.Entity{
+			{Type: recognizers.EntityMYIC, Start: 0, End: 12, Text: "900515103421", Confidence: 0.50, Weak: true},
+		},
+	})
+	entities, err := a.Analyze(context.Background(), "900515103421 on file")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 0 {
+		t.Errorf("got %d entities, want 0 (typed-nil judge disabled)", len(entities))
+	}
+}
+
+// TestWindowAroundMultiByte verifies that windowAround never splits a rune
+// when the surrounding text contains multi-byte characters.
+func TestWindowAroundMultiByte(t *testing.T) {
+	// "café " is 6 bytes (e-acute is 2 bytes); candidate follows.
+	text := "café 900515103421 on file"
+	// locate the candidate byte offsets
+	start := len("café ")
+	end := start + 12
+	got := windowAround(text, start, end)
+	if !utf8.ValidString(got) {
+		t.Fatalf("windowAround produced invalid UTF-8: %q", got)
+	}
+	// The left window should include the multi-byte prefix without splitting it.
+	if !strings.Contains(got, "café") {
+		t.Errorf("left context missing multi-byte prefix: %q", got)
 	}
 }

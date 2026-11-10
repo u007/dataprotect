@@ -14,7 +14,7 @@ Detect weak candidates that the regex recognizers deliberately skip, and confirm
 | 4 | Privacy | (a) any endpoint; (b) loopback only unless explicitly allowed | **(b)** | The context window around a candidate is PII. Sending it to a remote API would defeat the library. |
 | 5 | On LLM error or timeout | (a) fall back to regex-only; (b) return an error | **(b)** | Project rule: no silent fallbacks. A caller who enabled the pass must know it failed. |
 | 6 | Output | free text vs constrained yes/no | **constrained yes/no, temperature 0** | Deterministic, cheap to parse, no hallucinated spans. |
-| 7 | Model | not chosen | **open** | Must meet the same Apache-2.0/MIT bar as the NER checkpoint. I have not surveyed licences. |
+| 7 | Model | Qwen3-0.6B | **Qwen3-0.6B, Apache-2.0** | Meets the Apache-2.0 bar: ~0.6B total params, 119 languages incl. Malay and Chinese, downloadable for local OpenAI-compatible serving. Licence verified from Qwen/Qwen3-0.6B HF LICENSE (https://huggingface.co/Qwen/Qwen3-0.6B/blob/main/LICENSE, checked 2026-11-09); training-data provenance at arxiv 2505.09388 (https://arxiv.org/abs/2505.09388). Qwen 3.7 rejected: closed-weights-only, no downloadable weights (Alibaba Cloud Model Studio qwen3-7-max, https://www.alibabacloud.com/help/en/model-studio/qwen3-7-max, checked 2026-11-09). Qwen 3.8 rejected: 2.4T MoE Max under custom Qwen3.8-Max licence, not Apache-2.0 (https://www.alibabacloud.com/help/en/model-studio/qwen3-8-max, checked 2026-11-09); 27B variant is Apache-2.0 but far too large for a ~0.6B judge. Qwen 4 rejected: "in training", no weights, no release date, no licence (https://qcode.cc/en/qwen-4-release-date, checked 2026-11-09). Phase 0 unblocked. |
 
 ## Flow (high level)
 1. A recognizer marks a match as a weak candidate instead of dropping it. For MyKad: 12 bare digits, valid date, no keyword. It carries the entity type and a low confidence.
@@ -39,7 +39,7 @@ Detect weak candidates that the regex recognizers deliberately skip, and confirm
 - The pass ships off by default. It is only suggested for use if the false-positive drop is large and recall loss is near zero.
 
 ## Risks
-- A 0.8B model may not separate an IC number from other date-like numbers. The evaluation decides this, not this document.
+- A ~0.6B model may not separate an IC number from other date-like numbers. The evaluation decides this, not this document.
 - Added latency and a runtime dependency, but only for users who opt in.
 - Prompt injection: the window of text is untrusted. The output is constrained to yes/no, and the model has no tools, so the worst case is a wrong yes/no.
 

@@ -65,7 +65,7 @@ ONNX_TOKENIZERS_URL     := https://github.com/daulet/tokenizers/releases/downloa
 ONNX_TOKENIZERS_DIR     := $(CURDIR)/.cache/tokenizers
 ONNX_CGO_LDFLAGS        := -L$(ONNX_TOKENIZERS_DIR)
 
-.PHONY: help download list info dry-run benchmark test test-race test-tools build vet fmt \
+.PHONY: help download list info dry-run benchmark test test-race test-tools build vet fmt install install-all \
         corpus corpus-convert corpus-lang corpus-anonymize corpus-clean corpus-nlp clean-data presidio presidio-fetch \
         build-sidecar test-sidecar vet-sidecar docs-sync test-ner docs-check \
         fetch-libtokenizers build-sidecar-onnx test-sidecar-onnx onnx-check
@@ -89,6 +89,8 @@ help:
 	@echo "  make build           build every package"
 	@echo "  make vet             run go vet"
 	@echo "  make fmt             fail if any file is not gofmt-clean"
+	@echo "  make install         download Go module deps for all three workspaces (root, sidecar, corpusbench)"
+	@echo "  make install-all     install plus the ONNX static library (libtokenizers.a)"
 	@echo "  make docs-check      fail if the docs drift from the seed set or the recognizer counts"
 	@echo "  make build-sidecar   build the sidecar module (separate Go module)"
 	@echo "  make test-sidecar    run the sidecar module test suite"
@@ -141,6 +143,23 @@ fmt:
 	@unformatted="$$($(GOFMT) -l .)"; \
 	if [ -n "$$unformatted" ]; then echo "not gofmt-clean:"; echo "$$unformatted"; exit 1; fi; \
 	echo "gofmt: clean"
+
+# Download Go module dependencies for all three workspaces (root, sidecar,
+# tools/corpusbench). The root module is stdlib-only; sidecar needs prose,
+# onnxruntime_go and tokenizers (indirect deps); corpusbench needs parquet-go
+# and its indirect set. `go mod download` populates the module cache so that
+# offline `go build`/`go test`/`go vet` work afterwards. The ONNX tokenizers
+# static library (libtokenizers.a) is NOT included — it needs CGO and a
+# download, and is opt-in via `make fetch-libtokenizers` instead.
+install:
+	$(GO) mod download
+	cd sidecar && $(GO) mod download
+	cd tools/corpusbench && $(GO) mod download
+	@echo "Go module cache populated for root, sidecar and tools/corpusbench"
+	@echo "ONNX static library not included — run 'make fetch-libtokenizers' for that."
+
+install-all: install fetch-libtokenizers
+	@echo "Full dependency install complete (Go modules + ONNX static library)"
 
 docs-check:
 	python3 scripts/docs_check.py

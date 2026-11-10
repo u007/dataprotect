@@ -15,7 +15,7 @@ import (
 
 // TestStatsEmptyCache reports no models and all missing on a fresh cache.
 func TestStatsEmptyCache(t *testing.T) {
-	origCacheDir := cacheDir
+	origCacheDir := cacheDirFunc
 	defer func() { cacheDirFunc = origCacheDir }()
 
 	tmp := t.TempDir()
@@ -42,7 +42,7 @@ func TestStatsEmptyCache(t *testing.T) {
 
 // TestModelExists tracks creation and deletion of a model file.
 func TestModelExists(t *testing.T) {
-	origCacheDir := cacheDir
+	origCacheDir := cacheDirFunc
 	defer func() { cacheDirFunc = origCacheDir }()
 
 	tmp := t.TempDir()
@@ -88,7 +88,7 @@ func TestModelExists(t *testing.T) {
 // TestDownloaderConcurrentSameModel ensures only one download happens
 // when multiple goroutines request the same missing model.
 func TestDownloaderConcurrentSameModel(t *testing.T) {
-	origCacheDir := cacheDir
+	origCacheDir := cacheDirFunc
 	defer func() { cacheDirFunc = origCacheDir }()
 
 	tmp := t.TempDir()
@@ -171,7 +171,7 @@ func TestDownloaderConcurrentSameModel(t *testing.T) {
 
 // TestDownloaderRetryOnFailure retries after a failing server.
 func TestDownloaderRetryOnFailure(t *testing.T) {
-	origCacheDir := cacheDir
+	origCacheDir := cacheDirFunc
 	defer func() { cacheDirFunc = origCacheDir }()
 
 	tmp := t.TempDir()
@@ -212,7 +212,7 @@ func TestDownloaderRetryOnFailure(t *testing.T) {
 
 // TestDownloaderContextCancel verifies context cancellation propagates.
 func TestDownloaderContextCancel(t *testing.T) {
-	origCacheDir := cacheDir
+	origCacheDir := cacheDirFunc
 	defer func() { cacheDirFunc = origCacheDir }()
 
 	tmp := t.TempDir()
@@ -253,7 +253,7 @@ func TestDownloaderContextCancel(t *testing.T) {
 
 // TestDownloadOnceStatusNotOK checks that non-200 responses produce errors.
 func TestDownloadOnceStatusNotOK(t *testing.T) {
-	origCacheDir := cacheDir
+	origCacheDir := cacheDirFunc
 	defer func() { cacheDirFunc = origCacheDir }()
 
 	tmp := t.TempDir()

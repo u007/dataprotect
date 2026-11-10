@@ -3,6 +3,7 @@ package piiscrub
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/u007/dataprotect/analyzer"
 	"github.com/u007/dataprotect/anonymizer"
@@ -43,6 +44,27 @@ func WithRecognizer(r recognizers.Recognizer) ScrubberOption {
 func WithMinConfidence(confidence float64) ScrubberOption {
 	return func(s *Scrubber) {
 		s.analyzer.SetMinConfidence(confidence)
+	}
+}
+
+// WithLLMJudge registers a weak-candidate judge on the scrubber's Analyzer.
+// The judge confirms bare-digit MyKad candidates (and other weak candidates in
+// future phases) before they can pass the confidence filter. When nil, weak
+// candidates are dropped and output is byte-identical to running without the
+// pass. Passing a non-nil interface wrapping a nil pointer (a typed nil) is a
+// programming error; pass nil directly to disable the judge. The judge
+// implementation lives in a separate package (for example recognizers/judge)
+// and talks to a local OpenAI-compatible HTTP endpoint.
+func WithLLMJudge(judge analyzer.Judge) ScrubberOption {
+	return func(s *Scrubber) {
+		if judge == nil {
+			return
+		}
+		v := reflect.ValueOf(judge)
+		if v.Kind() == reflect.Ptr && v.IsNil() {
+			return
+		}
+		s.analyzer.SetLLMJudge(judge)
 	}
 }
 

@@ -33,6 +33,7 @@ source before relying on any row.
 | Microsoft Presidio test cases (`microsoft/presidio`, pin `2523c7b7`) | MIT | yes | keep the copyright notice if redistributed | Measured only. `make presidio` extracts strings from its `tests/` into `testdata/external/presidio/` (gitignored). Not committed. Scope and results: SPEC.md "Presidio test cases". |
 | dlib (planned, via go-face) | Boost Software License 1.0 | yes | keep copyright notice | Permissive; explicitly allows closed-source commercial use. |
 | dlib **model weights** (iBUG LFW etc.) | **varies, some non-commercial** | restricted | varies | Separate from the library licence. Commercial face-recognition use has historically required care. Verify per weight file. |
+| `Qwen3-0.6B` (LLM judge checkpoint) | Apache-2.0 | yes | keep licence and copyright notices | Model checkpoint, not a dataset; recorded here for the same provenance bar as datasets. Licence verified from Qwen/Qwen3-0.6B HF LICENSE (https://huggingface.co/Qwen/Qwen3-0.6B/blob/main/LICENSE, checked 2026-11-09); training-data provenance at arxiv 2505.09388 (https://arxiv.org/abs/2505.09388). Checked 2026-11-09. |
 
 ## Recommendations
 

@@ -4,7 +4,10 @@ package analyzer
 import (
 	"context"
 	"math"
+	"reflect"
 	"sort"
+	"strings"
+	"unicode/utf8"
 
 	ctxconf "github.com/u007/dataprotect/internal/context"
 	"github.com/u007/dataprotect/recognizers"
@@ -16,6 +19,7 @@ type Analyzer struct {
 	minConfidence    float64
 	contextBoost     bool
 	contextBoostLang string
+	llmJudge         Judge
 }
 
 // Option configures an Analyzer.
@@ -66,6 +70,47 @@ func WithContextBoostLanguage(lang string) Option {
 		a.contextBoost = true
 		a.contextBoostLang = lang
 	}
+}
+
+// Judge confirms weak candidates before they reach the confidence filter.
+// A judge returns true when the candidate is a real entity of the given type,
+// false when it is a look-alike. An error aborts Analyze — there is no silent
+// fallback.
+type Judge interface {
+	Judge(ctx context.Context, entityType recognizers.EntityType, candidate, window string) (bool, error)
+}
+
+// WithLLMJudge registers a weak-candidate judge on the Analyzer. When nil (the
+// default), weak candidates fall through the confidence filter and are dropped,
+// so output is byte-identical to running without the pass. When set, each weak
+// candidate is judged with a short window of surrounding text before the filter.
+// Accepted candidates are promoted to the keyword-gated confidence (0.85);
+// rejected candidates stay below the floor and are dropped.
+func WithLLMJudge(judge Judge) Option {
+	return func(a *Analyzer) {
+		a.SetLLMJudge(judge)
+	}
+}
+
+// SetLLMJudge sets the weak-candidate judge on the Analyzer. It is construction-
+// time only; calling it concurrently with Analyze is a data race, like
+// SetMinConfidence.
+func (a *Analyzer) SetLLMJudge(judge Judge) {
+	if isNilJudge(judge) {
+		a.llmJudge = nil
+		return
+	}
+	a.llmJudge = judge
+}
+
+// isNilJudge reports whether judge is nil or a typed-nil interface wrapping a
+// nil pointer. Such values cannot be called and are treated as "disabled".
+func isNilJudge(judge Judge) bool {
+	if judge == nil {
+		return true
+	}
+	v := reflect.ValueOf(judge)
+	return v.Kind() == reflect.Ptr && v.IsNil()
 }
 
 // New creates a new Analyzer.
@@ -134,6 +179,42 @@ func (a *Analyzer) Analyze(ctx context.Context, text string) ([]recognizers.Enti
 		allEntities = applyContextBoost(text, allEntities, a.minConfidence, a.contextBoostLang)
 	}
 
+	// Judge weak candidates before the confidence filter. A weak candidate
+	// (e.g. a bare 12-digit MyKad with no keyword) is confirmed or dropped by
+	// the judge. When no judge is configured, weak candidates are dropped here
+	// so output is byte-identical regardless of minConfidence.
+	if !isNilJudge(a.llmJudge) {
+		for i := range allEntities {
+			e := &allEntities[i]
+			if !e.Weak {
+				continue
+			}
+			window := windowAround(text, e.Start, e.End)
+			judgeCtx := ctx
+			if judgeCtx == nil {
+				judgeCtx = context.Background()
+			}
+			ok, err := a.llmJudge.Judge(judgeCtx, e.Type, e.Text, window)
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				e.Confidence = keywordGateConfidence
+				e.Weak = false
+			}
+		}
+	}
+	// Any weak candidate still unconfirmed after the judge step (judge said no,
+	// or minConfidence is below the weak score) is dropped. This guarantees
+	// weak candidates never reach output unconfirmed, whatever minConfidence is.
+	filtered := make([]recognizers.Entity, 0, len(allEntities))
+	for _, e := range allEntities {
+		if !e.Weak {
+			filtered = append(filtered, e)
+		}
+	}
+	allEntities = filtered
+
 	// Filter by confidence
 	if a.minConfidence > 0 {
 		filtered := make([]recognizers.Entity, 0, len(allEntities))
@@ -172,6 +253,16 @@ func (a *Analyzer) Analyze(ctx context.Context, text string) ([]recognizers.Enti
 // coarser quantum would be actively wrong here: rounding to four places would
 // promote a 0.89996 to 0.9 and let it past a 0.9 threshold, which is a real
 // loosening. At 1e-9 only float representation noise is absorbed.
+// keywordGateConfidence is the score promoted for a weak candidate confirmed
+// by the LLM judge. It matches the keyword-gated national recognizers (0.85),
+// so a confirmed bare MyKad ranks alongside a keyword-gated one.
+const keywordGateConfidence = 0.85
+
+// judgeWindowChars is the number of characters of surrounding text sent to the
+// judge on each side of a weak candidate. Enough for context (e.g. "MyKad"),
+// small enough to keep the prompt cheap and the PII surface minimal.
+const judgeWindowChars = 60
+
 const confidenceResolution = 1e-9
 
 const confidenceScale = 1 / confidenceResolution
@@ -191,6 +282,64 @@ func quantiseEntities(entities []recognizers.Entity) {
 	for i := range entities {
 		entities[i].Confidence = roundConfidence(entities[i].Confidence)
 	}
+}
+
+// windowAround returns a slice of text around [start,end), up to
+// judgeWindowChars on each side, clamped to the text bounds. The candidate
+// itself is excluded so the judge sees only surrounding context.
+func windowAround(text string, start, end int) string {
+	// Clamp to the text bounds.
+	if start < 0 {
+		start = 0
+	}
+	if end > len(text) {
+		end = len(text)
+	}
+	if start > end {
+		start = end
+	}
+	// Snap to rune boundaries so we never split a multi-byte rune.
+	for start > 0 && start < len(text) && !utf8.RuneStart(text[start]) {
+		start++
+	}
+	for end > 0 && end < len(text) && !utf8.RuneStart(text[end]) {
+		end--
+	}
+	if start > end {
+		start = end
+	}
+
+	// Move leftStart left by up to judgeWindowChars runes.
+	leftStart := start
+	count := 0
+	for leftStart > 0 && count < judgeWindowChars {
+		_, size := utf8.DecodeLastRuneInString(text[:leftStart])
+		if size == 0 {
+			break
+		}
+		leftStart -= size
+		count++
+	}
+	// Move rightEnd right by up to judgeWindowChars runes.
+	rightEnd := end
+	count = 0
+	for rightEnd < len(text) && count < judgeWindowChars {
+		_, size := utf8.DecodeRuneInString(text[rightEnd:])
+		if size == 0 {
+			break
+		}
+		rightEnd += size
+		count++
+	}
+
+	var parts []string
+	if leftStart < start {
+		parts = append(parts, text[leftStart:start])
+	}
+	if end < rightEnd {
+		parts = append(parts, text[end:rightEnd])
+	}
+	return strings.Join(parts, " … ")
 }
 
 // applyContextBoost raises each entity's confidence using keywords in the

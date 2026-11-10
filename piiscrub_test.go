@@ -671,3 +671,134 @@ func TestScrubberPseudonymize(t *testing.T) {
 		t.Errorf("restore(out) = %q, want %q", got, text)
 	}
 }
+
+// stubLLMJudge is a test-only Judge implementation for scrubber-level tests.
+type stubLLMJudge struct {
+	confirm bool
+	err     error
+}
+
+func (s *stubLLMJudge) Judge(ctx context.Context, entityType recognizers.EntityType, candidate, window string) (bool, error) {
+	return s.confirm, s.err
+}
+
+// TestScrubberBareMyKadDroppedWithoutJudge verifies that a bare 12-digit MyKad
+// with no identity-card keyword is dropped when no LLM judge is configured.
+// Default behaviour is byte-identical to running without the weak-candidate
+// path.
+func TestScrubberBareMyKadDroppedWithoutJudge(t *testing.T) {
+	s := NewScrubber()
+	ctx := context.Background()
+
+	text := "ref 900515103421 on the form"
+	out, err := s.Anonymize(ctx, text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out != text {
+		t.Errorf("output was modified: %q, want unchanged %q", out, text)
+	}
+
+	// Analyze should also return nothing for the weak candidate.
+	entities, err := s.Analyze(ctx, text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 0 {
+		t.Errorf("got %d entities, want 0 (weak candidate dropped without judge)", len(entities))
+	}
+}
+
+// TestScrubberBareMyKadConfirmedByJudge verifies that a bare 12-digit MyKad
+// confirmed by the LLM judge is reported with keyword-gated confidence.
+func TestScrubberBareMyKadConfirmedByJudge(t *testing.T) {
+	s := NewScrubber(WithLLMJudge(&stubLLMJudge{confirm: true}))
+	ctx := context.Background()
+
+	text := "ref 900515103421 on the form"
+	entities, err := s.Analyze(ctx, text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 {
+		t.Fatalf("got %d entities, want 1", len(entities))
+	}
+	if entities[0].Type != recognizers.EntityMYIC {
+		t.Errorf("type = %v, want MY_IC", entities[0].Type)
+	}
+	if entities[0].Text != "900515103421" {
+		t.Errorf("text = %q, want 900515103421", entities[0].Text)
+	}
+	if entities[0].Confidence != 0.85 {
+		t.Errorf("confidence = %v, want 0.85 (keyword-gated)", entities[0].Confidence)
+	}
+	if entities[0].Weak {
+		t.Errorf("Weak = true, want false (confirmed candidate is no longer weak)")
+	}
+}
+
+// TestScrubberBareMyKadRejectedByJudge verifies that a bare 12-digit MyKad
+// rejected by the LLM judge is dropped, even with minConfidence at 0.
+func TestScrubberBareMyKadRejectedByJudge(t *testing.T) {
+	s := NewScrubber(WithMinConfidence(0.0), WithLLMJudge(&stubLLMJudge{confirm: false}))
+	ctx := context.Background()
+
+	text := "order 900515103421 shipped"
+	entities, err := s.Analyze(ctx, text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 0 {
+		t.Errorf("got %d entities, want 0 (weak candidate rejected by judge)", len(entities))
+	}
+}
+
+// TestScrubberBareMyKadDroppedBelowFloor verifies that weak candidates are
+// dropped even when minConfidence is at or below the weak score, so long as no
+// judge is configured.
+func TestScrubberBareMyKadDroppedBelowFloor(t *testing.T) {
+	s := NewScrubber(WithMinConfidence(0.50))
+	ctx := context.Background()
+
+	text := "ref 900515103421 on the form"
+	entities, err := s.Analyze(ctx, text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 0 {
+		t.Errorf("got %d entities, want 0 (weak candidate at 0.50 dropped below floor)", len(entities))
+	}
+}
+
+// TestScrubberWithLLMJudgeNil verifies that passing nil to WithLLMJudge is a
+// no-op and weak candidates are still dropped.
+func TestScrubberWithLLMJudgeNil(t *testing.T) {
+	s := NewScrubber(WithMinConfidence(0.0), WithLLMJudge(nil))
+	ctx := context.Background()
+
+	text := "ref 900515103421 on the form"
+	entities, err := s.Analyze(ctx, text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 0 {
+		t.Errorf("got %d entities, want 0 (nil judge drops weak candidates)", len(entities))
+	}
+}
+
+// TestScrubberWithLLMJudgeTypedNil verifies that a typed-nil judge is treated
+// as disabled.
+func TestScrubberWithLLMJudgeTypedNil(t *testing.T) {
+	var j *stubLLMJudge // nil pointer
+	s := NewScrubber(WithMinConfidence(0.0), WithLLMJudge(j))
+	ctx := context.Background()
+
+	text := "ref 900515103421 on the form"
+	entities, err := s.Analyze(ctx, text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 0 {
+		t.Errorf("got %d entities, want 0 (typed-nil judge disabled)", len(entities))
+	}
+}

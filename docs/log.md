@@ -2,7 +2,10 @@
 
 ## 2026-11-09
 
+
 * **Update**: piiscrub — terminal managed-sidecar states bypass `WithBestEffort` (`ac7c6fd`): `ManagedRecognizer.Recognize` returns the error directly instead of `m.fail` once `Close` has begun or the child has exited, so a closed or exited sidecar always reports `errManagedClosed` / "sidecar process exited" even under best-effort. Only transient transport errors are logged and dropped. ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md), [decisions/spec-v1.md](/decisions/spec-v1.md), [concepts/development-conventions.md](/concepts/development-conventions.md))
+
+* **Update**: LLM second pass phase 2 — judge client (`recognizers/judge/judge.go`): loopback-only `New`/`FromEnv` (`PII_SCRUB_NLP_JUDGE_URL`, `PII_SCRUB_NLP_JUDGE_MODEL`, `PII_SCRUB_NLP_JUDGE_ALLOW_REMOTE`), yes/no chat-completions prompt with Qwen3 think-tag stripping, bounded FIFO cache (1000, keyed model\|entityType\|candidate\|window), errors propagate (never silent false). 15 fake-server tests under -race. Phase 1 (weak-candidate marker) also implemented this session. ([decisions/llm-second-pass-model.md](/decisions/llm-second-pass-model.md), [concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md))
 
 ## 2026-11-06
 

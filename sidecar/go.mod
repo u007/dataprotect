@@ -13,6 +13,7 @@ require (
 )
 
 require (
+	github.com/Kagami/go-face v0.0.0-20210630145111-0c14797b4d0e // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/mingrammer/commonregex v1.0.1 // indirect
 	gonum.org/v1/gonum v0.7.0 // indirect

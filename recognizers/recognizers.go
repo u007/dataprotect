@@ -63,6 +63,7 @@ type Entity struct {
 	End        int
 	Text       string
 	Confidence float64
+	Weak       bool // true if this entity is a weak candidate needing LLM confirmation before reporting
 }
 
 // Recognizer detects PII entities in text.

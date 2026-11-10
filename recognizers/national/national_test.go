@@ -310,18 +310,16 @@ func TestMYICRecognizeBareWithKeyword(t *testing.T) {
 	}
 }
 
+// TestMYICRecognizeBareRejected checks that bare 12-digit runs that are not
+// valid MyKad dates (invalid date, longer run, keyword inside word) produce
+// nothing at all.
 func TestMYICRecognizeBareRejected(t *testing.T) {
-	// No keyword, a keyword inside a word, a bad date under a keyword, a
-	// 13-digit run, and a repeated filler word are all out.
+	// A bad date under a keyword, a 13-digit run, and a keyword inside a word
+	// are all out — no weak candidate either.
 	texts := []string{
-		"ref 900515103421 on the form",
-		"tic 900515103421 on the form",
-		"MyKad 900231103421 on file",
-		"MyKad 9005151034211 on file",
-		"my ic is a card 801214105423",
-		"ref is 801214105423",
-		"mykad no no 801214105423",
-		"my ic is is 801214105423",
+		"MyKad 900231103421 on file",       // Feb 31 is not a real date
+		"MyKad 9005151034211 on file",      // 13-digit run, not a 12-digit MyKad
+		"tic 900515103421xtra on the form", // digit run glued to a letter
 	}
 	r := NewMYICRecognizer()
 	for _, text := range texts {
@@ -332,6 +330,49 @@ func TestMYICRecognizeBareRejected(t *testing.T) {
 		if len(got) != 0 {
 			t.Errorf("Recognize(%q) = %+v, want none", text, got)
 		}
+	}
+}
+
+// TestMYICRecognizeBareWeak checks that a bare 12-digit MyKad with no
+// identity-card keyword is emitted as a weak candidate below the default
+// 0.70 floor, so the optional LLM second pass can confirm it.
+func TestMYICRecognizeBareWeak(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want string
+	}{
+		{"bare valid MyKad", "ref 900515103421 on the form", "900515103421"},
+		{"bare valid MyKad, other label", "tic 900515103421 on the form", "900515103421"},
+		{"bare valid MyKad, my ic filler", "my ic is a card 801214105423", "801214105423"},
+		{"bare valid MyKad, ref is", "ref is 801214105423", "801214105423"},
+		{"bare valid MyKad, no no filler", "mykad no no 801214105423", "801214105423"},
+		{"bare valid MyKad, is is filler", "my ic is is 801214105423", "801214105423"},
+	}
+	r := NewMYICRecognizer()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := r.Recognize(context.Background(), tt.text)
+			if err != nil {
+				t.Fatalf("Recognize(%q): %v", tt.text, err)
+			}
+			if len(got) != 1 {
+				t.Fatalf("Recognize(%q) = %+v, want one weak candidate", tt.text, got)
+			}
+			e := got[0]
+			if e.Text != tt.want {
+				t.Errorf("entity Text = %q, want %q", e.Text, tt.want)
+			}
+			if e.Confidence != weakConfidence {
+				t.Errorf("entity Confidence = %v, want %v (weak floor)", e.Confidence, weakConfidence)
+			}
+			if !e.Weak {
+				t.Errorf("entity Weak = false, want true (bare candidate needs confirmation)")
+			}
+			if tt.text[e.Start:e.End] != tt.want {
+				t.Errorf("span [%d:%d] does not cover the digits %q", e.Start, e.End, tt.want)
+			}
+		})
 	}
 }
 

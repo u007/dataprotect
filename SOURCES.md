@@ -102,6 +102,14 @@ numbers.
 | SecretBench | Named in SPEC.md | Unverified. No URL recorded. |
 | ai4privacy `openpii-1m` | https://huggingface.co/datasets/ai4privacy/pii-masking-openpii-1m | Licence tag and declared name disagree. Read the LICENCE file before use. |
 
+## Model checkpoints
+
+| Name | Source | Pinned revision | Licence | Used for | Fetched / checked |
+|------|--------|-----------------|---------|----------|-------------------|
+| `Qwen3-0.6B` | https://huggingface.co/Qwen/Qwen3-0.6B | Qwen/Qwen3-0.6B (HF) | Apache-2.0 | LLM second-pass judge for weak candidates (bare MyKad) | 2026-11-09 |
+
+Qwen3-0.6B (~0.6B total params, Apache-2.0, 119 languages incl. Malay and Chinese) is the chosen model for the optional LLM second pass. Licence verified from Qwen/Qwen3-0.6B HF LICENSE (https://huggingface.co/Qwen/Qwen3-0.6B/blob/main/LICENSE, checked 2026-11-09); training-data provenance at arxiv 2505.09388 (https://arxiv.org/abs/2505.09388). Qwen 3.7 rejected: closed-weights-only, no downloadable weights (Alibaba Cloud Model Studio qwen3-7-max, https://www.alibabacloud.com/help/en/model-studio/qwen3-7-max, checked 2026-11-09). Qwen 3.8 rejected: 2.4T MoE Max under custom Qwen3.8-Max licence, not Apache-2.0 (https://www.alibabacloud.com/help/en/model-studio/qwen3-8-max, checked 2026-11-09); 27B variant is Apache-2.0 but far too large. Qwen 4 rejected: "in training", no weights, no release date, no licence (https://qcode.cc/en/qwen-4-release-date, checked 2026-11-09).
+
 ## Format and national-ID rules
 
 Each rule's source is listed with what it supports and what it does not.
