@@ -924,7 +924,7 @@ opt-in and why `NewScrubber()` never reaches for it on its own.
 | Dependency | Purpose | Version |
 |------------|---------|---------|
 | [prose](https://github.com/jdkato/prose) | NLP NER, in the `sidecar/` module only (not the root module) | v2.0.0 |
-| [go-face](https://github.com/Kagami/go-face) | Facial recognition (v2+) | v0.0.0-20240518085811-770585e |
+| [go-face](https://github.com/Kagami/go-face) | Facial recognition (v2+) | v0.0.0-20210630145111-0c14797b4d0e |
 
 ---
 
@@ -943,7 +943,7 @@ Rationale:
 - Models are cached persistently, so repeated use has no download overhead.
 - Download failures are retried (up to 3 times) and do not prevent future attempts.
 
-Implementation: `sidecar/internal/facedetect/` handles model cache management, download-on-first-use with thread-safe deduplication, and a `FaceDetector` interface. A `StubDetector` is provided that returns `ErrDlibUnavailable` until `libdlib-dev` is installed and go-face is imported.
+Implementation: `sidecar/internal/facedetect/` handles model cache management, download-on-first-use with thread-safe deduplication, and a `FaceDetector` interface. `NewDetector()` prefers `RealDetector` (backed by `github.com/Kagami/go-face`) when `libdlib-dev` and both dlib model weights resolve, falling back to `StubDetector`, which returns `ErrDlibUnavailable` until dlib is installed.
 
 ### FPE library evaluation
 
@@ -998,7 +998,7 @@ proves nothing.
 | 2 | NLP recognizer (prose) | SHIPPED (sidecar module + opt-in client; Phases A/B/D of the NLP plan) |
 | 3 | Secret recognizers (patterns + entropy) | SHIPPED |
 | 4 | FPE operator | **SHIPPED** (`operators/fpe.go`, commit `15d4db8`) |
-| 5 | Image PII detection (go-face) | Later |
+| 5 | Image PII detection (go-face) | SHIPPED (sidecar module; requires libdlib-dev) |
 | 6 | REST API sidecar | **PARTIAL**: `/v1/scrub` and `/v1/pseudonymize` shipped; `/v1/analyze` and `/v1/anonymize` deferred |
 
 ---

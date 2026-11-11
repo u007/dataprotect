@@ -30,6 +30,8 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 - `make onnx-check` — compile gate for `-tags onnx` (no model or ONNX Runtime needed)
 - `.github/workflows/onnx-check.yml` — CI job that runs `make fetch-libtokenizers` then `make onnx-check` on pushes to `main` and on pull requests
 - `make test-sidecar-onnx` — sidecar tests with `-tags onnx`
+- `make install` — download Go module dependencies for all three workspaces (root, sidecar, tools/corpusbench); populates the module cache so offline builds/tests work. Go-modules only — the ONNX static library (libtokenizers.a) is NOT included.
+- `make install-all` — `make install` plus `fetch-libtokenizers` (downloads the pinned libtokenizers.a archive and verifies its SHA-256).
 
 ## Architecture
 
@@ -74,6 +76,14 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
   overlap-resolution outcomes. It is applied BEFORE the confidence filter and
   BEFORE overlap resolution, otherwise it can neither rescue a borderline entity
   nor influence which of two colliding recognizers wins.
+- `analyzer.WithLLMJudge(judge)` and `piiscrub.WithLLMJudge(judge)` register a
+  weak-candidate judge on the Analyzer. Weak candidates (e.g. bare 12-digit
+  MyKad with no identity-card keyword, scored 0.50) are judged before the
+  confidence filter; accepted candidates are promoted to 0.85, rejected ones are
+  dropped. With no judge configured (the default), weak candidates are dropped
+  and output is byte-identical to running without the pass. The judge runs on a
+  separate local OpenAI-compatible HTTP endpoint (loopback-only) and is
+  construction-time only — calling it concurrently with Analyze is a data race.
 - A boost never applies to a span that overlaps a URL which survives
   `minConfidence` (`overlapsSurvivingURL` in `analyzer.go`). Otherwise a boosted IP
   or card inside a URL can outrank the URL and leave its path and query visible.
@@ -128,3 +138,11 @@ piiscrub is a Go library for PII (Personally Identifiable Information) detection
 ## File Structure
 
 See SPEC.md for full architecture. MVP scope: core interfaces + regex recognizers + checksum recognizers + 4 operators + structured CSV processing.
+
+## Known Blockers (t8 — Image PII / multilingual NLP / remaining benchmarks)
+
+Blocked on external dependencies, not downloads. Network downloads verified working (dlib.net HTTP 200, 5.7MB model fetched).
+
+- **go-face / image PII**: `libdlib-dev` is installed locally; blocker applies to CI/other machines without it and no root. `sidecar/internal/facedetect/RealDetector` (backed by `github.com/Kagami/go-face`, already in `sidecar/go.mod`) is preferred by `NewDetector()` when dlib and both model weights resolve; `StubDetector` is the fallback returning `ErrDlibUnavailable` otherwise. Download-on-first-use infrastructure is complete (`sidecar/internal/facedetect/downloader.go`). `RealDetector` path not exercised at runtime — models not downloaded, so `StubDetector` is what runs. Document the `libdlib-dev` requirement. SPEC.md § "go-face model bundling strategy".
+- **Multilingual NLP model (ONNX checkpoint)**: DECISIONS.md item 3 formal decision (d) defer — no Apache-2.0/MIT checkpoint with six languages exists. `tjruesch/xlm-roberta-base-ner-hrl-onnx` (MIT, PER/ORG/LOC, 1059MB FP32 / 265MB INT8) is derived from Davlan's AFL-3.0 base model; adopting it is a licensing decision for the owner, not a download blocker. ONNX backend built and tested (`make onnx-check` green, `make test-sidecar-onnx` passes). Blocked on a licence-compliant checkpoint + `libonnxruntime`.
+- **Remaining benchmarks**: DATASET_LICENSES.md "final set" is only `nemotron-pii` (CC-BY-4.0) and `gretel-pii-finance` (Apache-2.0 + NOTICE), both already fetched and measured. OpenNER (CC-BY 4.0 compilation but constituent restrictions), PIIBench (constituent licences govern), ai4privacy (≤3 staff / non-profit / evaluation), CoNLL-2003 (restricted Reuters RCV1), Kaggle PII (per-competition terms), Financial PII (Mendeley, unverified), SecretBench (MIT but gated with data protection agreement) all have licence restrictions or unresolved terms.
