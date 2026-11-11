@@ -1,6 +1,6 @@
 # Optional LLM second pass (design, 2026-11-05)
 
-Status: proposal for review. No code written. Default behaviour must not change.
+Status: implemented (2026-11-09). Default behaviour unchanged when the pass is off.
 
 ## Goal
 Detect weak candidates that the regex recognizers deliberately skip, and confirm them with a small local LLM (about 0.8B parameters). First case: a MyKad written as 12 bare digits with no identity-card keyword (`ref 801214105423`). About 9% of bare 12-digit runs in the gretel and nemotron corpora pass the date check, so reporting them all adds false positives. The model decides only those few candidates.

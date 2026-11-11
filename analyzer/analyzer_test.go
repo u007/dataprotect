@@ -234,6 +234,32 @@ func TestAnalyzeTypedNilJudgeTreatedAsDisabled(t *testing.T) {
 	}
 }
 
+// TestAnalyzeJudgeErrorDiscardsStrongEntities verifies that a judge error
+// aborts Analyze and discards every entity, including strong non-weak ones.
+// This is intentional fail-closed behavior: the caller must know the judge
+// failed rather than receive a partial result with weak candidates silently
+// skipped.
+func TestAnalyzeJudgeErrorDiscardsStrongEntities(t *testing.T) {
+	a := New(WithMinConfidence(0.0), WithLLMJudge(&stubJudge{err: context.Canceled}))
+	a.AddRecognizer(&stubRecognizer{
+		name: "strong",
+		entities: []recognizers.Entity{
+			{Type: recognizers.EntityEmail, Start: 0, End: 16, Text: "a@b.com", Confidence: 0.85, Weak: false},
+		},
+	})
+	a.AddRecognizer(&stubRecognizer{
+		name: "weak",
+		entities: []recognizers.Entity{
+			{Type: recognizers.EntityMYIC, Start: 20, End: 32, Text: "900515103421", Confidence: 0.50, Weak: true},
+		},
+	})
+
+	_, err := a.Analyze(context.Background(), "a@b.com and 900515103421")
+	if err != context.Canceled {
+		t.Errorf("got err %v, want context.Canceled (strong entities discarded on judge error)", err)
+	}
+}
+
 // TestWindowAroundMultiByte verifies that windowAround never splits a rune
 // when the surrounding text contains multi-byte characters.
 func TestWindowAroundMultiByte(t *testing.T) {

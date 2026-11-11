@@ -3,6 +3,7 @@ package judge
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -457,5 +458,101 @@ func TestJudgeCacheKeyNoDelimiterCollision(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Errorf("calls = %d, want 2 (no cache collision)", calls)
+	}
+}
+
+// TestJudgeAllowsRemoteWhenAllowed verifies that PII_SCRUB_NLP_JUDGE_ALLOW_REMOTE=1
+// overrides the loopback-only restriction. This is an explicit opt-in escape hatch,
+// not the default.
+func TestJudgeAllowsRemoteWhenAllowed(t *testing.T) {
+	t.Setenv("PII_SCRUB_NLP_JUDGE_ALLOW_REMOTE", "1")
+	if _, err := New("http://example.local:8080/judge"); err != nil {
+		t.Fatalf("expected ALLOW_REMOTE to permit non-loopback: %v", err)
+	}
+}
+
+// TestJudgeFromEnvNilWhenUnset verifies that FromEnv returns nil, nil when
+// PII_SCRUB_NLP_JUDGE_URL is unset, so the pass is disabled by default.
+func TestJudgeFromEnvNilWhenUnset(t *testing.T) {
+	t.Setenv("PII_SCRUB_NLP_JUDGE_URL", "")
+
+	j, err := FromEnv()
+	if err != nil {
+		t.Fatalf("FromEnv: %v", err)
+	}
+	if j != nil {
+		t.Errorf("FromEnv = %v, want nil (judge disabled when URL unset)", j)
+	}
+}
+
+// TestJudgeRedirectRefused verifies that a redirect response is refused even
+// when the handler redirects within loopback, so the loopback gate cannot be
+// bypassed via a 30x to an arbitrary host.
+func TestJudgeRedirectRefused(t *testing.T) {
+	srv := newFakeJudgeServer(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "http://evil.example/steal", http.StatusFound)
+	})
+
+	j, err := New(srv.URL)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	_, err = j.Judge(context.Background(), recognizers.EntityMYIC, "900515103421", "MyKad")
+	if err == nil {
+		t.Fatal("expected error for redirected request, got nil")
+	}
+	if !strings.Contains(err.Error(), "302") && !strings.Contains(err.Error(), "Found") {
+		t.Errorf("error = %q, want redirect-refusal (302 refused)", err)
+	}
+}
+
+// TestJudgeCacheEviction verifies the bounded FIFO cache evicts old entries at
+// cacheMax so repeated distinct candidates do not grow without bound.
+func TestJudgeCacheEviction(t *testing.T) {
+	var callsMu sync.Mutex
+	var calls int
+	srv := newFakeJudgeServer(t, func(w http.ResponseWriter, r *http.Request) {
+		callsMu.Lock()
+		calls++
+		callsMu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"choices": []interface{}{
+				map[string]interface{}{
+					"message": map[string]interface{}{
+						"content": "yes",
+					},
+				},
+			},
+		})
+	})
+
+	j, err := New(srv.URL)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// Fill the cache past cacheMax with distinct keys.
+	for i := 0; i < cacheMax+50; i++ {
+		candidate := fmt.Sprintf("candidate-%05d", i)
+		if _, err := j.Judge(context.Background(), recognizers.EntityMYIC, candidate, "window"); err != nil {
+			t.Fatalf("Judge(%d): %v", i, err)
+		}
+	}
+	callsMu.Lock()
+	firstCalls := calls
+	callsMu.Unlock()
+
+	// "candidate-00000" was inserted first and should have been evicted once
+	// the cache passed cacheMax: the judge must call the endpoint again.
+	if _, err := j.Judge(context.Background(), recognizers.EntityMYIC, "candidate-00000", "window"); err != nil {
+		t.Fatalf("Judge(evicted): %v", err)
+	}
+	callsMu.Lock()
+	afterCalls := calls
+	callsMu.Unlock()
+	if afterCalls <= firstCalls {
+		t.Errorf("server calls = %d before re-query, %d after; want an increase (entry was evicted)", firstCalls, afterCalls)
 	}
 }

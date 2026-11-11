@@ -229,6 +229,35 @@ NLP entities carry confidence 0.80: strictly below every built-in recognizer
 above the default 0.70 floor, so they fill gaps in prose rather than overriding
 typed entities, and they are not filtered out.
 
+### LLM second pass (MyKad judge)
+
+A bare 12-digit run with no identity-card keyword (for example `ref
+900515103421 on the form`) looks like a Malaysian MyKad but is indistinguishable
+from an order number or timestamp. The regex recognizer emits such candidates as
+weak, below the 0.70 floor, so they are dropped by default. An optional LLM
+second pass confirms or rejects each weak candidate against a local
+OpenAI-compatible endpoint before the confidence filter.
+
+The pass is opt-in and off by default. Enable it with
+`piiscrub.WithLLMJudge(judge)`, where `judge` implements
+`analyzer.Judge`. The `recognizers/judge` package provides a client that talks
+to `PII_SCRUB_NLP_JUDGE_URL` (loopback only unless
+`PII_SCRUB_NLP_JUDGE_ALLOW_REMOTE=1` is set), defaults to the `qwen3-0.6b`
+model (Apache-2.0), and caches results in memory. A confirmed candidate is
+promoted to keyword-gated confidence (0.85) and reported; a rejected one is
+dropped. A judge error aborts `Analyze` — there is no silent fallback.
+
+```go
+import "github.com/u007/dataprotect/recognizers/judge"
+
+j, err := judge.New("http://127.0.0.1:8788")
+s := piiscrub.NewScrubber(piiscrub.WithLLMJudge(j))
+```
+
+Endpoint URL and model name are documented in `.env.example`. See
+`DESIGN-llm-second-pass.md` for the design decisions and the model-selection
+record.
+
 ### What the NLP path adds
 
 The 14 built-in types are pattern and checksum based, so they cannot see a

@@ -183,6 +183,11 @@ func (a *Analyzer) Analyze(ctx context.Context, text string) ([]recognizers.Enti
 	// (e.g. a bare 12-digit MyKad with no keyword) is confirmed or dropped by
 	// the judge. When no judge is configured, weak candidates are dropped here
 	// so output is byte-identical regardless of minConfidence.
+	// A judge error aborts Analyze and returns nil, err, discarding every
+	// entity collected so far — including strong non-weak ones. This is
+	// intentional fail-closed behavior: a caller who enabled the pass must
+	// know it failed rather than receive a partial result with weak
+	// candidates silently skipped.
 	if !isNilJudge(a.llmJudge) {
 		for i := range allEntities {
 			e := &allEntities[i]

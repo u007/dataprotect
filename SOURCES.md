@@ -138,6 +138,7 @@ Each rule's source is listed with what it supports and what it does not.
 | Rule | Source | Supports | Does not support | Checked |
 |------|--------|----------|------------------|---------|
 | MyKad keyword list and date check | Microsoft Purview entity definitions (Malaysia identity card). No definition page URL found: a guessed `sit-defn-malaysia-identity-card-number` returned 404 on 2026-10-14, and a search found only the Malaysia passport page. | Keyword gate for bare 12-digit numbers. | Nationality. | Open: URL still to find. |
+| MyKad bare-digit form `\b\d{12}\b` | Library-declared shape (no provider page found); validated by `MYICValidator` date check | Weak candidate below the 0.70 floor; promotable to 0.85 only by the opt-in LLM judge | Nationality; not reported without the judge pass | 2026-11-09 |
 | Passport shape `[AHK]\d{8}` | Wikipedia (Malaysian passport article; URL to confirm) and Purview. PRADO `MYS-AO-03001` (2017, NL path) has no numbering composition. PRADO `MYS-AO-02001` (2010, NL path) has no numbering entry. | Letter and eight digits, keyword-gated. | PRADO confirmation of the eight-digit shape. | 2026-10-14 |
 
 ### Thailand

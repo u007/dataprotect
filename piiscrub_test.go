@@ -2,6 +2,9 @@ package piiscrub
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -9,6 +12,7 @@ import (
 	"github.com/u007/dataprotect/analyzer"
 	"github.com/u007/dataprotect/recognizers"
 	"github.com/u007/dataprotect/recognizers/checksum"
+	"github.com/u007/dataprotect/recognizers/judge"
 )
 
 func TestScrubberAnonymize(t *testing.T) {
@@ -800,5 +804,65 @@ func TestScrubberWithLLMJudgeTypedNil(t *testing.T) {
 	}
 	if len(entities) != 0 {
 		t.Errorf("got %d entities, want 0 (typed-nil judge disabled)", len(entities))
+	}
+}
+
+// TestScrubberBareMyKadEndToEndJudge wires the real recognizers/judge package
+// to a Scrubber through an httptest server: yes promotes the bare MyKad to
+// 0.85, no drops it.
+func TestScrubberBareMyKadEndToEndJudge(t *testing.T) {
+	for _, confirm := range []bool{true, false} {
+		var calls int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls++
+			w.Header().Set("Content-Type", "application/json")
+			answer := "no"
+			if confirm {
+				answer = "yes"
+			}
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"choices": []interface{}{
+					map[string]interface{}{
+						"message": map[string]interface{}{
+							"content": answer,
+						},
+					},
+				},
+			})
+		}))
+		t.Cleanup(srv.Close)
+
+		j, err := judge.New(srv.URL)
+		if err != nil {
+			t.Fatalf("judge.New: %v", err)
+		}
+
+		s := NewScrubber(WithMinConfidence(0.0), WithLLMJudge(j))
+		ctx := context.Background()
+
+		text := "ref 900515103421 on the form"
+		entities, err := s.Analyze(ctx, text)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if confirm {
+			if len(entities) != 1 {
+				t.Fatalf("confirm=true: got %d entities, want 1", len(entities))
+			}
+			if entities[0].Confidence != 0.85 {
+				t.Errorf("confirm=true: confidence = %v, want 0.85", entities[0].Confidence)
+			}
+			if entities[0].Weak {
+				t.Errorf("confirm=true: Weak = true, want false")
+			}
+		} else {
+			if len(entities) != 0 {
+				t.Errorf("confirm=false: got %d entities, want 0", len(entities))
+			}
+		}
+		if calls != 1 {
+			t.Errorf("confirm=%v: judge calls = %d, want 1", confirm, calls)
+		}
 	}
 }
