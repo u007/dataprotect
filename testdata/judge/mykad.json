@@ -1,0 +1,12 @@
+[
+  {"text": "ref 801214105423", "candidate": "801214105423", "expected": true, "note": "bare MyKad, valid date 1980-12-14"},
+  {"text": "ic 801214105423", "candidate": "801214105423", "expected": true, "note": "keyed form, sanity"},
+  {"text": "order 900101123456", "candidate": "900101123456", "expected": false, "note": "order number with a date-like prefix"},
+  {"text": "ref 900101123456", "candidate": "900101123456", "expected": true, "note": "bare MyKad, valid date 1990-01-01"},
+  {"text": "timestamp 202401011234", "candidate": "202401011234", "expected": false, "note": "timestamp, invalid month 24"},
+  {"text": "id 750505123456", "candidate": "750505123456", "expected": true, "note": "bare MyKad, valid date 1975-05-05"},
+  {"text": "serial 123456789012", "candidate": "123456789012", "expected": false, "note": "all-sequential dummy run"},
+  {"text": "ref 000000000000", "candidate": "000000000000", "expected": false, "note": "all-zero dummy run"},
+  {"text": "invoice 123456789012 due", "candidate": "123456789012", "expected": false, "note": "invoice number"},
+  {"text": "mykad 600202123456", "candidate": "600202123456", "expected": true, "note": "bare MyKad, valid date 1960-02-02"}
+]
