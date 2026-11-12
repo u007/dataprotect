@@ -75,6 +75,10 @@ func TestManagedRecognizePerCallCtxCancelReturnsCanceled(t *testing.T) {
 	if rec.stateErr() != nil {
 		t.Fatalf("recognizer not usable after per-call cancel: %v", rec.stateErr())
 	}
+	// NOTE: a per-call cancel currently drives NLPRecognizer.Recognize through
+	// fail(), which sets Health()=false. The sidecar itself is still up, so
+	// this is a cosmetic staleness, not a real failure. See TODO.md residual.
+	t.Logf("health after per-call cancel: %v (expected false today; see TODO)", rec.Health())
 }
 
 // Many concurrent Recognize calls racing a Close must all return promptly
