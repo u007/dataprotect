@@ -10,7 +10,7 @@ tags:
   - compliance
   - notice
   - readme
-timestamp: 2026-11-10T19:36:32Z
+timestamp: 2026-11-12T02:54:58Z
 ---
 # Licensing & Provenance — Opt-In Disclosure Pattern
 
@@ -112,11 +112,14 @@ ai4privacy's staff-count restriction) may restrict commercial use of anything
 trained or evaluated on them; for a commercial launch, have counsel confirm.
 The dataset table adds "verify before use" and a dated review stamp.
 
-## Status at time of writing (2026-11-10)
+## Status (2026-11-12)
 
-The README `## License` expansion, the new repo-root `THIRD_PARTY.md`, and the
-`.env.example` pointer comments were authored together. `THIRD_PARTY.md` was
-**uncommitted** when this note was written (`git status` showed `?? THIRD_PARTY.md`);
-README.md and .env.example were modified but uncommitted. Treat the files, not
-this note, as the authoritative licence record, and re-verify the two model
-weights and `onnxruntime_go` before relying on their SPDX values.
+The README `## License` expansion, the repo-root `THIRD_PARTY.md`, and the
+`.env.example` pointer comments were authored together on 2026-11-10.
+`THIRD_PARTY.md` was **uncommitted** when this note was first written
+(`git status` showed `?? THIRD_PARTY.md`), but it is now **committed in
+`3bf03f2`** (docs(licensing): add optional-components disclosure and
+THIRD_PARTY inventory), together with the README and `.env.example` changes, so
+the inventory in the tree is the published record. Treat the files, not this
+note, as the authoritative licence record, and re-verify the two model weights
+and `onnxruntime_go` before relying on their SPDX values.

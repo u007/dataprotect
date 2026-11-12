@@ -1,6 +1,13 @@
 # Directory Update Log
 
 
+
+## 2026-11-12
+
+* **Update**: Multilingual NER backend — design ([superpowers/specs/2026-10-28-multilingual-ner-design.md](/superpowers/specs/2026-10-28-multilingual-ner-design.md))
+* **Update**: LLM second pass — model choice (Qwen3-0.6B, Apache-2.0) ([decisions/llm-second-pass-model.md](/decisions/llm-second-pass-model.md))
+* **Creation**: NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12) ([decisions/2026-11-12-session-findings.md](/decisions/2026-11-12-session-findings.md))
+* **Update**: Licensing & Provenance — Opt-In Disclosure Pattern ([concepts/licensing-and-provenance.md](/concepts/licensing-and-provenance.md))
 ## 2026-11-10
 
 * **Creation**: Licensing & Provenance — Opt-In Disclosure Pattern ([concepts/licensing-and-provenance.md](/concepts/licensing-and-provenance.md))

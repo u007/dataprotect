@@ -10,12 +10,13 @@ okf_version: 0.1
 
 # decisions
 
-- [LLM second pass — model choice (Qwen3-0.6B, Apache-2.0)](decisions/llm-second-pass-model.md) - Resolves decision 7 of the optional LLM second-pass design: Qwen3-0.6B (Apache-2.0) is the judge model, with licence verification and the rejected alternatives. Phases 1 (weak-candidate marker) and 2 (judge client in recognizers/judge) are implemented.
+- [LLM second pass — model choice (Qwen3-0.6B, Apache-2.0)](decisions/llm-second-pass-model.md) - Resolves decision 7 of the optional LLM second-pass design: Qwen3-0.6B (Apache-2.0) is the judge model, with licence verification and the rejected alternatives. Phases 1 (weak-candidate marker) and 2 (judge client in recognizers/judge) are implemented; Phase 3 has an unwired 10-case MyKad fixture.
+- [NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12)](decisions/2026-11-12-session-findings.md) - Dated 2026-11-12 record: managed-NLP Sonnet review items resolved/open, ONNX success-path tests and the Phase 1 licence block, LLM second-pass Phase 3 fixture, the France phone gap, and the licensing status correction.
 - [piiscrub v1 Spec — Scope, Architecture & Non-Goals](decisions/spec-v1.md) - Architecture decision record for piiscrub v1: why a dependency-free Go PII library instead of Python Presidio, the explicit non-goals, MVP scope versus v2+ phases, core interfaces (Recognizer, Operator, Analyzer, Anonymizer), the actual on-disk package layout, per-recognizer accuracy targets alongside measured results from the 553-case golden seed AND from a 2000-record sample of both fetched corpora (which fall well short of the >99% target, with every large gap explained), operator semantics, the CSV batch contract, pinned dependencies, and the testing/benchmark strategy.
 
 # superpowers
 
 - [Corpus converter and corpus scoring mode — design](superpowers/specs/2026-10-08-corpus-converter-design.md) - Design for tools/corpusbench Parquet→golden conversion and in-schema corpus scoring; implemented
 - [Credit-card keyword-gated rule — design](superpowers/specs/2026-10-20-credit-card-keyword-gate-design.md) - Hybrid keyword gate for Luhn-valid card numbers; implemented 2026-10-21 in recognizers/checksum
-- [Multilingual NER backend — design](superpowers/specs/2026-10-28-multilingual-ner-design.md) - ONNX multilingual NER backend for the sidecar; Phase 0 landed 2026-11-01, Phase 1 blocked on a licence-compliant checkpoint
+- [Multilingual NER backend — design](superpowers/specs/2026-10-28-multilingual-ner-design.md) - ONNX multilingual NER backend for the sidecar; Phase 0 landed 2026-11-01, success-path session tests added 2026-11-12, Phase 1 still blocked on a licence-compliant six-language Apache-2.0/MIT checkpoint.
 

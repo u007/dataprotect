@@ -1,7 +1,7 @@
 ---
 type: Decision
 title: LLM second pass — model choice (Qwen3-0.6B, Apache-2.0)
-description: 'Resolves decision 7 of the optional LLM second-pass design: Qwen3-0.6B (Apache-2.0) is the judge model, with licence verification and the rejected alternatives. Phases 1 (weak-candidate marker) and 2 (judge client in recognizers/judge) are implemented.'
+description: 'Resolves decision 7 of the optional LLM second-pass design: Qwen3-0.6B (Apache-2.0) is the judge model, with licence verification and the rejected alternatives. Phases 1 (weak-candidate marker) and 2 (judge client in recognizers/judge) are implemented; Phase 3 has an unwired 10-case MyKad fixture.'
 resource: DESIGN-llm-second-pass.md
 tags:
   - llm
@@ -10,7 +10,7 @@ tags:
   - licence
   - mykad
   - implementation
-timestamp: 2026-11-09T10:04:41Z
+timestamp: 2026-11-12T02:55:58Z
 ---
 # LLM second pass — model choice (Qwen3-0.6B, Apache-2.0)
 
@@ -21,8 +21,8 @@ local model confirm weak candidates that the regex recognizers deliberately skip
 (first case: a MyKad written as 12 bare digits with no identity-card keyword).
 The design lives in `DESIGN-llm-second-pass.md` at the repo root, which is not
 part of this bundle. Its decision 7 ("Model") was the open item; it is now
-resolved. Phases 1 and 2 are implemented, and the pass still ships off by
-default with no change to default output.
+resolved. Phases 1 and 2 are implemented, Phase 3 is pending, and the pass still
+ships off by default with no change to default output.
 
 ## Decision
 
@@ -53,8 +53,8 @@ default with no change to default output.
 
 **Phase 1 — weak-candidate marker and the disabled path — is implemented
 (2026-11-09). Phase 2 — judge client, prompt, cache and loopback check — is
-implemented (2026-11-09).** The pass still ships off by default and default
-output is byte-identical.
+implemented (2026-11-09). Phase 3 is pending.** The pass still ships off by
+default and default output is byte-identical.
 
 ### Phase 1 — weak-candidate marker
 
@@ -120,6 +120,15 @@ stdlib-only.
 - Verified: `go build ./...`, `go vet ./...` and
   `go test -race -count=1 ./recognizers/judge/...` are clean, and gofmt is
   clean on the new files.
+
+### Phase 3 — pending (fixture exists, unwired)
+
+Phases 1 and 2 shipped in `daa62e1`. Phase 3 has a 10-case synthetic fixture at
+`testdata/judge/mykad.json`: five bare-MyKad positives (including one keyed
+sanity case) and five look-alike negatives. The fixture is **not wired** — there
+is no test harness, no `make` target, and no measurements yet — so Phase 3
+remains pending. Recorded 2026-11-12 in
+[decisions/2026-11-12-session-findings.md](/decisions/2026-11-12-session-findings.md).
 
 Design decisions 2b (explicit opt-in: no judge means weak candidates are
 dropped) and 5 (no silent fallback: a judge error aborts `Analyze`) are honored.
