@@ -167,6 +167,13 @@ type MYICRecognizer struct {
 // has no backreferences, so the distinct pairs are spelled out. Only the digits
 // are captured. The boundary before the keyword stops "ic" matching inside a
 // word, and the mandatory separator keeps the keyword to a whole token.
+//
+// Caveat: keywords such as "ic no", "i/c no", "kp no" and "k/p no" already
+// contain "no", so "ic no no <digits>" still matches as keyword plus one
+// filler (the distinctness rule only applies to the two filler slots, not to
+// a "no" that is part of the keyword). Per the 2026-11-06 decision, such
+// ambiguity is not special-cased in the regex; it is left to the optional LLM
+// second pass.
 func NewMYICRecognizer() *MYICRecognizer {
 	return &MYICRecognizer{
 		pattern:   regexp.MustCompile(`\b\d{6}-\d{2}-\d{4}\b`),

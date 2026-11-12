@@ -236,7 +236,11 @@ func FromEnv() (*NLPRecognizer, error) {
 // and when PII_SCRUB_NLP_URL is also set, because the URL selects an external
 // sidecar and the binary starts a managed child. The caller must Close the
 // result. ctx also bounds the child's lifetime: when it ends, the child stops.
-func ManagedFromEnv(ctx context.Context) (*ManagedRecognizer, error) {
+//
+// opts are forwarded to StartManaged, so callers can configure the recognizer
+// (for example WithBestEffort, WithTimeout, WithLogger) the same way they would
+// with StartManaged directly.
+func ManagedFromEnv(ctx context.Context, opts ...Option) (*ManagedRecognizer, error) {
 	url := getEnv("PII_SCRUB_NLP_URL")
 	binary := getEnv("PII_SCRUB_NLP_BINARY")
 	if binary == "" {
@@ -245,7 +249,7 @@ func ManagedFromEnv(ctx context.Context) (*ManagedRecognizer, error) {
 	if url != "" {
 		return nil, fmt.Errorf("nlp managed: PII_SCRUB_NLP_URL and PII_SCRUB_NLP_BINARY are both set; set only one (URL uses an external sidecar, BINARY starts a managed child)")
 	}
-	return StartManaged(ctx, binary, nil)
+	return StartManaged(ctx, binary, nil, opts...)
 }
 
 func getEnv(key string) string {

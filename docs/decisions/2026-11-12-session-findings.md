@@ -1,7 +1,7 @@
 ---
 type: Decision
 title: NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12)
-description: 'Dated 2026-11-12 record: managed-NLP Sonnet review items resolved/open, ONNX success-path tests and the Phase 1 licence block, LLM second-pass Phase 3 fixture, the France phone gap, and the licensing status correction.'
+description: 'Dated 2026-11-12 record: managed-NLP Sonnet review items resolved/open, ONNX success-path tests and the Phase 1 licence block, LLM second-pass Phase 3 fixture, the France phone gap, the licensing status correction, and a same-session follow-up that closes item (3) and partly closes (6).'
 resource: recognizers/nlp; sidecar/internal/ner/onnxrt; testdata/judge; THIRD_PARTY.md
 tags:
   - nlp
@@ -11,7 +11,7 @@ tags:
   - managed
   - review
   - status
-timestamp: 2026-11-12T02:55:44Z
+timestamp: 2026-11-12T03:09:48Z
 ---
 # NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12)
 
@@ -140,6 +140,44 @@ session superseded:
 The managed-mode residuals (Windows stop test/CI, `ManagedFromEnv` options, the
 `Close`/cancel race test, the MyKad comment, the Windows grandchild kill) stay
 open.
+
+## 7. Same-session follow-up — item (3) resolved, item (6) partly resolved
+
+Appended after the sections above. Where it contradicts a "still open" or
+"overclaim" line, this section supersedes it; the earlier text is left unchanged
+because this note is append-only.
+
+### (3) Resolved — `ManagedFromEnv` options
+
+`ManagedFromEnv` is now
+`func ManagedFromEnv(ctx context.Context, opts ...Option) (*ManagedRecognizer, error)`
+(`recognizers/nlp/nlp.go:243`) and forwards the options to
+`StartManaged(ctx, binary, nil, opts...)` (`recognizers/nlp/nlp.go:252`). The
+env opt-in is therefore configurable — for example `WithBestEffort`,
+`WithTimeout` or `WithLogger` — without dropping to `StartManaged` directly.
+Adding a variadic parameter is backward-compatible: existing
+`ManagedFromEnv(ctx)` call sites compile unchanged. The doc comment states the
+forwarding.
+
+### (6) Partly resolved — MyKad filler comment
+
+The comment at `recognizers/national/national.go:171-176` no longer claims that
+`"no no"` is rejected in every form. It now records the caveat: keywords that
+already contain "no" (`ic no`, `i/c no`, `kp no`, `k/p no`) let
+`ic no no <digits>` match as keyword plus one filler, because the distinctness
+rule applies only to the two filler slots, not to a "no" that is part of the
+keyword. The change is comment-only, so behavior is unchanged: `mykad no no
+<digits>` is still rejected, and the `ic no no` ambiguity stays deferred to the
+LLM second pass per the 2026-11-06 decision. The alternative fixes listed under
+item (6) above (plain `{0,2}` quantifier, Go-side compare) were not taken — the
+decision is not to special-case this in the regex.
+
+### Sonnet review status after this session
+
+Items (1), (2) and (7) were already resolved; (3) is now resolved and (6) is
+partly resolved (comment corrected, ambiguity deliberately deferred). **(4) and
+(5) remain open**: no Windows stop test or CI job, and no test that races an
+in-flight `Recognize` against `Close` or a cancelled ctx.
 
 ## Where this is recorded
 

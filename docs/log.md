@@ -4,6 +4,7 @@
 
 ## 2026-11-12
 
+* **Update**: NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12) ([decisions/2026-11-12-session-findings.md](/decisions/2026-11-12-session-findings.md))
 * **Update**: Multilingual NER backend — design ([superpowers/specs/2026-10-28-multilingual-ner-design.md](/superpowers/specs/2026-10-28-multilingual-ner-design.md))
 * **Update**: LLM second pass — model choice (Qwen3-0.6B, Apache-2.0) ([decisions/llm-second-pass-model.md](/decisions/llm-second-pass-model.md))
 * **Creation**: NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12) ([decisions/2026-11-12-session-findings.md](/decisions/2026-11-12-session-findings.md))
