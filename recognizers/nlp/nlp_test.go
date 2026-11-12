@@ -277,3 +277,46 @@ func TestFromEnvURL(t *testing.T) {
 		t.Fatalf("FromEnv = (%v, %v), want recognizer", r, err)
 	}
 }
+
+
+// TestManagedFromEnvForwardsOptions checks that options passed to
+// ManagedFromEnv reach StartManaged: a WithBestEffort recognizer swallows a
+// transient transport error and reports nil, nil instead of the raw error.
+func TestManagedFromEnvForwardsOptions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a /bin/sh wrapper script")
+	}
+	self, err := filepath.Abs(os.Args[0])
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	args, pidfile := fakeArgs(t, "crash-on-ner")
+	script := filepath.Join(t.TempDir(), "sidecar.sh")
+	body := "#!/bin/sh\nexec '" + self + "'"
+	for _, a := range args {
+		body += " '" + a + "'"
+	}
+	body += " \"$@\"\n"
+	if err := os.WriteFile(script, []byte(body), 0o700); err != nil {
+		t.Fatalf("write wrapper: %v", err)
+	}
+
+	t.Setenv("PII_SCRUB_NLP_URL", "")
+	t.Setenv("PII_SCRUB_NLP_BINARY", script)
+	rec, err := ManagedFromEnv(context.Background(), WithBestEffort())
+	if err != nil {
+		t.Fatalf("ManagedFromEnv: %v", err)
+	}
+	t.Cleanup(func() { _ = rec.Close() })
+
+	waitUntil(t, "sidecar healthy", func() bool { return rec.Health() })
+
+	// WithBestEffort swallowed: a transport error becomes nil, nil.
+	if _, err := rec.Recognize(context.Background(), "John Smith"); err != nil {
+		t.Fatalf("Recognize under best-effort: got %v, want nil", err)
+	}
+
+	pid := readPid(t, pidfile)
+	_ = rec.Close()
+	assertReaped(t, pid)
+}
