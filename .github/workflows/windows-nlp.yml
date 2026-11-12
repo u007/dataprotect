@@ -1,0 +1,40 @@
+name: windows-nlp
+
+# Runtime smoke for the managed-mode path on Windows. Only `GOOS=windows go build`
+# has been verified; this job is the first runtime signal for CREATE_NEW_PROCESS_GROUP
+# and CTRL_BREAK_EVENT handling in recognizers/nlp/managed_windows.go.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-nlp-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-nlp:
+    name: nlp package on windows
+    runs-on: windows-latest
+    timeout-minutes: 20
+    # First runtime exposure: keep informational until green.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./recognizers/...
+
+      - name: Test nlp package
+        run: go test ./recognizers/nlp/ -count=1
