@@ -221,7 +221,7 @@ Source: Presidio `presidio-analyzer/tests` at `2523c7b74a469270c5c78bb253f140eaf
     (still off by default). The default pipeline, seed gate and pinned
     benchmarks are unchanged.
   - [ ] **Multilingual NLP model.** Tracked under the ONNX items above (Phase 1: blocked on a licence-compliant checkpoint). Network downloads work, so the earlier "downloads blocked" note no longer applies.
-- [ ] Benchmark suite (OpenNER, Financial PII, Kaggle PII, CoNLL, ai4privacy, PII-Bench, SecretBench). **Blocked 2026-11-12:** no `hf` CLI and no `datasets` Python module in this environment, so fetch-dataset.sh cannot run. Clean commercial datasets already scored (nemotron, gretel); remaining datasets are restricted (ai4privacy staff cap, CoNLL Reuters, Kaggle per-competition, SecretBench gated, PII-Bench composite) or unverified (Financial PII, OpenNER). Revisit when hf CLI is available.
+- [ ] Benchmark suite (OpenNER, Financial PII, Kaggle PII, CoNLL, ai4privacy, PII-Bench, SecretBench). **Blocked 2026-11-13:** hf CLI and datasets library now installed, but remaining datasets are restricted (ai4privacy staff cap, CoNLL Reuters, Kaggle per-competition, SecretBench gated, PII-Bench composite) or unverified (Financial PII, OpenNER). OpenNER has no parquet (script-only). Conversion code would need CSV/JSONL parsers. Clean commercial datasets already scored (nemotron, gretel). Revisit if a clean, parquet-backed, commercially-usable dataset is identified.
 
 ## Known gaps in the current MVP
 
