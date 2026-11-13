@@ -81,7 +81,7 @@ func NewONNXBackend(cfg ONNXConfig) (NERBackend, error) {
 			modelPath, n, configPath, len(labels))
 	}
 
-	tok, err := NewHFTokenizer(cfg.TokenizerPath)
+	tok, err := NewHFTokenizerWithOptions(cfg.TokenizerPath, cfg.AddSpecialTokens)
 	if err != nil {
 		closeSession(sess)
 		return nil, err

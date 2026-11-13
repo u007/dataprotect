@@ -12,9 +12,10 @@ import (
 // an untagged file so that both the !onnx stub and the onnx implementation
 // share one signature, and so main.go can compile in a plain build.
 type ONNXConfig struct {
-	ModelDir       string
-	TokenizerPath  string
-	ONNXRuntimeLib string
+	ModelDir         string
+	TokenizerPath    string
+	ONNXRuntimeLib   string
+	AddSpecialTokens bool
 }
 
 // ValidateONNXConfig reports an error when any required artifact path is empty.

@@ -18,26 +18,41 @@ import (
 // and a pair outside them fails the request: a silently clamped span would hide a
 // tokenizer/config mismatch and redact the wrong bytes.
 type hfTokenizer struct {
-	tok *tokenizers.Tokenizer
+	tok        *tokenizers.Tokenizer
+	addSpecial bool
 }
 
-// NewHFTokenizer loads a tokenizer.json. The file is the only source of the
-// tokenizer; nothing is downloaded or discovered implicitly.
+// NewHFTokenizer loads a tokenizer.json without adding special tokens, preserving
+// the Phase 0 default where a 400-token chunk is exactly 400 model input tokens.
+// The file is the only source of the tokenizer; nothing is downloaded or
+// discovered implicitly.
 func NewHFTokenizer(path string) (Tokenizer, error) {
+	return NewHFTokenizerWithOptions(path, false)
+}
+
+// NewHFTokenizerWithOptions loads a tokenizer.json and optionally enables the
+// model's special tokens (<s>/</s> for XLM-R-style checkpoints). When enabled,
+// the tokenizer wraps each encoded sequence with the model's special tokens, so
+// the adapter reports them with Special=true and offsets that the decoder drops.
+// The chunk size must account for them: ChunkTokens plus the number of special
+// tokens per sequence must stay below the model's position limit (514 for XLM-R).
+func NewHFTokenizerWithOptions(path string, addSpecial bool) (Tokenizer, error) {
 	tok, err := tokenizers.FromFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("tokenizer %s: %w", path, err)
 	}
-	return &hfTokenizer{tok: tok}, nil
+	return &hfTokenizer{tok: tok, addSpecial: addSpecial}, nil
 }
 
-// Tokenize encodes text without adding special tokens. The backend feeds
-// exactly the content tokens a chunk needs, so a 400-token chunk is 400 model
-// input tokens and does not grow to 402 with the model's <s>/</s> separators.
-// This is a deliberate Phase 0 choice: it is re-checked against the real
-// checkpoint in Phase 1 (see TODO.md).
+// Tokenize encodes text. Special tokens are added only when the tokenizer was
+// created with NewHFTokenizerWithOptions(..., true); by default (NewHFTokenizer)
+// they are omitted, matching the Phase 0 default where a 400-token chunk is
+// exactly 400 model input tokens. Enabling them wraps each sequence with the
+// model's <s>/</s> separators (XLM-R style), which the decoder drops via the
+// Special flag. This is opt-in: the real checkpoint's requirement is verified
+// in Phase 1 (see TODO.md).
 func (h *hfTokenizer) Tokenize(text string) ([]Token, error) {
-	enc, err := h.tok.EncodeWithOptionsErr(text, false, tokenizers.WithReturnAllAttributes())
+	enc, err := h.tok.EncodeWithOptionsErr(text, h.addSpecial, tokenizers.WithReturnAllAttributes())
 	if err != nil {
 		return nil, fmt.Errorf("tokenize: %w", err)
 	}

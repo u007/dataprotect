@@ -269,3 +269,53 @@ func TestWordStartOverlapAndTouch(t *testing.T) {
 			[]bool{true, false})
 	})
 }
+
+// TestHFTokenizerSpecialTokens verifies that NewHFTokenizerWithOptions with
+// addSpecial=true causes the tokenizer to emit special tokens (Special=true)
+// for a non-empty input, while the default (addSpecial=false) emits none.
+func TestHFTokenizerSpecialTokens(t *testing.T) {
+	dir := filepath.Join("testdata")
+	tokenizerPath := filepath.Join(dir, "tokenizer.json")
+
+	plain, err := NewHFTokenizer(tokenizerPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	special, err := NewHFTokenizerWithOptions(tokenizerPath, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	text := "John Smith lives in New York."
+	ptoks, err := plain.Tokenize(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stoks, err := special.Tokenize(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plainSpecial := 0
+	for _, tok := range ptoks {
+		if tok.Special {
+			plainSpecial++
+		}
+	}
+	specialCount := 0
+	for _, tok := range stoks {
+		if tok.Special {
+			specialCount++
+		}
+	}
+
+	if plainSpecial != 0 {
+		t.Errorf("default tokenizer emitted %d special tokens, want 0", plainSpecial)
+	}
+	if specialCount == 0 {
+		t.Errorf("addSpecial=true tokenizer emitted 0 special tokens, want >0")
+	}
+	t.Logf("plain=%d tokens (%d special), special=%d tokens (%d special)",
+		len(ptoks), plainSpecial, len(stoks), specialCount)
+}
