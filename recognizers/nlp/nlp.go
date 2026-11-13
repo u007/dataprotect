@@ -150,6 +150,9 @@ func (r *NLPRecognizer) Recognize(ctx context.Context, text string) ([]recognize
 
 	resp, err := r.client.Do(req)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, err
+		}
 		return r.fail(err)
 	}
 	defer resp.Body.Close()
@@ -170,6 +173,9 @@ func (r *NLPRecognizer) Recognize(ctx context.Context, text string) ([]recognize
 		} `json:"entities"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out); err != nil {
+		if ctx.Err() != nil {
+			return nil, err
+		}
 		return r.fail(err)
 	}
 
