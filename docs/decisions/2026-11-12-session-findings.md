@@ -1,7 +1,7 @@
 ---
 type: Decision
 title: NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12)
-description: 'Dated 2026-11-12 record: managed-NLP Sonnet review items resolved/open, ONNX success-path tests and the Phase 1 licence block, LLM second-pass Phase 3 fixture, the France phone gap, the licensing status correction, and a same-session follow-up that closes item (3) and partly closes (6).'
+description: 'Dated 2026-11-12 record: managed-NLP Sonnet review items resolved/open, ONNX success-path tests (env-gated, skipped here) and the Phase 1 licence block, LLM second-pass Phase 3 fixture, the France phone gap, and the licensing status correction; corrected 2026-11-13.'
 resource: recognizers/nlp; sidecar/internal/ner/onnxrt; testdata/judge; THIRD_PARTY.md
 tags:
   - nlp
@@ -11,7 +11,7 @@ tags:
   - managed
   - review
   - status
-timestamp: 2026-11-12T03:09:48Z
+timestamp: 2026-11-13T02:09:45Z
 ---
 # NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12)
 
@@ -83,10 +83,21 @@ resolved in code, three remain open, and one comment still overclaims.
 - `TestInitEnvironmentSuccess`
 - `TestSessionRunSuccess`
 
-They are gated on `NER_ONNX_RUNTIME_LIB` and `NER_ONNX_MODEL` and were verified
-against a `distilbert/ner` export plus an onnxruntime shared library. Commit
-`cdca70d` (feat(onnx): add success-path session tests (gated on env)). The
-failure-path `TestInitEnvironmentFailureIsNotCached` remains.
+They are gated on `NER_ONNX_RUNTIME_LIB` and `NER_ONNX_MODEL` and skip when
+either is unset. Both were unset on this tree, so they skipped and were **not**
+verified against a real `distilbert/ner` export or an onnxruntime shared
+library here; the test-file header says the success path needs a real
+`libonnxruntime`, which the test machine does not have. Commit `cdca70d`
+(feat(onnx): add success-path session tests (gated on env)). `make onnx-check`
+is green, but it is a build gate only and proves nothing about the success
+path. The failure-path `TestInitEnvironmentFailureIsNotCached` remains.
+
+An opt-in special-token path now exists (`3264db5`):
+`NewHFTokenizerWithOptions(path, addSpecial)` wraps each sequence with the
+model's `<s>`/`</s>` when `addSpecial` is true, and `ONNXConfig.AddSpecialTokens`
+wires it through `NewONNXBackend`. `NewHFTokenizer` (the default) still adds no
+special tokens. The real checkpoint's requirement is still unverified in
+Phase 1; the flag makes it testable, not settled.
 
 **Phase 1 is still blocked on the checkpoint licence.** The design requires a
 six-language (de, nl, fr, it, es, sv) checkpoint under Apache-2.0 or MIT, and
@@ -179,6 +190,16 @@ partly resolved (comment corrected, ambiguity deliberately deferred). **(4) and
 (5) remain open**: no Windows stop test or CI job, and no test that races an
 in-flight `Recognize` against `Close` or a cancelled ctx.
 
+### Correction (2026-11-13) — success-path verification overclaim removed
+
+The section 2 sentence that said the tests "were verified against a
+`distilbert/ner` export plus an onnxruntime shared library" was wrong: the
+tests are env-gated on `NER_ONNX_RUNTIME_LIB` and `NER_ONNX_MODEL`, both unset
+on this tree, so they skipped. The sentence has been corrected in place. This
+note also adds the `3264db5` opt-in special-token path; the real checkpoint's
+special-token requirement remains unverified in Phase 1. Windows runtime
+validation remains untested.
+
 ## Where this is recorded
 
 - [concepts/development-conventions.md](/concepts/development-conventions.md)
@@ -191,3 +212,5 @@ in-flight `Recognize` against `Close` or a cancelled ctx.
   judge model and implementation status.
 - [concepts/licensing-and-provenance.md](/concepts/licensing-and-provenance.md)
   — THIRD_PARTY.md commit status.
+- [decisions/2026-11-13-onnx-doc-corrections.md](/decisions/2026-11-13-onnx-doc-corrections.md)
+  — the 2026-11-13 corrections record.
