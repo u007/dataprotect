@@ -30,17 +30,19 @@ type Model struct {
 	ExpectedSize int64
 }
 
-// Models are the two pre-trained models required by go-face.
+// Models are the three pre-trained models required by go-face.
 //
 // Sources:
 //
 //	shape_predictor_5_face_landmarks.dat — dlib 5-point facial landmark
 //	  predictor (http://dlib.net/files/shape_predictor_5_face_landmarks.dat.bz2)
+//	mmod_human_face_detector.dat — dlib CNN face detector
+//	  (http://dlib.net/files/mmod_human_face_detector.dat.bz2)
 //	dlib_face_recognition_resnet_model_v1.dat — dlib ResNet face
 //	  recognition model producing 128D face descriptors
 //	  (http://dlib.net/files/dlib_face_recognition_resnet_model_v1.dat.bz2)
 //
-// Both files are distributed as .bz2 compressed archives and are
+// All files are distributed as .bz2 compressed archives and are
 // decompressed transparently during download.
 var Models = []Model{
 	{
@@ -48,6 +50,12 @@ var Models = []Model{
 		URL:          "http://dlib.net/files/shape_predictor_5_face_landmarks.dat.bz2",
 		Path:         "shape_predictor_5_face_landmarks.dat",
 		ExpectedSize: 23_000_000, // approx 22 MB
+	},
+	{
+		Name:         "mmod_human_face_detector",
+		URL:          "http://dlib.net/files/mmod_human_face_detector.dat.bz2",
+		Path:         "mmod_human_face_detector.dat",
+		ExpectedSize: 700_000, // approx 713 KB
 	},
 	{
 		Name:         "dlib_face_recognition_resnet_model_v1",
