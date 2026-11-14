@@ -1,8 +1,8 @@
 ---
 type: Decision
 title: NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12)
-description: 'Dated 2026-11-12 record: managed-NLP Sonnet review items resolved/open, ONNX success-path tests (env-gated, skipped here) and the Phase 1 licence block, LLM second-pass Phase 3 fixture, the France phone gap, and the licensing status correction; corrected 2026-11-13.'
-resource: recognizers/nlp; sidecar/internal/ner/onnxrt; testdata/judge; THIRD_PARTY.md
+description: 'Dated 2026-11-12 record: managed-NLP Sonnet review items resolved/open, ONNX success-path tests (env-gated, skipped then) and the Phase 1 licence block, LLM second-pass Phase 3 fixture, the France phone gap, and the licensing status correction; corrected 2026-11-13; 2026-11-14 verification update (success path PASS with ORT 1.32.0, Windows cross-compile, image PII RealDetector).'
+resource: recognizers/nlp; sidecar/internal/ner/onnxrt; sidecar/internal/facedetect; testdata/judge; THIRD_PARTY.md
 tags:
   - nlp
   - onnx
@@ -11,7 +11,7 @@ tags:
   - managed
   - review
   - status
-timestamp: 2026-11-13T02:09:45Z
+timestamp: 2026-11-14T13:25:45Z
 ---
 # NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12)
 
@@ -91,6 +91,13 @@ library here; the test-file header says the success path needs a real
 (feat(onnx): add success-path session tests (gated on env)). `make onnx-check`
 is green, but it is a build gate only and proves nothing about the success
 path. The failure-path `TestInitEnvironmentFailureIsNotCached` remains.
+
+**Verified 2026-11-14.** The "not verified" note above is superseded:
+`TestInitEnvironmentSuccess` and `TestSessionRunSuccess` both **PASS** with
+onnxruntime 1.32.0 (`ORT_API_VERSION` 29) and the `distilbert/ner` export.
+This proves environment init, session creation and one `Run`; it does not
+change the Phase 1 checkpoint/licence block or settle the special-token
+question.
 
 An opt-in special-token path now exists (`3264db5`):
 `NewHFTokenizerWithOptions(path, addSpecial)` wraps each sequence with the
@@ -199,6 +206,35 @@ on this tree, so they skipped. The sentence has been corrected in place. This
 note also adds the `3264db5` opt-in special-token path; the real checkpoint's
 special-token requirement remains unverified in Phase 1. Windows runtime
 validation remains untested.
+
+## 8. Verification update (2026-11-14)
+
+Appended after the sections above. Where it contradicts an earlier
+"unverified" or "skipped" line, this section supersedes it.
+
+### ONNX success path — verified
+
+`TestInitEnvironmentSuccess` and `TestSessionRunSuccess` both **PASS** with
+onnxruntime 1.32.0 (`ORT_API_VERSION` 29) and the `distilbert/ner` model.
+This supersedes the section 2 and 2026-11-13 correction notes that recorded
+the path as unverified; those statements were true for the trees they describe.
+
+### Windows — cross-compilation verified, runtime still untested
+
+`GOOS=windows go vet` and `GOOS=windows go test -c` both pass. The
+`CREATE_NEW_PROCESS_GROUP` / `CTRL_BREAK_EVENT` path has **not** run on
+Windows: cross-compilation is not runtime validation. Item (4) therefore stays
+open for runtime. `make check-windows` runs `GOOS=windows go build ./...` and
+`GOOS=windows go vet ./...`.
+
+### Image PII — `RealDetector` now works
+
+`libdlib-dev` is installed and the model downloader gained
+`mmod_human_face_detector.dat` (`sidecar/internal/facedetect/models.go`).
+go-face's `NewRecognizer` needs that file; without it construction failed and
+`NewDetector` fell back to `StubDetector`. The 2026-11-10 note that the
+`RealDetector` path was not exercised is superseded for construction. The face
+models are still downloaded on first use and their licences remain unverified.
 
 ## Where this is recorded
 

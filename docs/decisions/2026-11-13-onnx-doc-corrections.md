@@ -1,7 +1,7 @@
 ---
 type: Decision
 title: ONNX doc corrections (3264db5) — special-token opt-in, env-gated success tests
-description: 'Dated 2026-11-13 correction record: 3264db5 adds an opt-in special-token path; the ONNX success-path tests are env-gated and skipped on this tree; three multilingual checkpoint leads remain unverified.'
+description: 'Dated 2026-11-13 correction record: 3264db5 adds an opt-in special-token path; the ONNX success-path tests were env-gated and skipped on this tree; three multilingual checkpoint leads remain unverified. Updated 2026-11-14: the success path PASSes with onnxruntime 1.32.0 (ORT_API_VERSION 29) and distilbert/ner; Windows cross-compiles but runtime is untested.'
 resource: sidecar/internal/ner; docs
 tags:
   - onnx
@@ -9,7 +9,7 @@ tags:
   - sidecar
   - correction
   - status
-timestamp: 2026-11-13T02:11:31Z
+timestamp: 2026-11-14T13:25:05Z
 ---
 # ONNX doc corrections (3264db5) — special-token opt-in, env-gated success tests
 
@@ -64,6 +64,9 @@ shared library"; that was false and has been corrected.
 vacuous for the success path: it does not call `InitEnvironment`, create a
 session or run inference.
 
+**Superseded 2026-11-14:** the success path has since been run with a real
+runtime and model and both tests PASS. See §6.
+
 ## 3. Unverified multilingual checkpoint leads
 
 A websearch surfaced these model cards as leads:
@@ -80,18 +83,42 @@ them here.
 ## 4. Still unverified
 
 - The real checkpoint's special-token requirement (Phase 1).
-- The ONNX success path: environment init, session creation and inference.
-- Windows runtime behaviour: only `GOOS=windows go build` is exercised; the
-  `CREATE_NEW_PROCESS_GROUP` / `CTRL_BREAK_EVENT` path has no runtime test.
+- Windows **runtime** behaviour: cross-compilation is verified (see §6), but
+  the `CREATE_NEW_PROCESS_GROUP` / `CTRL_BREAK_EVENT` path has no runtime test.
+  Cross-compilation is not runtime validation.
+
+The ONNX success path (environment init, session creation and inference) was
+listed here on 2026-11-13 and is **no longer unverified**: it PASSed on
+2026-11-14 (see §6).
 
 ## 5. Where this is recorded
 
 - [superpowers/specs/2026-10-28-multilingual-ner-design.md](/superpowers/specs/2026-10-28-multilingual-ner-design.md)
   — status line corrected with both the opt-in flag and the env-gated test
-  facts.
+  facts, then updated with the 2026-11-14 verification.
 - [decisions/2026-11-12-session-findings.md](/decisions/2026-11-12-session-findings.md)
-  — section 2 corrected and a 2026-11-13 correction note appended.
-- `docs/log.md` — this entry's dated record; the 2026-11-02 log line ("the
-  `<s>`/`</s>` expectation is an inference, not a verified result") is
-  superseded only in that an opt-in flag now exists; it is still not a verified
-  result.
+  — section 2 corrected and a 2026-11-13 correction note appended, then a
+  2026-11-14 verification update.
+- `docs/log.md` — this entry's dated record.
+
+## 6. Verification (2026-11-14)
+
+The 2026-11-13 note recorded the success path as unverified because
+`NER_ONNX_RUNTIME_LIB` and `NER_ONNX_MODEL` were unset. That is now superseded.
+
+- **ONNX success path — verified.** `TestInitEnvironmentSuccess` and
+  `TestSessionRunSuccess` both **PASS** with onnxruntime 1.32.0
+  (`ORT_API_VERSION` 29) and the `distilbert/ner` model. This is a real
+  `InitEnvironment` + `NewSession` + `Run`, not the build gate.
+- **Windows cross-compilation — verified.** `GOOS=windows go vet` and
+  `GOOS=windows go test -c` both pass. **Runtime is still untested:** the
+  `CREATE_NEW_PROCESS_GROUP` / `CTRL_BREAK_EVENT` path has not run on Windows.
+  Do not read the cross-compilation result as runtime validation.
+- **Image PII — `RealDetector` now works.** `libdlib-dev` is installed and the
+  model downloader gained `mmod_human_face_detector.dat`
+  (`sidecar/internal/facedetect/models.go`). go-face's `NewRecognizer` needs
+  that file; without it the constructor failed and `NewDetector` fell back to
+  `StubDetector`.
+
+Still unverified after this run: the real checkpoint's special-token
+requirement (Phase 1).

@@ -3,6 +3,13 @@
 
 
 
+
+## 2026-11-14
+
+* **Update**: Multilingual NER backend — design ([superpowers/specs/2026-10-28-multilingual-ner-design.md](/superpowers/specs/2026-10-28-multilingual-ner-design.md))
+* **Update**: Multilingual NER backend — design ([superpowers/specs/2026-10-28-multilingual-ner-design.md](/superpowers/specs/2026-10-28-multilingual-ner-design.md))
+* **Update**: NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12) ([decisions/2026-11-12-session-findings.md](/decisions/2026-11-12-session-findings.md))
+* **Update**: ONNX doc corrections (3264db5) — special-token opt-in, env-gated success tests ([decisions/2026-11-13-onnx-doc-corrections.md](/decisions/2026-11-13-onnx-doc-corrections.md))
 ## 2026-11-13
 
 * **Update**: ONNX doc corrections (3264db5) — special-token opt-in, env-gated success tests ([decisions/2026-11-13-onnx-doc-corrections.md](/decisions/2026-11-13-onnx-doc-corrections.md))
