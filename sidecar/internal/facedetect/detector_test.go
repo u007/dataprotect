@@ -283,12 +283,19 @@ func TestDownloadOnceStatusNotOK(t *testing.T) {
 	}
 }
 
-// TestNewDetectorReturnsStub verifies NewDetector returns a StubDetector.
+// TestNewDetectorReturnsStub verifies NewDetector returns a StubDetector when
+// dlib and the required models are unavailable. When they are present (as on
+// a developer machine with libdlib-dev installed), NewDetector returns a
+// RealDetector instead; that case is covered by TestNewDetectorReturnsReal.
 func TestNewDetectorReturnsStub(t *testing.T) {
 	d := NewDetector()
-	if _, ok := d.(StubDetector); !ok {
-		t.Errorf("NewDetector() = %T, want StubDetector", d)
+	if _, ok := d.(StubDetector); ok {
+		// dlib unavailable: StubDetector returned (expected)
+		return
 	}
+	// dlib available: RealDetector returned (not a failure)
+	t.Skip("dlib and models available; RealDetector returned (see TestNewDetectorReturnsReal)")
+
 }
 
 // TestStubDetectorReturnsErrDlibUnavailable verifies the stub always errors.
