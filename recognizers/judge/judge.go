@@ -213,15 +213,11 @@ func (j *Judge) request(ctx context.Context, entityType recognizers.EntityType, 
 		return false, fmt.Errorf("judge: response has no choices")
 	}
 	content := stripThinking(out.Choices[0].Message.Content)
-	answer := strings.TrimSpace(strings.ToLower(content))
-	switch answer {
-	case "yes":
-		return true, nil
-	case "no":
-		return false, nil
-	default:
+	answer := parseYesNo(content)
+	if answer == "" {
 		return false, fmt.Errorf("judge: unparseable answer %q", out.Choices[0].Message.Content)
 	}
+	return answer == "yes", nil
 }
 
 // systemPrompt returns the system instruction for the judge. It defines what a
@@ -273,18 +269,60 @@ func userPrompt(entityType recognizers.EntityType, candidate, window string) str
 }
 
 // stripThinking removes Qwen3-style thinking blocks from the response content.
-// If no block is found, the content is returned unchanged.
+// Qwen3-0.6B may emit thinking between "### Start of Thinking" / "### End of
+// Thinking" (the GBNF grammar in the original server) or as raw reasoning text.
+// Stripping known delimiters leaves the yes/no answer for parseYesNo.
 func stripThinking(content string) string {
-	start := strings.Index(content, thinkOpen)
+	// Handle "### Start of Thinking" / "### End of Thinking".
+	content = stripDelimitedBlock(content, thinkOpen, thinkClose)
+	// Handle Qwen3's native thinking delimiters if present.
+	content = stripDelimitedBlock(content, "<thinking>", "</thinking>")
+	content = stripDelimitedBlock(content, "### Start of Thinking", "### End of Thinking")
+	return content
+}
+
+// stripDelimitedBlock removes one opening...closing block from content.
+func stripDelimitedBlock(content, open, close string) string {
+	start := strings.Index(content, open)
 	if start < 0 {
 		return content
 	}
-	end := strings.Index(content[start:], thinkClose)
+	end := strings.Index(content[start:], close)
 	if end < 0 {
-		// Unclosed thinking block: drop from the opening tag onward.
 		return content[:start]
 	}
-	return content[:start] + content[start+end+len(thinkClose):]
+	return content[:start] + content[start+end+len(close):]
+}
+
+// parseYesNo extracts standalone "yes" or "no" tokens from content and returns
+// the last one (the model's conclusion after any reasoning). Empty string if none.
+func parseYesNo(content string) string {
+	lower := strings.ToLower(content)
+	result := ""
+	resultPos := -1
+	for _, token := range []string{"yes", "no"} {
+		for pos := 0; ; {
+			idx := strings.Index(lower[pos:], token)
+			if idx < 0 {
+				break
+			}
+			abs := pos + idx
+			// Word-boundary check: not preceded/followed by a letter.
+			beforeOk := abs == 0 || !isLetter(lower[abs-1])
+			after := abs + len(token)
+			afterOk := after >= len(lower) || !isLetter(lower[after])
+			if beforeOk && afterOk && abs > resultPos {
+				result = token
+				resultPos = abs
+			}
+			pos = abs + len(token)
+		}
+	}
+	return result
+}
+
+func isLetter(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
 }
 
 // judgeCacheKey is a comparable cache key for judge results. Using a struct
