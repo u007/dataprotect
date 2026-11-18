@@ -1,8 +1,13 @@
 # Directory Update Log
 
+## 2026-11-17
 
-
-
+* **Update**: LLM second pass — model choice (Qwen3-0.6B, Apache-2.0) ([decisions/llm-second-pass-model.md](/decisions/llm-second-pass-model.md))
+* **Update**: NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12) ([decisions/2026-11-12-session-findings.md](/decisions/2026-11-12-session-findings.md))
+* **Update**: LLM second pass — Phase 3 measurement results (Qwen3-0.6B, 5/10 on the MyKad fixture: 5/5 true positives, 0% FP drop, not recommended to enable) ([decisions/llm-second-pass-model.md](/decisions/llm-second-pass-model.md))
+* **Update**: LLM second pass — Phase 3 run-to-run stability ([decisions/llm-second-pass-model.md](/decisions/llm-second-pass-model.md)): measured across 2 runs on 127.0.0.1:8788 — identical verdicts both times (cases 0/1/3/5/9 OK; cases 2/4/6/7/8 MISMATCH; accuracy 5/10); deterministic output confirmed (temperature 0 + GBNF grammar `root ::= "yes" | "no"`).
+* **Update**: LLM second pass — Phase 3 conclusion revised to recall-first (Qwen3-0.6B: 100% recall on the MyKad fixture, zero FP drop, recall-first pass ships off by default) ([decisions/llm-second-pass-model.md](/decisions/llm-second-pass-model.md))
+* **Correction**: earlier log entry said Qwen3-0.6B is "not recommended to enable" ([decisions/llm-second-pass-model.md](/decisions/llm-second-pass-model.md)) — superseded by the recall-first, honest-about-mechanism conclusion: Qwen3-0.6B answers "yes" to all cases, so 100% recall comes from never rejecting anything; enabling = promoting every MYICValidator-passed bare 12-digit run to 0.85; recall-vs-precision product decision, pass ships off by default.
 
 ## 2026-11-14
 

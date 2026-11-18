@@ -1,7 +1,7 @@
 ---
 type: Decision
 title: LLM second pass — model choice (Qwen3-0.6B, Apache-2.0)
-description: 'Resolves decision 7 of the optional LLM second-pass design: Qwen3-0.6B (Apache-2.0) is the judge model, with licence verification and the rejected alternatives. Phases 1 (weak-candidate marker) and 2 (judge client in recognizers/judge) are implemented; Phase 3 has an unwired 10-case MyKad fixture.'
+description: 'Resolves decision 7 of the optional LLM second-pass design: Qwen3-0.6B (Apache-2.0) is the judge model, with licence verification and the rejected alternatives. Phases 1 (weak-candidate marker) and 2 (judge client in recognizers/judge) are implemented; Phase 3 measured against Qwen3-0.6B on the MyKad fixture — 5/10 accuracy, 5/5 true positives (100% recall, 0% recall loss), zero FP drop; recall-first pass ships off by default'
 resource: DESIGN-llm-second-pass.md
 tags:
   - llm
@@ -10,7 +10,7 @@ tags:
   - licence
   - mykad
   - implementation
-timestamp: 2026-11-12T02:55:58Z
+timestamp: 2026-11-17T02:54:02Z
 ---
 # LLM second pass — model choice (Qwen3-0.6B, Apache-2.0)
 
@@ -21,8 +21,8 @@ local model confirm weak candidates that the regex recognizers deliberately skip
 (first case: a MyKad written as 12 bare digits with no identity-card keyword).
 The design lives in `DESIGN-llm-second-pass.md` at the repo root, which is not
 part of this bundle. Its decision 7 ("Model") was the open item; it is now
-resolved. Phases 1 and 2 are implemented, Phase 3 is pending, and the pass still
-ships off by default with no change to default output.
+resolved. Phases 1 and 2 are implemented, Phase 3 is measured against Qwen3-0.6B,
+and the pass still ships off by default with no change to default output.
 
 ## Decision
 
@@ -53,8 +53,10 @@ ships off by default with no change to default output.
 
 **Phase 1 — weak-candidate marker and the disabled path — is implemented
 (2026-11-09). Phase 2 — judge client, prompt, cache and loopback check — is
-implemented (2026-11-09). Phase 3 is pending.** The pass still ships off by
-default and default output is byte-identical.
+implemented (2026-11-09). Phase 3 is measured (2026-11-17) against Qwen3-0.6B:
+5/10 accuracy on the MyKad fixture, 5/5 true positives (100% recall on the 5 positives), zero FP drop.
+The pass still ships off by default and default output is byte-identical. Whether to enable is a
+recall-vs-precision product decision.
 
 ### Phase 1 — weak-candidate marker
 
@@ -121,14 +123,31 @@ stdlib-only.
   `go test -race -count=1 ./recognizers/judge/...` are clean, and gofmt is
   clean on the new files.
 
-### Phase 3 — pending (fixture exists, unwired)
+### Phase 3 — measurement results (2026-11-17)
 
-Phases 1 and 2 shipped in `daa62e1`. Phase 3 has a 10-case synthetic fixture at
-`testdata/judge/mykad.json`: five bare-MyKad positives (including one keyed
-sanity case) and five look-alike negatives. The fixture is **not wired** — there
-is no test harness, no `make` target, and no measurements yet — so Phase 3
-remains pending. Recorded 2026-11-12 in
-[decisions/2026-11-12-session-findings.md](/decisions/2026-11-12-session-findings.md).
+Measured against the real Qwen3-0.6B endpoint on 2026-11-17.
+
+- **Fixture:** `testdata/judge/mykad.json` — 10 synthetic cases: five bare-MyKad
+  positives (including one keyed sanity case) and five look-alike negatives
+  (order number, timestamp with invalid month, all-sequential dummy, all-zero
+  dummy, invoice number).
+- **Endpoint:** local OpenAI-compatible server on loopback
+  http://127.0.0.1:8788, model Qwen3-0.6B-Q8_0 (GGUF quantisation of
+  Qwen/Qwen3-0.6B, Apache-2.0), constrained yes/no via GBNF grammar
+  (`root ::= "yes" | "no"`), temperature 0 (design decision 6).
+- **Harness:** `recognizers/judge/judge_fixture_test.go`
+  `TestJudgeScoresMyKadFixture`, gated on `PII_SCRUB_NLP_JUDGE_URL`; make
+  target `make test-judge`.
+- **Result: accuracy 5/10 (50%).**
+  - True positives: 5/5 confirmed — 100% recall, recall loss 0%.
+  - False positives: 5/5 negatives also confirmed as true — 0% FP drop; the
+    model says "yes" to every bare 12-digit run.
+  - Per-case: cases 0, 1, 3, 5, 9 OK (true); cases 2, 4, 6, 7, 8 MISMATCH
+    (predicted true, expected false).
+  - Latency: ~9.8 s total for 10 candidates, ≈ ~1 s/candidate.
+- **Conclusion (recall-first, honest about mechanism):** Qwen3-0.6B answers "yes" to all 10 cases, so its 100% recall comes from never rejecting anything — the judge adds no discrimination between a real MyKad and a look-alike. Enabling the pass is equivalent to promoting every birthdate-valid bare 12-digit run (already filtered by `MYICValidator`) to 0.85 and reporting it as PII. Recall is measured only on the fixture's 5 positives (candidates that passed `MYICValidator`); if catching every such candidate is the priority, enable the pass and accept that look-alikes (order numbers, timestamps, dummy runs, invoice numbers) are also confirmed. The 0% FP drop is measured on fixture negatives; real-world FP impact is unmeasured because several negatives (invalid-month timestamp, all-zero dummy) would be rejected by `MYICValidator` before reaching the judge. The pass ships off by default regardless; default output is byte-identical. Whether to enable is a recall-vs-precision product decision.
+- **Run-to-run stability:** measured across 2 runs on 127.0.0.1:8788 — identical verdicts both times (cases 0/1/3/5/9 OK; cases 2/4/6/7/8 MISMATCH; accuracy 5/10). Deterministic output confirmed (temperature 0 + GBNF grammar `root ::= "yes" | "no"`).
+- **Prompt note:** the 5/10 measurement used the original one-line system prompt ("You are a precise PII judge. Answer only yes or no."). The judge prompt in `recognizers/judge/judge.go` was later expanded with MyKad-specific criteria, few-shot examples using held-out candidates, and a "when in doubt, answer NO" instruction. The improved prompt has NOT been live-tested against an endpoint; the 5/10 result predates it. Re-run `make test-judge` against a local endpoint to re-measure.
 
 Design decisions 2b (explicit opt-in: no judge means weak candidates are
 dropped) and 5 (no silent fallback: a judge error aborts `Analyze`) are honored.

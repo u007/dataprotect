@@ -11,7 +11,7 @@ tags:
   - managed
   - review
   - status
-timestamp: 2026-11-14T13:25:45Z
+timestamp: 2026-11-17T02:58:15Z
 ---
 # NLP managed mode, ONNX and LLM second pass — session findings (2026-11-12)
 
@@ -115,19 +115,23 @@ line in
 [superpowers/specs/2026-10-28-multilingual-ner-design.md](/superpowers/specs/2026-10-28-multilingual-ner-design.md)
 is updated accordingly.
 
-## 3. LLM second pass — Phase 3 pending, fixture exists but is unwired
+## 3. LLM second pass — Phase 3 measured (2026-11-17)
 
 Phases 1 (weak-candidate marker) and 2 (judge client) shipped in `daa62e1`;
 the model is Qwen3-0.6B, Apache-2.0 (see
 [decisions/llm-second-pass-model.md](/decisions/llm-second-pass-model.md)).
 
-Phase 3 has a 10-case synthetic fixture at `testdata/judge/mykad.json`:
+Phase 3 measured Qwen3-0.6B on the 10-case MyKad fixture at
+`testdata/judge/mykad.json` (5 bare-MyKad positives, 5 look-alike negatives):
+accuracy 5/10, 5/5 true positives (100% recall, 0% recall loss), 0% FP drop.
+Qwen3-0.6B answers "yes" to all cases, so recall comes from never rejecting —
+the judge adds no discrimination. The pass ships off by default; default output
+is byte-identical. Enabling is a recall-vs-precision product decision. See
+[decisions/llm-second-pass-model.md](/decisions/llm-second-pass-model.md) for the
+full results section ("### Phase 3 — measurement results (2026-11-17)").
 
-- 5 bare-MyKad positives, including one keyed sanity case;
-- 5 look-alike negatives.
-
-It is **not wired**: there is no test harness, no `make` target, and no
-measurements. Phase 3 therefore remains pending regardless of the fixture.
+The fixture has a harness (`recognizers/judge/judge_fixture_test.go`, two
+tests) and a make target (`make test-judge`).
 
 ## 4. Phone — France bracket form stays a deliberate gap
 

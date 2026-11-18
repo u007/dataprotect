@@ -67,7 +67,7 @@ ONNX_CGO_LDFLAGS        := -L$(ONNX_TOKENIZERS_DIR)
 
 .PHONY: help download list info dry-run benchmark test test-race test-tools build vet fmt install install-all \
         corpus corpus-convert corpus-lang corpus-anonymize corpus-clean corpus-nlp clean-data presidio presidio-fetch \
-        build-sidecar test-sidecar vet-sidecar docs-sync test-ner docs-check \
+        build-sidecar test-sidecar vet-sidecar docs-sync test-ner test-judge docs-check \
         fetch-libtokenizers build-sidecar-onnx test-sidecar-onnx onnx-check
 
 help:
@@ -101,6 +101,7 @@ help:
 	@echo "  make onnx-check      compile gate for the onnx tag (no download, no model needed)"
 	@echo "  make docs-sync       copy SPEC.md and AGENTS.md into their docs/ bundle copies"
 	@echo "  make test-ner        run the NER accuracy gate (starts a sidecar, then stops it)"
+	@echo "  make test-judge      score the 10-case MyKad judge fixture against a running local endpoint"
 	@echo "  make clean-data      delete downloaded corpora (testdata/external)"
 	@echo "  make presidio        score Presidio's in-scope recognizer test cases (MIT, not committed)"
 
@@ -365,6 +366,22 @@ test-ner: build-sidecar
 	rm -f $(NER_BIN) .tmp-piiscrub-sidecar.pid; \
 	exit $$status
 
+
+# The LLM second-pass (MyKad judge) evaluation. Unlike test-ner, this target
+# does NOT start a model server: the judge runs against a user-supplied local
+# OpenAI-compatible endpoint serving Qwen3-0.6B (Apache-2.0) or a compatible
+# model (llama.cpp, ollama, vllm). Set PII_SCRUB_NLP_JUDGE_URL to the endpoint
+# or pass JUDGE_URL=...; the target fails fast if nothing is reachable.
+JUDGE_URL ?= $(or $(PII_SCRUB_NLP_JUDGE_URL),http://127.0.0.1:8788)
+
+test-judge:
+	@if ! curl -sf $(JUDGE_URL)/healthz >/dev/null 2>&1; then \
+		echo "test-judge: no endpoint reachable at $(JUDGE_URL)" >&2; \
+		echo "start a local OpenAI-compatible server (Qwen3-0.6B) and set" >&2; \
+		echo "PII_SCRUB_NLP_JUDGE_URL, or pass JUDGE_URL=..." >&2; \
+		exit 1; \
+	fi
+	@PII_SCRUB_NLP_JUDGE_URL=$(JUDGE_URL) $(GO) test -count=1 -run TestJudgeScoresMyKadFixture -v ./recognizers/judge/
 
 
 # The docs/ bundle holds copies of SPEC.md and AGENTS.md with a YAML frontmatter

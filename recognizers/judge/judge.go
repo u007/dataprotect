@@ -224,16 +224,47 @@ func (j *Judge) request(ctx context.Context, entityType recognizers.EntityType, 
 	}
 }
 
-// systemPrompt returns the system instruction for the judge.
+// systemPrompt returns the system instruction for the judge. It defines what a
+// Malaysian MyKad is (12 digits, YYMMDD birth date) and what to reject, so the
+// model can discriminate real IDs from look-alikes instead of confirming everything.
+//
+// Judge() is only called with recognizers.EntityMYIC (see analyzer/analyzer.go),
+// so the prompt is MyKad-specific. If other entity types are added later, the
+// prompt must be gated on entityType.
 func systemPrompt() string {
-	return "You are a precise PII judge. Answer only yes or no."
+	return `You are a precise PII judge for Malaysian MyKad (national ID) numbers.
+
+A MyKad is exactly 12 digits. The first 6 digits encode a birth date YYMMDD:
+  - Month must be 01-12
+  - Day must be valid for that month
+
+Answer YES only when the candidate is a real MyKad:
+  - 12 digits, valid birth date in the first 6 digits
+
+Answer NO for any look-alike:
+  - Order numbers, invoice numbers, serial numbers
+  - Timestamps with an invalid month (e.g. month 13 or 24)
+  - Repeating dummy runs (e.g. 111111111111, 999999999999)
+  - Any 12-digit run where the first 6 digits are not a valid date
+
+Use the context to decide. "order", "invoice", "serial" suggest a look-alike.
+"ref", "id", "mykad" suggest a real ID. When in doubt, answer NO.
+Answer only yes or no.`
 }
 
 // userPrompt builds the user message with the candidate and its context window.
 // The window is delimited with quotes so the judge cannot confuse it with the
-// candidate itself.
+// candidate itself. Examples use held-out candidates not present in the fixture
+// (testdata/judge/mykad.json) so re-testing is not inflated.
 func userPrompt(entityType recognizers.EntityType, candidate, window string) string {
 	var b strings.Builder
+	b.WriteString("Examples:\n")
+	b.WriteString("  Candidate: 850115123456, Context: \"ref 850115123456\" -> yes (valid date 1985-01-15)\n")
+	b.WriteString("  Candidate: 850115123456, Context: \"invoice 850115123456\" -> no (invoice number)\n")
+	b.WriteString("  Candidate: 202413011234, Context: \"timestamp 202413011234\" -> no (month 13 invalid)\n")
+	b.WriteString("  Candidate: 131313123456, Context: \"serial 131313123456\" -> no (month 13 invalid)\n")
+	b.WriteString("  Candidate: 999999999999, Context: \"ref 999999999999\" -> no (month 99 invalid)\n")
+	b.WriteString("\n")
 	b.WriteString(fmt.Sprintf("Is the following a %s?\n\n", string(entityType)))
 	b.WriteString("Candidate: " + candidate + "\n")
 	b.WriteString("Context (verbatim, may contain PII): \"" + window + "\"\n")
