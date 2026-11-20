@@ -1,5 +1,9 @@
 # Directory Update Log
 
+## 2026-11-20
+
+* **Update**: Dedicated redaction — typed numbered redaction markers ([docs/concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md), [docs/decisions/spec-v1.md](/decisions/spec-v1.md)): `Anonymizer.Redact(ctx, text, entities)` and `Scrubber.Redact(ctx, text)` replace every entity with markers such as `[[redactedperson1]]` or `[[redactedsocialnumber2]]`. Numbers count per type from 1 in text order; same type + same canonical value share one marker; `SSN` renders as `socialnumber`, other types lowercase with underscores stripped (`IP_ADDRESS` -> `ipaddress`, `CREDIT_CARD` -> `creditcard`). `Redact` ignores configured operators and redacts every type. `Anonymize`/`Scrubber.Anonymize` now renders `RedactOperator` as a typed marker instead of `[REDACTED]`; `RedactOperator.Replace` alone still returns `[REDACTED]`. Root files: `anonymizer/anonymizer.go`, `piiscrub.go`, plus tests.
+
 ## 2026-11-17
 
 * **Update**: LLM second pass — model choice (Qwen3-0.6B, Apache-2.0) ([decisions/llm-second-pass-model.md](/decisions/llm-second-pass-model.md))

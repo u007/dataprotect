@@ -171,9 +171,13 @@ The shapes for the national IDs and passports come from the sources in [SOURCES.
 | mask | `operators.NewMaskOperator("***-**-####")` | `123-45-6789` becomes `***-**-6789`; `#` keeps a character, `*` masks it, front-aligned |
 | tail mask | `operators.NewTailMaskOperator("***-***-####")` | `555-123-4567` becomes `***-***-4567`; a value longer than the pattern is aligned to the end |
 | hash | `operators.NewHashOperator(12)` | SHA-256 hex of the value, truncated to 12 characters (`0` keeps all 64); the same value gives the same hash |
-| redact | `operators.NewRedactOperator()` | the value becomes `[REDACTED]` |
+| redact | `operators.NewRedactOperator()` | redacted through `Anonymize`/`Scrubber.Anonymize` the value becomes a typed numbered marker such as `[[redactedperson1]]` or `[[redactedsocialnumber2]]`, numbered per type in order of appearance (`SSN` renders as `socialnumber`); `RedactOperator.Replace` called directly still returns `[REDACTED]` |
 
 Pseudonymization is not an operator. It is `Anonymizer.Pseudonymize`, or `Scrubber.Pseudonymize` and `Scrubber.PseudonymizeAll`, and it ignores the configured operators. Numbering is local to each call, so a caller that joins separately pseudonymized texts must restore each one before joining. See SPEC.md, "Core Interfaces".
+
+### Dedicated redaction
+
+`Scrubber.Redact(ctx, text)` and `Anonymizer.Redact(ctx, text, entities)` replace every detected entity with a typed numbered marker such as `[[redactedperson1]]` or `[[redactedsocialnumber2]]`, numbered per type from 1 in the order the entities appear in text. The same type and the same canonical value share one marker, so a repeated value reads as one thing. Every entity type is redacted, even ones with no operator of their own, so nothing is ever left unredacted; on error the result is empty. Unlike `Anonymize`, `Redact` ignores the configured replace/mask/hash operators and always redacts. It is `Anonymizer.Pseudonymize`, or `Scrubber.Pseudonymize` and `Scrubber.PseudonymizeAll`, and it ignores the configured operators. Numbering is local to each call, so a caller that joins separately pseudonymized texts must restore each one before joining. See SPEC.md, "Core Interfaces".
 
 ### Options
 
@@ -266,12 +270,12 @@ These are the actual outputs, measured, not illustrations:
 
 | Input | Without the NLP recognizer | With it |
 |---|---|---|
-| `John Smith called about the invoice.` | `John Smith called about the invoice.` | `[REDACTED] called about the invoice.` |
-| `Acme Corp is based in Frankfurt.` | `Acme Corp is based in Frankfurt.` | `[REDACTED] is based in [REDACTED].` |
-| `Contact Sarah Jones at Northgate Ventures in Copenhagen.` | `Contact Sarah Jones at Northgate Ventures in Copenhagen.` | `Contact [REDACTED] at [REDACTED] in [REDACTED].` |
-| `The audit was signed by Beatriz Nunez, the lead auditor, on 4 April.` | unchanged | `The audit was signed by [REDACTED], the lead auditor, on 4 April.` |
-| `Our client Halcyon Manufacturing Corp renewed the contract in Munich.` | unchanged | `Our client [REDACTED] renewed the contract in [REDACTED].` |
-| `Employee 1000000000009 filed the request from the Bangkok office.` | `Employee [REDACTED] filed the request from the Bangkok office.` | `Employee [REDACTED] filed the request from the [REDACTED] office.` |
+| `John Smith called about the invoice.` | `John Smith called about the invoice.` | `[[redactedperson1]] called about the invoice.` |
+| `Acme Corp is based in Frankfurt.` | `Acme Corp is based in Frankfurt.` | `[[redactedorganization1]] is based in [[redactedlocation1]].` |
+| `Contact Sarah Jones at Northgate Ventures in Copenhagen.` | `Contact Sarah Jones at Northgate Ventures in Copenhagen.` | `Contact [[redactedperson1]] at [[redactedorganization1]] in [[redactedlocation1]].` |
+| `The audit was signed by Beatriz Nunez, the lead auditor, on 4 April.` | unchanged | `The audit was signed by [[redactedperson1]], the lead auditor, on 4 April.` |
+| `Our client Halcyon Manufacturing Corp renewed the contract in Munich.` | unchanged | `Our client [[redactedorganization1]] renewed the contract in [[redactedlocation1]].` |
+| `Employee 1000000000009 filed the request from the Bangkok office.` | `Employee [[redactedthid1]] filed the request from the Bangkok office.` | `Employee [[redactedthid1]] filed the request from the [[redactedlocation1]] office.` |
 | `Email billing@acme-supply.example or call 555-123-4567. Card 4111111111111111.` | `Email <EMAIL> or call ***-***-4567. Card ****-****-****-1111.` | the same — the built-in types already had it |
 
 The last row matters as much as the first. The NLP path **adds** to the
@@ -383,7 +387,7 @@ func main() {
 	fmt.Println("ragged rows:", ragged)
 	// Output:
 	// id,email,note
-	// 1,<EMAIL>,card [REDACTED]
+	// 1,<EMAIL>,card [[redactedcreditcard1]]
 	// 2,<EMAIL>,short
 	// 3,<EMAIL>,
 	// ragged rows: 1
@@ -560,7 +564,7 @@ Each item links to its open entry in [TODO.md](TODO.md) or to the rule in [SPEC.
 - **Truncated international numbers.** `+55 11 98456 5666` is reported as `+55 11 98456`, so `5666` stays visible. `+33 1 42 68 53 00` is reported as `+33 1 42 68`. This was accepted as a user decision on 2026-10-16 (TODO.md, "Phone: truncated international numbers").
 - **Bare domains.** `microsoft.com` is not detected (TODO.md, "URL: bare domains").
 - **Merged card spans.** A span merged by the card-window search can cover two cards, or a card and a year. Its one placeholder restores as one original (TODO.md, "Merged card spans are one placeholder").
-- **Secret over-redaction.** A plain word of eight or more characters after a label is reported: `Password: Required` anonymizes to `Password: [REDACTED]`. Uniform values such as `00000000000000000000` are not reported. Dotted tails are kept or trimmed by a fixed rule (SPEC.md, "Recognizers", secret row).
+- **Secret over-redaction.** A plain word of eight or more characters after a label is reported: `Password: Required` anonymizes to `Password: [[redactedsecret1]]`. Uniform values such as `00000000000000000000` are not reported. Dotted tails are kept or trimmed by a fixed rule (SPEC.md, "Recognizers", secret row).
 - **Label boundary, accepted cost.** `pass` and `pwd` need a non-letter before them, so `bypass=` and `compass:` are not reported. The same rule means `dbpass=x` and `rootpwd=x` are not reported either (TODO.md, secret section, 2026-10-19).
 - **Closing bracket after a password.** One trailing `)`, `]` or `}` is dropped when whitespace or the end of text follows it and the value has no opener for it, so `(pass=Hunter2xyz)` reports `Hunter2xyz`. A closing bracket followed by a quote (`"Hunter2xyz)"`) is kept and over-redacts one byte; it does not leak the value (TODO.md, secret section, 2026-10-19).
 - **Provider tokens with no label, limits.** The formats in the SECRET row are matched by fixed prefix and shape only, so a token that does not follow the exact length is not reported (a GitHub token one character short is missed). Not covered: Slack `xoxa-`, `xoxr-` and `xoxs-` (no provider source found; see TODO.md), bare JWE, a bare JWT with a fourth segment, Stripe test keys (`sk_test_`), Stripe `sk_org_`, and the formats not listed. A token inside a URL is redacted as part of the URL, since the URL recognizer scores higher (0.99 against 0.98). Stated limits of the source-backed formats are in SOURCES.md.

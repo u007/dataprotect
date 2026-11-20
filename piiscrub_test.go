@@ -71,6 +71,54 @@ func TestScrubberAnalyze(t *testing.T) {
 	}
 }
 
+func TestScrubberAnonymizeRedactionTyped(t *testing.T) {
+	s := NewScrubber()
+	ctx := context.Background()
+
+	text := "my IP is 8.8.8.8 and my URL is https://example.com"
+	got, err := s.Anonymize(ctx, text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// IP and URL are redacted types; the output must say what type was removed.
+	for _, leak := range []string{"8.8.8.8", "https://example.com"} {
+		if strings.Contains(got, leak) {
+			t.Errorf("output still contains %q: %q", leak, got)
+		}
+	}
+	if !strings.Contains(got, "[[redactedipaddress1]]") {
+		t.Errorf("IP typed marker missing: %q", got)
+	}
+	if !strings.Contains(got, "[[redactedurl1]]") {
+		t.Errorf("URL typed marker missing: %q", got)
+	}
+}
+
+func TestScrubberRedact(t *testing.T) {
+	s := NewScrubber()
+	ctx := context.Background()
+
+	text := "Call 555-123-4567 or email a@b.com; SSN 123-45-6789."
+	got, err := s.Redact(ctx, text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, leak := range []string{"555-123-4567", "a@b.com", "123-45-6789"} {
+		if strings.Contains(got, leak) {
+			t.Errorf("output still contains %q: %q", leak, got)
+		}
+	}
+	if !strings.Contains(got, "[[redactedphone1]]") {
+		t.Errorf("phone marker missing: %q", got)
+	}
+	if !strings.Contains(got, "[[redactedemail1]]") {
+		t.Errorf("email marker missing: %q", got)
+	}
+	if !strings.Contains(got, "[[redactedsocialnumber1]]") {
+		t.Errorf("SSN marker missing: %q", got)
+	}
+}
+
 func TestScrubberNoPII(t *testing.T) {
 	s := NewScrubber()
 	text := "The weather is nice today."
@@ -273,7 +321,7 @@ func TestScrubberRedactsLuhnValidThaiIDAsThaiID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if out != "Citizen ID [REDACTED] on file" {
+	if out != "Citizen ID [[redactedthid1]] on file" {
 		t.Errorf("got %q, want the Thai ID fully redacted", out)
 	}
 }
@@ -414,7 +462,7 @@ func TestScrubberRedactsCardAfterDashIBAN(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Anonymize: %v", err)
 	}
-	if want := "[REDACTED]-****-****-****-1111 end"; out != want {
+	if want := "[[redactediban1]]-****-****-****-1111 end"; out != want {
 		t.Errorf("Anonymize = %q, want %q", out, want)
 	}
 }

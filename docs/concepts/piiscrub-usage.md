@@ -133,6 +133,28 @@ redacted, pseudonyms, err := s.Pseudonymize(context.Background(), "mail a@b.com 
 
 The map holds the original values in plain text. Protect it as you would the input.
 
+## Dedicated redaction
+
+`Anonymizer.Redact(ctx, text, entities)` and `Scrubber.Redact(ctx, text)` replace
+every detected value with a numbered redaction marker such as
+`[[redactedperson1]]` or `[[redactedsocialnumber2]]`, instead of `[REDACTED]`.
+
+- Numbers count per entity type from 1, in the order the entities appear in text.
+- The same type and the same canonical value share one marker, so a repeated
+  value reads as one thing: a repeated person is `[[redactedperson1]]` both times.
+- The type name inside the marker is lowercase with underscores stripped, except
+  `SSN`, which renders as `socialnumber` (`IP_ADDRESS` -> `ipaddress`,
+  `CREDIT_CARD` -> `creditcard`).
+- `Redact` ignores the configured replace/mask/hash operators and redacts every
+  entity type, even ones with no operator, so nothing is ever left unredacted.
+- Through the normal API, `Anonymize`/`Scrubber.Anonymize` renders
+  `RedactOperator` as a typed marker instead of `[REDACTED]`. `RedactOperator.Replace`
+  called directly still returns `[REDACTED]` (backward compatible).
+
+Numbering is local to the call. A text that already holds a marker-shaped token,
+or an out-of-bounds span, is rejected with an error; on any error the returned
+string is empty.
+
 ## Testing & dataset coverage
 
 `testdata/golden/seed.json` holds 556

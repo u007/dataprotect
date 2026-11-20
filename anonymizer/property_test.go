@@ -205,7 +205,14 @@ func TestAnonymizeInvariantsOnCorpus(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s on %q: unexpected error: %v", op.Name(), tc.text, err)
 			}
+			var redact *redactor
 			want := oracleSplice(tc.text, sortedAscending(tc.entities), func(e recognizers.Entity) string {
+				if isRedactOperator(op) {
+					if redact == nil {
+						redact = newRedactor()
+					}
+					return redact.markerFor(e.Type, e.Text)
+				}
 				out, err := op.Replace(ctx, e.Text)
 				if err != nil {
 					t.Fatalf("%s.Replace(%q): %v", op.Name(), e.Text, err)

@@ -203,6 +203,7 @@ func New(opts ...Option) *Anonymizer
 func (a *Anonymizer) SetOperator(entityType recognizers.EntityType, op operators.Operator)
 func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []recognizers.Entity) (string, error)
 func (a *Anonymizer) Pseudonymize(text string, entities []recognizers.Entity) (string, map[string]string, error)
+func (a *Anonymizer) Redact(ctx context.Context, text string, entities []recognizers.Entity) (string, error)
 ```
 
 `Pseudonymize` replaces every entity with a numbered placeholder named for its type,
@@ -236,6 +237,14 @@ reliably. The check applies to a text with no entities too, because a shared map
 (`PseudonymizeAll`) would rewrite such a token on restore. The check uses `recognizers.AllEntityTypes`. An unknown bracketed token is
 ordinary text. `Scrubber.Pseudonymize(ctx, text)` runs detection first. `make corpus-anonymize`
 checks the round trip over the corpora (up to spelling).
+
+`Redact` replaces every entity with a typed numbered marker such as
+`[[redactedperson1]]` or `[[redactedsocialnumber2]]`, numbered per type from 1
+in the order the entities appear in text. The same type and the same canonical
+value share one marker (`SSN` renders as `socialnumber`). Unlike `Anonymize`,
+`Redact` ignores the configured operators and redacts every entity type, so
+nothing is ever left unredacted; on any error the returned string is empty.
+`Scrubber.Redact(ctx, text)` runs detection first, then `Anonymizer.Redact`.
 
 Scope: `structured/` (CSV) pseudonymizes through `PseudonymizeCSV` (see Structured Data), which is `PseudonymizeAll` over the file's cells.
 
@@ -724,9 +733,9 @@ Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold t
 | `replace` | Substitute with fixed value | `john@example.com` → `<EMAIL>` |
 | `mask` | Partial masking | `4111111111111111` → `****-****-****-1111` |
 | `hash` | Deterministic SHA-256 | `john@example.com` → `a3f5c8...` |
-| `redact` | Remove entirely | `john@example.com` → `[REDACTED]` |
+| `redact` | Remove entirely | `john@example.com` → `[[redactedemail1]]` (typed marker, numbered per type) |
 
-`mask` is rune-based: one Unicode character is one slot, so a multi-byte rune is
+`RedactOperator.Replace` called directly still returns `[REDACTED]`; `Anonymizer.Redact` / `Scrubber.Redact` render redaction as typed numbered markers (see "Core Interfaces"). `mask` is rune-based: one Unicode character is one slot, so a multi-byte rune is
 never split — `é` with `#*` yields `é*`, not the invalid UTF-8 a byte-wise mask
 produced. `#` keeps a slot, `*` masks it, any other pattern character is a
 separator emitted verbatim, and an empty pattern masks every character. Input

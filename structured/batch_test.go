@@ -266,7 +266,10 @@ func TestCSVRetypesLuhnValidThaiIDToTHID(t *testing.T) {
 		t.Errorf("got %d ragged rows, want 0", ragged)
 	}
 	got := out.String()
-	if !strings.Contains(got, "[REDACTED]") {
+	if strings.Contains(got, "1000000000009") {
+		t.Errorf("Thai ID cell value leaked: %q", got)
+	}
+	if !strings.Contains(got, "[[redactedthid1]]") {
 		t.Errorf("Thai ID cell not redacted as TH_ID: %q", got)
 	}
 	if strings.Contains(got, "<CARD>") {

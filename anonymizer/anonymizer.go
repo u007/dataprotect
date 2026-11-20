@@ -82,17 +82,56 @@ func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []reco
 		}
 	}
 
-	result := text
-	for _, e := range ordered {
+	// A text that already holds a redaction marker could not be numbered
+	// unambiguously on restore, so reject it up front, like Redact does.
+	if token, ok := redactMarkerCollision(text); ok {
+		return "", fmt.Errorf("text already contains redaction marker %s, so numbering would be ambiguous", token)
+	}
+
+	// Compute every replacement before splicing anything. RedactOperator
+	// renders as a typed numbered marker ([[redacted<type>n]]) so the output
+	// says what type was removed; every other operator is called normally.
+	replacements := make([]string, len(ordered))
+	var redact *redactor
+	// Walk left to right so markers are numbered in the order entities appear
+	// in text (ordered is right-to-left).
+	for i := len(ordered) - 1; i >= 0; i-- {
+		e := ordered[i]
 		op := a.operatorFor(e.Type)
+		if isRedactOperator(op) {
+			if redact == nil {
+				redact = newRedactor()
+			}
+			replacements[i] = redact.markerFor(e.Type, e.Text)
+			continue
+		}
 		replacement, err := op.Replace(ctx, e.Text)
 		if err != nil {
 			return "", fmt.Errorf("operator %q on %s: %w", op.Name(), e.Type, err)
 		}
-		result = result[:e.Start] + replacement + result[e.End:]
+		replacements[i] = replacement
 	}
 
-	return result, nil
+	return spliceRightToLeft(text, ordered, replacements), nil
+}
+
+// isRedactOperator reports whether op is a redact operator, so every entity
+// type is redacted with a typed numbered marker regardless of configuration.
+func isRedactOperator(op operators.Operator) bool {
+	_, ok := op.(*operators.RedactOperator)
+	return ok
+}
+
+// spliceRightToLeft replaces each entity span with its replacement, walking
+// right to left so each span stays valid as the string grows or shrinks. All
+// replacements are computed before any splice, so a failure returns an empty
+// string rather than a partially rewritten document.
+func spliceRightToLeft(text string, ordered []recognizers.Entity, replacements []string) string {
+	result := text
+	for i, e := range ordered {
+		result = result[:e.Start] + replacements[i] + result[e.End:]
+	}
+	return result
 }
 
 // Pseudonymize replaces every entity with a numbered placeholder and returns the
@@ -207,11 +246,7 @@ func (a *Anonymizer) pseudonymizeText(p *pseudonymizer, text string, entities []
 	}
 
 	// Splice right-to-left, so each span is still valid when it is reached.
-	result := text
-	for i, e := range ordered {
-		result = result[:e.Start] + placeholders[i] + result[e.End:]
-	}
-	return result, nil
+	return spliceRightToLeft(text, ordered, placeholders), nil
 }
 
 // canonicalValue is the form two spellings of one value share. Digits identify a
@@ -318,4 +353,104 @@ func (a *Anonymizer) operatorFor(t recognizers.EntityType) operators.Operator {
 		return op
 	}
 	return a.defaultOp
+}
+
+// Redact replaces every entity with a numbered redaction marker such as
+// [[redactedperson1]] or [[redactedsocialnumber2]]. Numbers count per type
+// from 1, in the order the entities appear in text. The same type and the same
+// canonical value share one marker, so a repeated value reads as one thing.
+//
+// The marker keeps the entity type and a sequence number, so the output says
+// what was removed without revealing the value. Unlike Anonymize, Redact does
+// not use the configured operators: every entity type is redacted, even ones
+// with no operator of their own, so nothing is ever left unredacted.
+//
+// Numbering is local to the call. It is never stored on the Anonymizer, so
+// concurrent calls cannot share it.
+//
+// On any error the returned string is empty.
+func (a *Anonymizer) Redact(ctx context.Context, text string, entities []recognizers.Entity) (string, error) {
+	return a.redactText(newRedactor(), text, entities)
+}
+
+// redactKey is an entity type and the canonical form of a value. Two spellings
+// of one value (a card with and without spaces) have one key and share one
+// redaction marker.
+type redactKey struct {
+	entityType recognizers.EntityType
+	value      string
+}
+
+type redactor struct {
+	keyed    map[redactKey]string
+	counters map[recognizers.EntityType]int
+}
+
+func newRedactor() *redactor {
+	return &redactor{
+		keyed:    make(map[redactKey]string),
+		counters: make(map[recognizers.EntityType]int),
+	}
+}
+
+// markerFor returns the redaction marker for a value of the given type,
+// numbering a new one. The same type and canonical value reuse the first
+// marker issued.
+func (r *redactor) markerFor(entityType recognizers.EntityType, value string) string {
+	key := redactKey{entityType, canonicalValue(entityType, value)}
+	if marker, seen := r.keyed[key]; seen {
+		return marker
+	}
+	r.counters[entityType]++
+	marker := fmt.Sprintf("[[redacted%s%d]]", redactTypeName(entityType), r.counters[entityType])
+	r.keyed[key] = marker
+	return marker
+}
+
+// redactTypeName is the lowercase, underscore-free name used inside a redaction
+// marker. SSN is rendered as "socialnumber" so the marker reads naturally.
+func redactTypeName(t recognizers.EntityType) string {
+	switch t {
+	case recognizers.EntitySSN:
+		return "socialnumber"
+	default:
+		return strings.ToLower(strings.ReplaceAll(string(t), "_", ""))
+	}
+}
+
+// redactMarkerShape matches a redaction marker: [[redacted<name>n]].
+var redactMarkerShape = regexp.MustCompile(`\[\[redacted[a-z]+[0-9]+\]\]`)
+
+// redactMarkerCollision reports the first redaction-marker-shaped token in text.
+// A text that already holds one could not be numbered unambiguously.
+func redactMarkerCollision(text string) (string, bool) {
+	m := redactMarkerShape.FindStringIndex(text)
+	if m == nil {
+		return "", false
+	}
+	return text[m[0]:m[1]], true
+}
+
+// redactText replaces the entities of one text with redaction markers from r.
+func (a *Anonymizer) redactText(r *redactor, text string, entities []recognizers.Entity) (string, error) {
+	if token, ok := redactMarkerCollision(text); ok {
+		return "", fmt.Errorf("text already contains redaction marker %s, so numbering would be ambiguous", token)
+	}
+	if len(entities) == 0 {
+		return text, nil
+	}
+	ordered, err := validate(text, entities)
+	if err != nil {
+		return "", err
+	}
+
+	// Number left to right. ordered is right-to-left, so walk it backwards.
+	markers := make([]string, len(ordered))
+	for i := len(ordered) - 1; i >= 0; i-- {
+		e := ordered[i]
+		markers[i] = r.markerFor(e.Type, text[e.Start:e.End])
+	}
+
+	// Splice right-to-left, so each span is still valid when it is reached.
+	return spliceRightToLeft(text, ordered, markers), nil
 }

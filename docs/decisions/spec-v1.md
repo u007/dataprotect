@@ -219,6 +219,7 @@ func New(opts ...Option) *Anonymizer
 func (a *Anonymizer) SetOperator(entityType recognizers.EntityType, op operators.Operator)
 func (a *Anonymizer) Anonymize(ctx context.Context, text string, entities []recognizers.Entity) (string, error)
 func (a *Anonymizer) Pseudonymize(text string, entities []recognizers.Entity) (string, map[string]string, error)
+func (a *Anonymizer) Redact(ctx context.Context, text string, entities []recognizers.Entity) (string, error)
 ```
 
 `Pseudonymize` replaces every entity with a numbered placeholder named for its type,
@@ -268,6 +269,23 @@ An entity whose type has neither its own operator (`SetOperator`) nor a default
 (`WithDefaultOperator`) is also an error, checked before any splice. It is never
 returned unredacted. This is a breaking change for partial operator maps: a
 caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
+
+`Redact` replaces every entity with a numbered redaction marker such as
+`[[redactedperson1]]` or `[[redactedsocialnumber2]]`. Numbers count per entity
+type from 1, in the order the entities appear in text. The same type and the
+same canonical value share one marker, so a repeated value reads as one thing
+(a repeated person is `[[redactedperson1]]` both times). The type name inside
+the marker is lowercase with underscores stripped, except `SSN`, which renders
+as `socialnumber` (`IP_ADDRESS` -> `ipaddress`, `CREDIT_CARD` -> `creditcard`).
+
+Unlike `Anonymize`, `Redact` ignores the configured replace/mask/hash operators
+and redacts every entity type, even ones with no operator of their own, so
+nothing is ever left unredacted. Numbering is local to the call and is never
+stored on the `Anonymizer`, so concurrent calls do not share it. A text that
+already holds a marker-shaped token, or a span outside the text, is rejected
+with an error; on any error the returned string is empty.
+
+`Scrubber.Redact(ctx, text)` runs detection first, then redacts.
 
 ---
 
@@ -740,7 +758,7 @@ Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold t
 | `replace` | Substitute with fixed value | `john@example.com` → `<EMAIL>` |
 | `mask` | Partial masking | `4111111111111111` → `****-****-****-1111` |
 | `hash` | Deterministic SHA-256 | `john@example.com` → `a3f5c8...` |
-| `redact` | Remove entirely | `john@example.com` → `[REDACTED]` |
+| `redact` | Remove entirely; `Anonymize` renders it as a typed numbered marker `[[redacted<name>n]]` (`SSN` → `socialnumber`), while `Replace` alone still returns `[REDACTED]` | `[[redactedperson1]]` via `Anonymize`, `[REDACTED]` via `Replace` |
 
 `mask` is rune-based: one Unicode character is one slot, so a multi-byte rune is
 never split — `é` with `#*` yields `é*`, not the invalid UTF-8 a byte-wise mask

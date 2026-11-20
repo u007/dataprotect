@@ -98,7 +98,9 @@ func TestAnonymizeDefaultOperator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	want := "mail <EMAIL> ip [REDACTED]"
+	// IP falls to the default RedactOperator, which Anonymize renders as a
+	// typed numbered marker.
+	want := "mail <EMAIL> ip [[redactedipaddress1]]"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -293,7 +295,7 @@ func TestAnonymizeManyEntitiesIsDeterministic(t *testing.T) {
 		span(text, "123-45-6789", recognizers.EntitySSN),
 		span(text, "8.8.8.8", recognizers.EntityIP),
 	}
-	want := "aaa <EMAIL> bbb ***-***-4567 ccc ***-**-6789 ddd [REDACTED] eee"
+	want := "aaa <EMAIL> bbb ***-***-4567 ccc ***-**-6789 ddd [[redactedipaddress1]] eee"
 
 	ctx := context.Background()
 	for i := 0; i < 50; i++ {
@@ -353,5 +355,116 @@ func TestAnonymizeRepeatedTypeDifferentLengths(t *testing.T) {
 	want := "478abec7 and bb9819d3"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// TestRedact numbers markers per type, dedups a repeated value, and preserves
+// order across different-length replacements.
+func TestRedact(t *testing.T) {
+	a := New()
+
+	text := "bob and bob saw alice. SSN 123-45-6789."
+	entities := []recognizers.Entity{
+		span(text, "bob", recognizers.EntityPerson),                      // [0:3)
+		{Type: recognizers.EntityPerson, Start: 8, End: 11, Text: "bob"}, // second "bob"
+		span(text, "alice", recognizers.EntityPerson),                    // [16:21)
+		span(text, "123-45-6789", recognizers.EntitySSN),                 // [27:38)
+	}
+
+	got, err := a.Redact(context.Background(), text, entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// "bob" appears twice and shares marker [[redactedperson1]]; "alice" is
+	// [[redactedperson2]]; the SSN is [[redactedsocialnumber1]].
+	want := "[[redactedperson1]] and [[redactedperson1]] saw [[redactedperson2]]. SSN [[redactedsocialnumber1]]."
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// TestRedactEmpty returns the text unchanged with no entities.
+func TestRedactEmpty(t *testing.T) {
+	a := New()
+	got, err := a.Redact(context.Background(), "nothing here", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "nothing here" {
+		t.Errorf("got %q, want %q", got, "nothing here")
+	}
+}
+
+// TestRedactCollision rejects text that already holds a marker-shaped token.
+func TestRedactCollision(t *testing.T) {
+	a := New()
+	_, err := a.Redact(context.Background(), "already [[redactedperson1]]", nil)
+	if err == nil {
+		t.Fatalf("expected an error for a pre-existing redaction marker")
+	}
+}
+
+// TestRedactSpanOutOfBounds rejects an entity span outside the text.
+func TestRedactSpanOutOfBounds(t *testing.T) {
+	a := New()
+	e := recognizers.Entity{Type: recognizers.EntityPerson, Start: 0, End: 10, Text: "x"}
+	_, err := a.Redact(context.Background(), "short", []recognizers.Entity{e})
+	if err == nil {
+		t.Fatalf("expected an error for an out-of-bounds span")
+	}
+}
+
+// TestRedactTwoSpellingsDedup shares one marker for two spellings of the same
+// value (canonical value dedup by digits).
+func TestRedactTwoSpellingsDedup(t *testing.T) {
+	a := New()
+
+	text := "card 4111 1111 1111 1111 and card 4111111111111111"
+	entities := []recognizers.Entity{
+		span(text, "4111 1111 1111 1111", recognizers.EntityCreditCard),
+		span(text, "4111111111111111", recognizers.EntityCreditCard),
+	}
+
+	got, err := a.Redact(context.Background(), text, entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Both spellings of the same card share [[redactedcreditcard1]].
+	want := "card [[redactedcreditcard1]] and card [[redactedcreditcard1]]"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// TestRedactSSNRendersAsSocialNumber checks SSN renders as socialnumber.
+func TestRedactSSNRendersAsSocialNumber(t *testing.T) {
+	a := New()
+
+	text := "SSN 123-45-6789"
+	entities := []recognizers.Entity{
+		span(text, "123-45-6789", recognizers.EntitySSN),
+	}
+
+	got, err := a.Redact(context.Background(), text, entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "SSN [[redactedsocialnumber1]]"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// TestRedactOverlappingEntitiesError rejects overlapping spans.
+func TestRedactOverlappingEntitiesError(t *testing.T) {
+	a := New()
+	text := "a@b.com and 5551234567"
+	entities := []recognizers.Entity{
+		span(text, "a@b.com", recognizers.EntityEmail),
+		{Type: recognizers.EntityPhone, Start: 0, End: 13, Text: text[:13]},
+	}
+	_, err := a.Redact(context.Background(), text, entities)
+	if err == nil {
+		t.Fatalf("expected an error for overlapping spans")
 	}
 }

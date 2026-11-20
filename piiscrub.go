@@ -239,3 +239,14 @@ func (s *Scrubber) PseudonymizeAll(ctx context.Context, texts []string) ([]strin
 	}
 	return s.anonymizer.PseudonymizeAll(texts, entities)
 }
+
+// Redact detects PII in text and replaces every value with a numbered redaction
+// marker such as [[redactedperson1]] or [[redactedsocialnumber2]]. See
+// anonymizer.Redact for the numbering rules.
+func (s *Scrubber) Redact(ctx context.Context, text string) (string, error) {
+	entities, err := s.Analyze(ctx, text)
+	if err != nil {
+		return "", err
+	}
+	return s.anonymizer.Redact(ctx, text, entities)
+}
