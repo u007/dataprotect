@@ -9,6 +9,9 @@ import (
 	"github.com/u007/dataprotect/operators"
 	"github.com/u007/dataprotect/recognizers"
 	"github.com/u007/dataprotect/recognizers/checksum"
+	"github.com/u007/dataprotect/recognizers/finance"
+	"github.com/u007/dataprotect/recognizers/identity"
+	"github.com/u007/dataprotect/recognizers/legal"
 	"github.com/u007/dataprotect/recognizers/national"
 	"github.com/u007/dataprotect/recognizers/regex"
 	"github.com/u007/dataprotect/recognizers/secret"
@@ -43,6 +46,22 @@ func WithRecognizer(r recognizers.Recognizer) ScrubberOption {
 func WithMinConfidence(confidence float64) ScrubberOption {
 	return func(s *Scrubber) {
 		s.analyzer.SetMinConfidence(confidence)
+	}
+}
+
+// WithoutEntityTypes turns off the given entity types, so the scrubber never
+// reports them. Entities of a disabled type are dropped right after the
+// recognizers run, so a disabled type cannot win an overlap and hide the span
+// that another type would have reported. It is applied at construction time.
+//
+// For example, to keep bank account numbers and PINs out of the output:
+//
+//	scrubber := NewScrubber(
+//	    WithoutEntityTypes(recognizers.EntityBankAccount, recognizers.EntityPIN),
+//	)
+func WithoutEntityTypes(types ...recognizers.EntityType) ScrubberOption {
+	return func(s *Scrubber) {
+		s.analyzer.DisableEntityTypes(types...)
 	}
 }
 
@@ -154,6 +173,24 @@ func newScrubber(opts ...analyzer.Option) *Scrubber {
 	a.AddRecognizer(national.NewINGSTINRecognizer())
 	a.AddRecognizer(national.NewPHTINRecognizer())
 	a.AddRecognizer(secret.NewSecretRecognizer())
+	a.AddRecognizer(finance.NewSWIFTBICRecognizer())
+	a.AddRecognizer(finance.NewUSRoutingRecognizer())
+	a.AddRecognizer(finance.NewCardCVVRecognizer())
+	a.AddRecognizer(finance.NewBankAccountRecognizer())
+	a.AddRecognizer(finance.NewPINRecognizer())
+	a.AddRecognizer(identity.NewTaxIDRecognizer())
+	a.AddRecognizer(identity.NewPassportRecognizer())
+	a.AddRecognizer(identity.NewDriverLicenseRecognizer())
+	a.AddRecognizer(identity.NewDateOfBirthRecognizer())
+	a.AddRecognizer(finance.NewLEIRecognizer())
+	a.AddRecognizer(finance.NewISINRecognizer())
+	a.AddRecognizer(finance.NewEthereumRecognizer())
+	a.AddRecognizer(national.NewINPANRecognizer())
+	a.AddRecognizer(national.NewSGUENRecognizer())
+	a.AddRecognizer(national.NewMYSSMRecognizer())
+	a.AddRecognizer(national.NewMYTINRecognizer())
+	a.AddRecognizer(legal.NewCaseNumberRecognizer())
+	a.AddRecognizer(finance.NewMoneyRecognizer())
 
 	an := anonymizer.New()
 	an.SetOperator(recognizers.EntityEmail, operators.NewReplaceOperator("<EMAIL>"))
@@ -175,6 +212,25 @@ func newScrubber(opts ...analyzer.Option) *Scrubber {
 	an.SetOperator(recognizers.EntityPHTIN, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntityINGSTIN, operators.NewRedactOperator())
 	an.SetOperator(recognizers.EntitySecret, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntitySWIFTBIC, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityUSRouting, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityCardCVV, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityBankAccount, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityPIN, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityTaxID, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityPassport, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityDriverLicense, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityDateOfBirth, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityLEI, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityISIN, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityINPAN, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityEthereum, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntitySGUEN, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityMYSSM, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityMYTIN, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityCaseNumber, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityMoney, operators.NewRedactOperator())
+	an.SetOperator(recognizers.EntityCustomTerm, operators.NewRedactOperator())
 
 	return &Scrubber{
 		analyzer:      a,

@@ -1,7 +1,7 @@
 ---
 type: Concept
 title: piiscrub — Usage & Quick Start
-description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum, 7 national-ID and passport recognizers, 1 secret recognizer, 4 operators), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 556-case seed and its per-entity-type coverage gaps, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
+description: 'Entry point for using the piiscrub Go library: feature list (8 regex, 2 checksum, 11 national-ID and passport recognizers, 1 secret recognizer, 4 operators, plus 15 finance, identity and legal types added 2026-11-22, all on by default with WithoutEntityTypes as the opt-out), installation, two quick-start paths (manual Analyzer plus Anonymizer wiring, and the high-level Scrubber), measured accuracy over the 655-case seed and its per-entity-type coverage, the fetchable external corpora and their licences, the on-demand corpus measurement (`make corpus`) with its real numbers, and pointers to the architecture spec and development conventions.'
 tags:
   - pii
   - go
@@ -9,7 +9,7 @@ tags:
   - usage
   - anonymization
   - csv
-timestamp: 2026-11-06T16:00:01Z
+timestamp: 2026-11-22T19:26:13Z
 ---
 
 # piiscrub — Go PII Detection & Anonymization Library
@@ -20,10 +20,11 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
 
 - **8 regex recognizers** — email, phone, SSN, IP, URL, IBAN, bitcoin, plus a
   shape-only credit-card recognizer
-- **7 national ID and passport recognizers** — Singapore NRIC/FIN and passports,
+- **11 national ID and passport recognizers** — Singapore NRIC/FIN and passports,
   Malaysia MyKad and passports, Thai citizen ID, Philippine TIN, and Indian GSTIN,
   each validated by its own rule. Malaysia and Singapore passports need a passport
-  keyword; Thailand passports are not covered yet
+  keyword; Thailand passports are not covered yet. Four were added 2026-11-22
+  (`IN_PAN`, `SG_UEN`, `MY_SSM`, `MY_TIN`), each keyword-gated.
 - **2 checksum validators, wired into the default pipeline** — Luhn (credit
   cards), mod-97 (IBAN). Cards are detected by Luhn at 0.99, plus a
   Luhn-failing window at 0.85 when a label-style keyword ("card number",
@@ -31,14 +32,21 @@ A lightweight, dependency-free Go library for detecting and anonymizing PII in t
   a long number that fails the checksum is not redacted as payment data on
   shape alone.
 - **1 secret recognizer** — API keys, bearer/JWT tokens, PEM private keys, password assignments and provider tokens with no label (AWS, GitHub, Slack, Stripe, Google, npm, SendGrid, bare JWT), with a length floor per shape and a uniform-value check (every character the same, or a short unit repeated), so placeholders such as `00000000000000000000` are not reported
+- **15 finance, identity and legal types, added 2026-11-22** — on by
+  default. Finance: `SWIFT_BIC`, `US_ROUTING`, `CARD_CVV`, `BANK_ACCOUNT`, `PIN`,
+  `ISIN`, `MONEY`, `LEI`, `ETHEREUM`. Identity: `TAX_ID`, `PASSPORT`,
+  `DRIVER_LICENSE`, `DATE_OF_BIRTH`. Legal: `CASE_NUMBER`. Most are gated on a label keyword. `LEI`,
+  `ETHEREUM` and the shape forms of `CASE_NUMBER` need no keyword. Scores and overlap rules are in
+  [2026-11-22 decision record](../decisions/2026-11-22-finance-and-law-redaction.md).
+  Turn any of them off with `WithoutEntityTypes` (see below).
 - **4 operators** — replace, mask, hash, redact
 - **Structured data** — CSV batch processing
-- **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`)
+- **Context-aware** — opt-in confidence boosting from surrounding words (`analyzer.WithContextBoost()`), including legal role words (plaintiff, defendant, borrower, guarantor and Malay forms) for PERSON and ORGANIZATION
 - **Measured, not claimed** — a hand-labelled seed dataset, an on-demand corpus
   measurement over the fetched corpora, and a scoring runner
-  gate accuracy in CI. Current baseline over 556 cases: exact-span
-  P=1.0000 R=1.0000, overlap P=1.0000 R=1.0000. Run `scripts/benchmark.sh`.
-  The seed set is 556 cases, past the ~500 the accuracy targets assume, but it is
+  gate accuracy in CI. Current baseline over 655 cases: exact-span
+  P=1.0000 R=1.0000 (tp=449 fp=0 fn=0), overlap P=1.0000 R=1.0000. Run `scripts/benchmark.sh`.
+  The seed set is 655 cases, past the ~500 the accuracy targets assume, but it is
   hand-written, so treat the numbers as a floor rather than a result.
 - **Zero external dependencies** — stdlib only
 - **~100-200 MB RAM** — vs Presidio's 4 GB
@@ -133,6 +141,32 @@ redacted, pseudonyms, err := s.Pseudonymize(context.Background(), "mail a@b.com 
 
 The map holds the original values in plain text. Protect it as you would the input.
 
+## Turning entity types off, and caller-supplied terms
+
+Every finance, identity, national and legal type is on by default. To keep some
+out of the output, pass them to `WithoutEntityTypes` at construction time. A
+disabled type's entities are dropped right after the recognizers run, so they
+cannot win an overlap and hide another type's span:
+
+```go
+s := piiscrub.NewScrubber(
+    piiscrub.WithoutEntityTypes(recognizers.EntityBankAccount, recognizers.EntityPIN),
+)
+```
+
+`analyzer.DisableEntityTypes(types...)` is the same switch on a hand-built `Analyzer`.
+
+`CUSTOM_TERM` is not in the default pipeline. It reports exact terms the caller
+supplies, at score 1.00, and wins every overlap. Add it with `WithRecognizer`:
+
+```go
+r, err := terms.New(recognizers.EntityCustomTerm, "Project Falcon", "Acme Holdings")
+if err != nil {
+    return err
+}
+s := piiscrub.NewScrubber(piiscrub.WithRecognizer(r))
+```
+
 ## Dedicated redaction
 
 `Anonymizer.Redact(ctx, text, entities)` and `Scrubber.Redact(ctx, text)` replace
@@ -157,8 +191,8 @@ string is empty.
 
 ## Testing & dataset coverage
 
-`testdata/golden/seed.json` holds 556
-hand-labelled cases (353 positive, 203 negative), and `golden/accuracy_test.go`
+`testdata/golden/seed.json` holds 655
+hand-labelled cases (412 positive, 243 negative, 449 gold spans), and `golden/accuracy_test.go`
 gates on the exact measured baseline, so a regression fails the build instead of
 drifting silently. Labels are written from the text, never copied from detector
 output — a dataset derived from the detector's own predictions cannot fail and
@@ -166,15 +200,15 @@ proves nothing. Run `scripts/benchmark.sh` for the full report.
 
 | Match policy | Precision | Recall | F1 | tp/fp/fn |
 |---|---|---|---|---|
-| exact span | 1.0000 | 1.0000 | 1.0000 | 385/0/0 |
-| byte overlap | 1.0000 | 1.0000 | 1.0000 | 385/0/0 |
+| exact span | 1.0000 | 1.0000 | 1.0000 | 449/0/0 |
+| byte overlap | 1.0000 | 1.0000 | 1.0000 | 449/0/0 |
 
-Coverage by entity type, counting the cases that carry each type:
+Coverage by entity type, counting the labelled spans of each type in the seed (a case can carry several):
 
 | Entity type | Cases |
 |---|---|
 | EMAIL | 57 |
-| CREDIT_CARD | 56 |
+| CREDIT_CARD | 57 |
 | PHONE | 58 |
 | SSN | 36 |
 | IP_ADDRESS | 46 |
@@ -187,12 +221,32 @@ Coverage by entity type, counting the cases that carry each type:
 | MY_PASSPORT | 3 |
 | SG_PASSPORT | 2 |
 | SECRET | 37 (API key, token, password, PEM header, provider token with no label) |
+| MONEY | 12 |
+| BANK_ACCOUNT | 3 |
+| CARD_CVV | 3 |
+| PIN | 2 |
+| SWIFT_BIC | 2 |
+| US_ROUTING | 2 |
+| ISIN | 2 |
+| LEI | 2 |
+| ETHEREUM | 3 |
+| PASSPORT | 4 |
+| DRIVER_LICENSE | 2 |
+| DATE_OF_BIRTH | 3 |
+| TAX_ID | 3 |
+| IN_PAN | 2 |
+| SG_UEN | 3 |
+| MY_SSM | 3 |
+| MY_TIN | 3 |
+| CASE_NUMBER | 9 |
+
+`CUSTOM_TERM` has no seed entries: it reports only caller-supplied terms.
 
 The numbers are not perfect. Batch 2 exposed two detector defects. The URL one,
 a sentence-final period kept, is fixed. The other, a four-part version string
 read as an IP, is still open; that case stays labelled as written and is in
 TODO.md. The seed set
-is 556 cases, past the ~500 the accuracy targets assume, so read every
+is 655 cases, past the ~500 the accuracy targets assume, so read every
 number above as a floor rather than a result. This baseline was
 reached by fixing the phone recognizer's dropped leading `(` on parenthesised
 area codes — until that fix it was the single false positive and the single
@@ -215,7 +269,7 @@ restrict commercial use.
 | `pii-masking-43k` | custom dual-tier | restricted (≤3 staff) |
 | `piibench` | apache *declared* | audit first |
 
-Both clean corpora are fetchable **and now scored**: `make corpus` converts them
+Both clean corpora are fetchable **and scored**: `make corpus` converts them
 and prints a report (see SPEC.md § "Corpus measurement (2026-10-19)" for the
 numbers and what explains each gap). The conversion is schema-aware — each
 converted dataset carries a `schema.json` naming the entity types it labels, and
@@ -228,15 +282,26 @@ To score a language split with its own card-label phrases, set
 `PII_SCRUB_CARD_LANG=it ./scripts/benchmark.sh <split>/converted`. It applies
 `piiscrub.WithCardLanguages` and combines with `PII_SCRUB_NLP_URL`.
 
+Measured with the finance, identity, national and legal types in the pipeline
+(exact span, 2000 records per corpus). These figures come from the 2026-11-23
+measurement run; the corpus run was not repeated when this document was written:
+
 | | nemotron (2000 of 100000) | gretel (2000 of 5596) |
 |---|---|---|
-| exact | P=0.8357 R=0.2886 | P=0.3816 R=0.0957 |
-| byte overlap | P=0.8455 R=0.2919 | P=0.3986 R=0.1000 |
+| exact | P=0.8841 R=0.3326 (tp=3434 fp=450 fn=6892) | P=0.4397 R=0.1192 (tp=922 fp=1175 fn=6815) |
+
+Per-type figures for the new types, and the reasons for the low routing-number
+and bank-account precision, are in the
+[2026-11-22 decision record](../decisions/2026-11-22-finance-and-law-redaction.md).
+Most of the corpus routing numbers fail the ABA checksum, so US_ROUTING recall is
+low by construction on these samples.
 
 The recall is low because PERSON, ORGANIZATION and LOCATION became in-scope gold
-on 2026-10-20 and this is the regex-only pipeline, which does not implement them.
-Nemotron carries 3275 PERSON, 1988 LOCATION and 1018 ORGANIZATION false
-negatives; with the NLP sidecar the same samples give exact P=0.4376 R=0.4135.
+on 2026-10-20 and the regex-only pipeline does not implement them. Those per-type
+false negatives (nemotron 3275 PERSON, 1988 LOCATION, 1018 ORGANIZATION) were
+recorded before the finance, identity, national and legal types were added and
+were not re-derived. With the NLP sidecar, the 2026-10-21 run gave exact
+P=0.4376 R=0.4135 on the same samples; that run predates the new types too.
 
 Those are real numbers from a 2000-record sample, not a target: the seed set
 above is too small to test the detector at scale, while 2000 real records
@@ -298,7 +363,7 @@ figure, and it is recorded in the gate.
 
 ## Documentation
 
-See [spec-v1](../decisions/spec-v1.md) for full architecture and [development-conventions](development-conventions.md) for development conventions.
+See [spec-v1](../decisions/spec-v1.md) for full architecture, [development-conventions](development-conventions.md) for development conventions, and the [2026-11-22 finance and law redaction record](../decisions/2026-11-22-finance-and-law-redaction.md) for the new types.
 
 ## License
 

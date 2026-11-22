@@ -2,6 +2,13 @@
 // countries. Each recognizer finds candidates with a regex and keeps only those
 // its validator accepts, so a shape match alone is never reported.
 //
+// The country tax and registration numbers that have no checksum (IN_PAN,
+// SG_UEN, MY_SSM and MY_TIN) are keyword-gated like the rules in
+// recognizers/finance and recognizers/identity: the value is reported only after
+// a label for it, the span is the value alone, and every one scores 0.85. They
+// are in this package because each is a country's own number, not a card or
+// banking identifier.
+//
 // Coverage is deliberately narrow. Singapore NRIC/FIN is checked by its check
 // letter for the S, T, F and G prefixes; M is not supported because its check
 // table is unconfirmed. Malaysia MyKad has no checksum, so only the hyphenated

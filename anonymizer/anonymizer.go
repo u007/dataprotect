@@ -251,8 +251,9 @@ func (a *Anonymizer) pseudonymizeText(p *pseudonymizer, text string, entities []
 
 // canonicalValue is the form two spellings of one value share. Digits identify a
 // card, phone or SSN however they are grouped. An IBAN ignores case and separators.
-// An email is case-insensitive in practice. An IP is its netip form. Other values,
-// including URLs, are compared exactly.
+// An email is case-insensitive in practice. An IP is its netip form. A CUSTOM_TERM
+// ignores case and the amount of whitespace inside it, as its recognizer matches
+// them. Other values, including URLs, are compared exactly.
 func canonicalValue(entityType recognizers.EntityType, value string) string {
 	switch entityType {
 	case recognizers.EntityCreditCard, recognizers.EntityPhone, recognizers.EntitySSN:
@@ -273,6 +274,10 @@ func canonicalValue(entityType recognizers.EntityType, value string) string {
 			return addr.String()
 		}
 		return value
+	case recognizers.EntityCustomTerm:
+		// A caller's term matches case-insensitively and across any whitespace run,
+		// so its spellings share one marker.
+		return strings.Join(strings.Fields(strings.ToLower(value)), " ")
 	}
 	return value
 }

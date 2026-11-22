@@ -60,10 +60,10 @@ def load_seed(path=SEED):
 # unless the seed or the detector changes. They are captured here as the
 # expected values, cross-checked against the seed counts below.
 AGGREGATE = {
-    "total": 556,
-    "positive": 353,
-    "negative": 203,
-    "tp": 385,
+    "total": 655,
+    "positive": 412,
+    "negative": 243,
+    "tp": 449,
     "fp": 0,
     "fn": 0,
     "precision": "1.0000",
@@ -75,20 +75,38 @@ AGGREGATE = {
 # recorded here so the script can compare against both documents. This is the
 # single place to update when the seed changes.
 PER_TYPE = {
+    "BANK_ACCOUNT": 3,
     "BITCOIN": 13,
-    "CREDIT_CARD": 56,
+    "CARD_CVV": 3,
+    "CASE_NUMBER": 9,
+    "CREDIT_CARD": 57,
+    "DATE_OF_BIRTH": 3,
+    "DRIVER_LICENSE": 2,
     "EMAIL": 57,
+    "ETHEREUM": 3,
     "IBAN": 35,
+    "IN_PAN": 2,
     "IP_ADDRESS": 46,
+    "ISIN": 2,
+    "LEI": 2,
+    "MONEY": 12,
     "MY_IC": 3,
     "MY_PASSPORT": 3,
+    "MY_SSM": 3,
+    "MY_TIN": 3,
+    "PASSPORT": 4,
     "PHONE": 58,
+    "PIN": 2,
     "SECRET": 37,
     "SG_NRIC": 5,
     "SG_PASSPORT": 2,
+    "SG_UEN": 3,
     "SSN": 36,
+    "SWIFT_BIC": 2,
+    "TAX_ID": 3,
     "TH_ID": 4,
     "URL": 30,
+    "US_ROUTING": 2,
 }
 
 # Entity types that exist in recognizers.AllEntityTypes. NLP types
@@ -211,7 +229,7 @@ def extract_usage_numbers(text):
         claims["usage_negative"] = int(m.group(3))
 
     # Coverage table: | EMAIL | 51 |
-    for m in re.finditer(r"\|\s*(BITCOIN|CREDIT_CARD|EMAIL|IBAN|IP_ADDRESS|MY_IC|MY_PASSPORT|PHONE|SECRET|SG_NRIC|SG_PASSPORT|SSN|TH_ID|URL)\s*\|\s*(\d+)[^|]*\|", text):
+    for m in re.finditer(r"\|\s*(" + "|".join(PER_TYPE) + r")\s*\|\s*(\d+)[^|]*\|", text):
         claims[f"usage_type_{m.group(1)}"] = int(m.group(2))
 
     # Aggregate table rows: | exact span | 1.0000 | 0.9974 | 0.9987 | 384/0/1 |

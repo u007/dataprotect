@@ -296,9 +296,14 @@
   },
   {
     "id": "neg-ssn-account-number",
-    "note": "Bare nine digits in prose \u2014 the 449-FP shape.",
+    "note": "Bare nine digits in prose \u2014 the 449-FP shape. Still not an SSN. Its value is a labelled account number, so it carries a BANK_ACCOUNT label (added with the BANK_ACCOUNT type, 2026-11-22).",
     "text": "Account Number: 123456789 appears on the statement footer.",
-    "entities": []
+    "entities": [
+      {
+        "type": "BANK_ACCOUNT",
+        "value": "123456789"
+      }
+    ]
   },
   {
     "id": "neg-ssn-cas",
@@ -308,9 +313,14 @@
   },
   {
     "id": "neg-ssn-passport",
-    "note": "Bare nine digits that are not an SSN at all.",
+    "note": "Bare nine digits that are not an SSN at all. Relabelled 2026-11-22: under the generic PASSPORT keyword rule the value is a passport number, so it is a PASSPORT positive; it is still not an SSN.",
     "text": "Passport Number: 322996077 is shown on the visa page.",
-    "entities": []
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "value": "322996077"
+      }
+    ]
   },
   {
     "id": "pos-card-mastercard",
@@ -622,9 +632,14 @@
   },
   {
     "id": "neg-my-passport-wrong-prefix",
-    "note": "Keyword present, but the letter B is not one of the A, H or K prefixes Purview lists.",
+    "note": "Keyword present, but the letter B is not one of the A, H or K prefixes Purview lists. Relabelled 2026-11-22: the generic PASSPORT rule takes any letter and eight digits under the keyword, so this is a PASSPORT positive and not a MY_PASSPORT.",
     "text": "Passport Number: B12345678 was typed on the form.",
-    "entities": []
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "value": "B12345678"
+      }
+    ]
   },
   {
     "id": "pos-sg-passport-label",
@@ -1571,7 +1586,9 @@
     "id": "neg-currency-amount",
     "note": "Currency amount with thousands separators.",
     "text": "Budget is USD 1,250,000.00 for the quarter.",
-    "entities": []
+    "entities": [
+      {"type": "MONEY", "value": "USD 1,250,000.00"}
+    ]
   },
   {
     "id": "neg-ip-invalid-octet",
@@ -1979,12 +1996,16 @@
   },
   {
     "id": "pos-card-visa-16-dashed-cvv",
-    "note": "Visa with a dashed number followed by a CVV label.",
+    "note": "Visa with a dashed number followed by a CVV label. The CVV value is labelled CARD_CVV (added with the CARD_CVV type, 2026-11-22).",
     "text": "Card 4012-8888-8888-1881 CVV 123 was entered.",
     "entities": [
       {
         "type": "CREDIT_CARD",
         "value": "4012-8888-8888-1881"
+      },
+      {
+        "type": "CARD_CVV",
+        "value": "123"
       }
     ]
   },
@@ -2334,12 +2355,16 @@
   },
   {
     "id": "pos-ssn-table-row",
-    "note": "SSN in a labelled record next to a date of birth; the date is not labelled.",
+    "note": "SSN in a labelled record next to a date of birth. Relabelled 2026-11-22: DOB: 1984-03-02 is now a DATE_OF_BIRTH label; before that the date was deliberately unlabelled.",
     "text": "Name: Ruiz | SSN: 987-65-4320 | DOB: 1984-03-02",
     "entities": [
       {
         "type": "SSN",
         "value": "987-65-4320"
+      },
+      {
+        "type": "DATE_OF_BIRTH",
+        "value": "1984-03-02"
       }
     ]
   },
@@ -2672,7 +2697,10 @@
     "id": "neg-currency-codes",
     "note": "Currency codes with amounts.",
     "text": "Transfer USD 500 and EUR 420.50 this quarter.",
-    "entities": []
+    "entities": [
+      {"type": "MONEY", "value": "USD 500"},
+      {"type": "MONEY", "value": "EUR 420.50"}
+    ]
   },
   {
     "id": "neg-dates-mm-dd",
@@ -3518,12 +3546,16 @@
   },
   {
     "id": "pos-ssn-with-ein-nearby",
-    "note": "SSN beside an employer identification number, which is not an SSN.",
+    "note": "SSN beside an employer identification number, which is not an SSN. Relabelled 2026-11-22: the EIN 12-3456789 is a TAX_ID positive (valid IRS prefix 12).",
     "text": "SSN 987-65-4320; employer EIN 12-3456789 is separate.",
     "entities": [
       {
         "type": "SSN",
         "value": "987-65-4320"
+      },
+      {
+        "type": "TAX_ID",
+        "value": "12-3456789"
       }
     ]
   },
@@ -4525,7 +4557,9 @@
     "id": "neg-decimal-comma-price",
     "note": "Decimal-comma price.",
     "text": "Price per kg: 4,99 EUR this week.",
-    "entities": []
+    "entities": [
+      {"type": "MONEY", "value": "4,99 EUR"}
+    ]
   },
   {
     "id": "neg-flight-segments",
@@ -5227,5 +5261,817 @@
     "note": "A Gemini auth key with a 34-character body, one below the floor the bare shape requires. Nothing is reported, and the missing character is deliberate rather than a truncated copy of a real key.",
     "text": "The value AQ.Ab8R4xN6ig1shM8Q9xUooLyPtHooh8X2az is not a complete key.",
     "entities": []
+  },
+  {
+    "id": "pos-swift-bic-8",
+    "note": "SWIFT code positive: an 8-character BIC after a SWIFT code label.",
+    "text": "Please send the wire to SWIFT code DEUTDEFF before Friday.",
+    "entities": [
+      {
+        "type": "SWIFT_BIC",
+        "value": "DEUTDEFF"
+      }
+    ]
+  },
+  {
+    "id": "pos-swift-bic-11",
+    "note": "BIC positive: an 11-character BIC with a branch code after a BIC label.",
+    "text": "Beneficiary BIC: CHASUS33XXX, account details attached.",
+    "entities": [
+      {
+        "type": "SWIFT_BIC",
+        "value": "CHASUS33XXX"
+      }
+    ]
+  },
+  {
+    "id": "neg-swift-bic-no-label",
+    "note": "BIC-shaped value with no SWIFT or BIC label next to it.",
+    "text": "Our head office is DEUTDEFF in Frankfurt.",
+    "entities": []
+  },
+  {
+    "id": "neg-swift-bic-lowercase",
+    "note": "SWIFT label with a lowercase value; the shape is uppercase only.",
+    "text": "The swift code: deutdeff was typed in lowercase.",
+    "entities": []
+  },
+  {
+    "id": "pos-routing-number-label",
+    "note": "Routing number positive: a valid ABA number after the routing label.",
+    "text": "Bank routing number: 123456780 for the transfer.",
+    "entities": [
+      {
+        "type": "US_ROUTING",
+        "value": "123456780"
+      }
+    ]
+  },
+  {
+    "id": "pos-routing-aba-label",
+    "note": "ABA positive: a valid ABA number after the ABA label.",
+    "text": "Use ABA 123456780 for the receiving bank.",
+    "entities": [
+      {
+        "type": "US_ROUTING",
+        "value": "123456780"
+      }
+    ]
+  },
+  {
+    "id": "neg-routing-bad-checksum",
+    "note": "Routing label with nine digits that fail the ABA checksum.",
+    "text": "Routing number: 123456789 was printed on the form.",
+    "entities": []
+  },
+  {
+    "id": "neg-routing-bad-prefix",
+    "note": "Routing label with a valid checksum but a prefix outside every assigned range.",
+    "text": "Routing number 130000033 is on the cheque.",
+    "entities": []
+  },
+  {
+    "id": "neg-routing-no-label",
+    "note": "Valid ABA number with no routing label next to it.",
+    "text": "Reference 123456780 was logged at noon.",
+    "entities": []
+  },
+  {
+    "id": "pos-cvv-security-code",
+    "note": "Security code positive: three digits after a security code label.",
+    "text": "The card security code is 582 for this order.",
+    "entities": [
+      {
+        "type": "CARD_CVV",
+        "value": "582"
+      }
+    ]
+  },
+  {
+    "id": "pos-cvv-cid-four",
+    "note": "CID positive: a four-digit code, the American Express length.",
+    "text": "Amex CID 4821 was given over the phone.",
+    "entities": [
+      {
+        "type": "CARD_CVV",
+        "value": "4821"
+      }
+    ]
+  },
+  {
+    "id": "neg-cvv-five-digits",
+    "note": "CVV label with five digits; no three- or four-digit run has a boundary.",
+    "text": "CVV 12345 was rejected by the terminal.",
+    "entities": []
+  },
+  {
+    "id": "neg-cvv-no-label",
+    "note": "Three digits with no CVV-style label next to them.",
+    "text": "Order 582 shipped on Monday.",
+    "entities": []
+  },
+  {
+    "id": "pos-card-after-cvv-keyword",
+    "note": "A Luhn-valid card right after a CVV label: the card wins and no CARD_CVV is reported inside it.",
+    "text": "CVV 4012 8888 8888 1881 was entered.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "value": "4012 8888 8888 1881"
+      }
+    ]
+  },
+  {
+    "id": "pos-bank-account-number",
+    "note": "Account number positive: a ten-digit value after an account number label.",
+    "text": "Please wire funds to account number 0012345678 at the branch.",
+    "entities": [
+      {
+        "type": "BANK_ACCOUNT",
+        "value": "0012345678"
+      }
+    ]
+  },
+  {
+    "id": "pos-bank-bban",
+    "note": "BBAN positive: four letters and fourteen digits after a BBAN label.",
+    "text": "BBAN: SBPJ14329354627679 is the lender reference.",
+    "entities": [
+      {
+        "type": "BANK_ACCOUNT",
+        "value": "SBPJ14329354627679"
+      }
+    ]
+  },
+  {
+    "id": "neg-bank-account-no-label",
+    "note": "Ten digits with no account label next to them.",
+    "text": "Ticket 882134651 was logged at noon.",
+    "entities": []
+  },
+  {
+    "id": "neg-bank-account-too-short",
+    "note": "Account number label with seven digits, below the eight-character floor.",
+    "text": "Account number: 1234567 was read out twice.",
+    "entities": []
+  },
+  {
+    "id": "pos-pin-four",
+    "note": "PIN positive: a four-digit PIN after the word PIN.",
+    "text": "Enter your PIN 4821 at the terminal.",
+    "entities": [
+      {
+        "type": "PIN",
+        "value": "4821"
+      }
+    ]
+  },
+  {
+    "id": "pos-pin-six-account",
+    "note": "PIN positive: a six-digit account PIN after the word PIN.",
+    "text": "The account PIN is 482913 for phone banking.",
+    "entities": [
+      {
+        "type": "PIN",
+        "value": "482913"
+      }
+    ]
+  },
+  {
+    "id": "neg-pin-five-digits",
+    "note": "PIN label with five digits, which is not a PIN length.",
+    "text": "PIN 48291 was not accepted.",
+    "entities": []
+  },
+  {
+    "id": "neg-pin-no-keyword",
+    "note": "Six digits with no PIN label; the word pinned is not the keyword.",
+    "text": "The shipment weighed 482913 kilograms, pinned to the pallet.",
+    "entities": []
+  },
+  {
+    "id": "pos-tax-id-ein-label",
+    "note": "Employer identification number label before a valid EIN (prefix 12, NN-NNNNNNN). Identity keyword rule, added 2026-11-22.",
+    "text": "The new subsidiary needs its employer identification number: 12-3456789 is on the filing.",
+    "entities": [
+      {
+        "type": "TAX_ID",
+        "value": "12-3456789"
+      }
+    ]
+  },
+  {
+    "id": "pos-tax-id-letter-form",
+    "note": "Tax id label before a letter and eight digits (P-prefix form seen in the nemotron tax_id labels). Added 2026-11-22.",
+    "text": "The tax id is P12345678 per the registry extract.",
+    "entities": [
+      {
+        "type": "TAX_ID",
+        "value": "P12345678"
+      }
+    ]
+  },
+  {
+    "id": "neg-tax-id-invalid-ein-prefix",
+    "note": "An EIN-shaped value with prefix 00, which the IRS does not assign, under a tax id label. Added 2026-11-22.",
+    "text": "Tax ID: 00-1234567 was rejected by the portal.",
+    "entities": []
+  },
+  {
+    "id": "neg-tax-id-no-label",
+    "note": "An EIN-shaped value with no tax id label. Added 2026-11-22.",
+    "text": "The reference 12-3456789 is in the appendix table.",
+    "entities": []
+  },
+  {
+    "id": "pos-passport-generic-digits",
+    "note": "Passport no. before a nine-digit number; no MY or SG prefix. Added 2026-11-22.",
+    "text": "Passport no. 512345678 was scanned at check-in.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "value": "512345678"
+      }
+    ]
+  },
+  {
+    "id": "pos-passport-generic-letter",
+    "note": "Passport number label before a Z-prefix letter and eight digits, which no MY or SG rule takes. Added 2026-11-22.",
+    "text": "Your passport number is Z12345678 for this booking.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "value": "Z12345678"
+      }
+    ]
+  },
+  {
+    "id": "neg-passport-no-label",
+    "note": "A nine-digit number with no passport label. Added 2026-11-22.",
+    "text": "Ticket 512345678 was booked for the 9am flight.",
+    "entities": []
+  },
+  {
+    "id": "neg-passport-no-number",
+    "note": "The word passport with no number after it. Added 2026-11-22.",
+    "text": "Please bring your passport to the desk tomorrow.",
+    "entities": []
+  },
+  {
+    "id": "pos-dl-driver-license-number",
+    "note": "Driver license number label before a letter and digits with no hyphens (corpus shape). Added 2026-11-22.",
+    "text": "Driver's license number: D42533932 was checked at the counter.",
+    "entities": [
+      {
+        "type": "DRIVER_LICENSE",
+        "value": "D42533932"
+      }
+    ]
+  },
+  {
+    "id": "pos-dl-driving-licence",
+    "note": "Driving licence label before a hyphenated value (corpus shape). Added 2026-11-22.",
+    "text": "Driving licence 34-438489-77 is valid until 2029.",
+    "entities": [
+      {
+        "type": "DRIVER_LICENSE",
+        "value": "34-438489-77"
+      }
+    ]
+  },
+  {
+    "id": "neg-dl-no-label",
+    "note": "A hyphenated driver-licence-shaped value with no licence label. Added 2026-11-22.",
+    "text": "Order 34-438489-77 shipped on Monday.",
+    "entities": []
+  },
+  {
+    "id": "neg-dl-policy-number",
+    "note": "A policy number is not a driver licence label, although the corpus uses this value shape under it. Added 2026-11-22.",
+    "text": "Your policy number is 34-438489-77 for the claim.",
+    "entities": []
+  },
+  {
+    "id": "pos-dob-label",
+    "note": "Date of birth label before an ISO date. Only the date is labelled. Added 2026-11-22.",
+    "text": "Date of birth: 1984-03-02, next of kin on file.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "value": "1984-03-02"
+      }
+    ]
+  },
+  {
+    "id": "pos-dob-born-on",
+    "note": "Born on before a day-month-year date with a month name. Added 2026-11-22.",
+    "text": "She was born on 17 July 1990 in Leeds.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "value": "17 July 1990"
+      }
+    ]
+  },
+  {
+    "id": "neg-dob-no-label",
+    "note": "An ISO date with no birth label. Added 2026-11-22.",
+    "text": "The invoice was issued on 1984-03-02 for the consulting work.",
+    "entities": []
+  },
+  {
+    "id": "neg-dob-effective-date",
+    "note": "An effective date is not a date of birth. Added 2026-11-22.",
+    "text": "Effective date: 1984-03-02 for the renewal.",
+    "entities": []
+  },
+  {
+    "id": "pos-lei-wiki-example",
+    "note": "Wikipedia example LEI, MOD 97-10 check passes. Added 2026-11-23 (batch 3a).",
+    "text": "Entity LEI 54930084UKLVMY22DS16 is registered with the regulator.",
+    "entities": [
+      {
+        "type": "LEI",
+        "value": "54930084UKLVMY22DS16"
+      }
+    ]
+  },
+  {
+    "id": "pos-lei-synthetic",
+    "note": "Synthetic LEI with computed check digits, no label needed. Added 2026-11-23 (batch 3a).",
+    "text": "The legal entity identifier 7ZQ4R9TM2KLBNX8WD935 appears on the filing.",
+    "entities": [
+      {
+        "type": "LEI",
+        "value": "7ZQ4R9TM2KLBNX8WD935"
+      }
+    ]
+  },
+  {
+    "id": "neg-lei-bad-check-digit",
+    "note": "The page example with its last check digit changed. Added 2026-11-23 (batch 3a).",
+    "text": "The reference 54930084UKLVMY22DS17 was rejected by the registry.",
+    "entities": []
+  },
+  {
+    "id": "neg-lei-lowercase",
+    "note": "Lower-case letters are outside the LEI alphabet. Added 2026-11-23 (batch 3a).",
+    "text": "The code 54930084ukLVMY22DS16 is not an LEI because it has lower-case letters.",
+    "entities": []
+  },
+  {
+    "id": "pos-isin-wiki-example",
+    "note": "Wikipedia example ISIN with a keyword and a Luhn-valid check digit. Added 2026-11-23 (batch 3a).",
+    "text": "The ISIN US0378331005 identifies the security in the register.",
+    "entities": [
+      {
+        "type": "ISIN",
+        "value": "US0378331005"
+      }
+    ]
+  },
+  {
+    "id": "pos-isin-synthetic",
+    "note": "Synthetic ISIN with a computed Luhn check digit. Added 2026-11-23 (batch 3a).",
+    "text": "Settlement ISIN: DEK4M7P2Q9X4 is for the bond issue.",
+    "entities": [
+      {
+        "type": "ISIN",
+        "value": "DEK4M7P2Q9X4"
+      }
+    ]
+  },
+  {
+    "id": "neg-isin-bad-check-digit",
+    "note": "Labelled ISIN with a wrong check digit. Added 2026-11-23 (batch 3a).",
+    "text": "ISIN US0378331006 was quoted in error on the slip.",
+    "entities": []
+  },
+  {
+    "id": "neg-isin-no-label",
+    "note": "A Luhn-valid 12-character code with no ISIN label. Added 2026-11-23 (batch 3a).",
+    "text": "The security US0378331005 is listed in the table below.",
+    "entities": []
+  },
+  {
+    "id": "pos-pan-page-example",
+    "note": "Wikipedia example PAN, keyword PAN, holder type P. Added 2026-11-23 (batch 3a).",
+    "text": "PAN AAAPZ1234C is quoted on the form.",
+    "entities": [
+      {
+        "type": "IN_PAN",
+        "value": "AAAPZ1234C"
+      }
+    ]
+  },
+  {
+    "id": "pos-pan-permanent-account-number",
+    "note": "Full keyword with a synthetic PAN, holder type P. Added 2026-11-23 (batch 3a).",
+    "text": "The permanent account number is ZKLTA5432G for the director.",
+    "entities": [
+      {
+        "type": "IN_PAN",
+        "value": "ZKLTA5432G"
+      }
+    ]
+  },
+  {
+    "id": "neg-pan-wrong-holder-type",
+    "note": "Fourth character X is not a holder type. Added 2026-11-23 (batch 3a).",
+    "text": "PAN BNRXQ2468K is quoted on the form.",
+    "entities": []
+  },
+  {
+    "id": "neg-pan-no-label",
+    "note": "PAN-shaped value with no label. Added 2026-11-23 (batch 3a).",
+    "text": "The card BNRPQ2468K is printed on the form.",
+    "entities": []
+  },
+  {
+    "id": "pos-uen-rob",
+    "note": "UEN Business form, nine characters. Added 2026-11-23 (batch 3a).",
+    "text": "The UEN 53412378W is printed on the invoice.",
+    "entities": [
+      {
+        "type": "SG_UEN",
+        "value": "53412378W"
+      }
+    ]
+  },
+  {
+    "id": "pos-uen-roc",
+    "note": "UEN Local Company form, ten characters with a 2019 year. Added 2026-11-23 (batch 3a).",
+    "text": "The unique entity number 201912345M is on the register.",
+    "entities": [
+      {
+        "type": "SG_UEN",
+        "value": "201912345M"
+      }
+    ]
+  },
+  {
+    "id": "pos-uen-others",
+    "note": "UEN Others form starting with T, label business registration no. Added 2026-11-23 (batch 3a).",
+    "text": "Business registration no. T19LP5678H appears on the contract.",
+    "entities": [
+      {
+        "type": "SG_UEN",
+        "value": "T19LP5678H"
+      }
+    ]
+  },
+  {
+    "id": "neg-uen-no-check-letter",
+    "note": "Eight digits with no check letter is not a UEN. Added 2026-11-23 (batch 3a).",
+    "text": "The UEN 53412378 is short by one character.",
+    "entities": []
+  },
+  {
+    "id": "neg-uen-year-not-19-or-20",
+    "note": "The narrower reading requires a 19xx or 20xx year. Added 2026-11-23 (batch 3a).",
+    "text": "UEN 181212345M is not a valid local company number.",
+    "entities": []
+  },
+  {
+    "id": "neg-uen-no-label",
+    "note": "UEN-shaped value with no label. Added 2026-11-23 (batch 3a).",
+    "text": "The number 53412378W is in the table of stock codes.",
+    "entities": []
+  },
+  {
+    "id": "pos-ssm-page-example",
+    "note": "SSM announcement example, new 12-digit number with keyword Registration No. Added 2026-11-23 (batch 3a).",
+    "text": "Registration No: 201901000005 is printed on the certificate.",
+    "entities": [
+      {
+        "type": "MY_SSM",
+        "value": "201901000005"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssm-company-no",
+    "note": "Synthetic 12-digit number with keyword company no. Added 2026-11-23 (batch 3a).",
+    "text": "Company no 202001234567 is shown on the invoice.",
+    "entities": [
+      {
+        "type": "MY_SSM",
+        "value": "202001234567"
+      }
+    ]
+  },
+  {
+    "id": "pos-ssm-old-form",
+    "note": "Old form, one to seven digits, hyphen and one letter, keyword SSM. Added 2026-11-23 (batch 3a).",
+    "text": "SSM 1312525-A is the old number on the file.",
+    "entities": [
+      {
+        "type": "MY_SSM",
+        "value": "1312525-A"
+      }
+    ]
+  },
+  {
+    "id": "neg-ssm-eleven-digits",
+    "note": "Eleven digits is not the 12-digit form. Added 2026-11-23 (batch 3a).",
+    "text": "Registration no 20200123456 is short by one digit.",
+    "entities": []
+  },
+  {
+    "id": "neg-ssm-12-digits-no-label",
+    "note": "A bare 12-digit run with no SSM label. Added 2026-11-23 (batch 3a).",
+    "text": "Order 202001234567 shipped on Monday.",
+    "entities": []
+  },
+  {
+    "id": "neg-ssm-old-form-no-label",
+    "note": "Old-form number with no label. Added 2026-11-23 (batch 3a).",
+    "text": "The part 1312525-A is in stock.",
+    "entities": []
+  },
+  {
+    "id": "pos-tin-ig-prefix",
+    "note": "Individual TIN with prefix IG and ten digits, keyword TIN. Added 2026-11-23 (batch 3a).",
+    "text": "TIN IG4455667788 is on the return.",
+    "entities": [
+      {
+        "type": "MY_TIN",
+        "value": "IG4455667788"
+      }
+    ]
+  },
+  {
+    "id": "pos-tin-malay-label",
+    "note": "Malay label nombor pengenalan cukai with a C code. Added 2026-11-23 (batch 3a).",
+    "text": "Nombor pengenalan cukai C30770061120 untuk syarikat ini.",
+    "entities": [
+      {
+        "type": "MY_TIN",
+        "value": "C30770061120"
+      }
+    ]
+  },
+  {
+    "id": "pos-tin-income-tax-no",
+    "note": "Label income tax no with an E code and eleven digits. Added 2026-11-23 (batch 3a).",
+    "text": "Income tax no E12345678901 for the director.",
+    "entities": [
+      {
+        "type": "MY_TIN",
+        "value": "E12345678901"
+      }
+    ]
+  },
+  {
+    "id": "neg-tin-eight-digits",
+    "note": "Eight digits is below the 9-to-11 range. Added 2026-11-23 (batch 3a).",
+    "text": "TIN IG12345678 is incomplete.",
+    "entities": []
+  },
+  {
+    "id": "neg-tin-old-sg-prefix",
+    "note": "The SG prefix was converted to IG and is not accepted. Added 2026-11-23 (batch 3a).",
+    "text": "TIN SG123456789 was issued before 2023.",
+    "entities": []
+  },
+  {
+    "id": "neg-tin-no-label",
+    "note": "IG-shaped value with no label. Added 2026-11-23 (batch 3a).",
+    "text": "The reference IG123456789 is in the log.",
+    "entities": []
+  },
+  {
+    "id": "pos-eth-mixed-checksum",
+    "note": "Mixed-case address with a computed EIP-55 checksum. Added 2026-11-23 (batch 3a).",
+    "text": "Send the payment to 0x1a2B3C4d5e6F70819a2B3C4d5E6F70819a2B3C4D before Friday.",
+    "entities": [
+      {
+        "type": "ETHEREUM",
+        "value": "0x1a2B3C4d5e6F70819a2B3C4d5E6F70819a2B3C4D"
+      }
+    ]
+  },
+  {
+    "id": "pos-eth-mixed-checksum-2",
+    "note": "Second mixed-case address with a computed checksum. Added 2026-11-23 (batch 3a).",
+    "text": "The contract address is 0x9C4E2f1A7b8d30e5C6a9f2B1D4e7c8a0F3B6D9E2.",
+    "entities": [
+      {
+        "type": "ETHEREUM",
+        "value": "0x9C4E2f1A7b8d30e5C6a9f2B1D4e7c8a0F3B6D9E2"
+      }
+    ]
+  },
+  {
+    "id": "pos-eth-all-lower",
+    "note": "All-lowercase hex carries no checksum and is accepted by shape. Added 2026-11-23 (batch 3a).",
+    "text": "Wallet 0x1a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d is in the list.",
+    "entities": [
+      {
+        "type": "ETHEREUM",
+        "value": "0x1a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d"
+      }
+    ]
+  },
+  {
+    "id": "neg-eth-flipped-letter",
+    "note": "The checksummed address with one letter flipped to lower case fails EIP-55. Added 2026-11-23 (batch 3a).",
+    "text": "Send the payment to 0x1a2b3C4d5e6F70819a2B3C4d5E6F70819a2B3C4D before Friday.",
+    "entities": []
+  },
+  {
+    "id": "neg-eth-39-hex",
+    "note": "One hex character short of the 40-hex address shape. Added 2026-11-23 (batch 3a).",
+    "text": "Send the payment to 0x1a2B3C4d5e6F70819a2B3C4d5E6F70819a2B3C4 before Friday.",
+    "entities": []
+  },
+  {
+    "id": "pos-case-us-district-judges",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Plaintiff filed the complaint as 23-CV-0001-JFH-JFJ in the Northern District.",
+    "entities": [
+      {"type": "CASE_NUMBER", "value": "23-CV-0001-JFH-JFJ"}
+    ]
+  },
+  {
+    "id": "pos-case-us-criminal-defendant",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "The indictment in 3:00CR0001-01 names one defendant only.",
+    "entities": [
+      {"type": "CASE_NUMBER", "value": "3:00CR0001-01"}
+    ]
+  },
+  {
+    "id": "pos-case-sg-supreme-appeal",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "The appeal CA/CA 1/2021 is listed for hearing next month.",
+    "entities": [
+      {"type": "CASE_NUMBER", "value": "CA/CA 1/2021"}
+    ]
+  },
+  {
+    "id": "pos-case-sg-state-claim",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "The claim DC / OC 1 / 2022 was served on the respondent.",
+    "entities": [
+      {"type": "CASE_NUMBER", "value": "DC / OC 1 / 2022"}
+    ]
+  },
+  {
+    "id": "pos-case-sg-tribunal",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "The decision in SCT/10001/2022 is final and binding.",
+    "entities": [
+      {"type": "CASE_NUMBER", "value": "SCT/10001/2022"}
+    ]
+  },
+  {
+    "id": "pos-case-suit-no-label",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Suit No: 77/2020 was struck out with costs to the defence.",
+    "entities": [
+      {"type": "CASE_NUMBER", "value": "77/2020"}
+    ]
+  },
+  {
+    "id": "pos-case-malay-guaman-label",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Guaman Sivil No: 12-7/2021 telah ditetapkan untuk pendengaran.",
+    "entities": [
+      {"type": "CASE_NUMBER", "value": "12-7/2021"}
+    ]
+  },
+  {
+    "id": "pos-case-my-judgment-of-year",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Case No: WA-22NCC-591-11 OF 2022 was decided on the papers.",
+    "entities": [
+      {"type": "CASE_NUMBER", "value": "WA-22NCC-591-11 OF 2022"}
+    ]
+  },
+  {
+    "id": "pos-case-legal-paragraph-settlement",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Under the settlement, the plaintiff Tan Ah Kow and the defendant Acme Pte Ltd agreed to settle Suit No: 77/2020 for USD 45,000.00 payable in 30 days.",
+    "entities": [
+      {"type": "CASE_NUMBER", "value": "77/2020"},
+      {"type": "MONEY", "value": "USD 45,000.00"}
+    ]
+  },
+  {
+    "id": "neg-case-neutral-citation-sg",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "The principle is stated in [2021] SGHC 123 and applied in [2021] SGCA 5.",
+    "entities": []
+  },
+  {
+    "id": "neg-case-neutral-citation-my",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "The same point is reported at [2020] 1 MLJ 123 (FC) and nowhere else.",
+    "entities": []
+  },
+  {
+    "id": "neg-case-section-and-page",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Section 23 of the Act is cited at page 45 of 2021 of the report.",
+    "entities": []
+  },
+  {
+    "id": "neg-case-bare-shape-no-type",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Model 2023-XY-0001 shipped in May with the new firmware.",
+    "entities": []
+  },
+  {
+    "id": "neg-case-label-in-prose",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "The case no one expected was settled quietly after lunch.",
+    "entities": []
+  },
+  {
+    "id": "neg-money-bare-number-count",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "The warehouse holds 12,500 boxes in total across three floors.",
+    "entities": []
+  },
+  {
+    "id": "neg-money-rm-as-word",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "RM stands for ringgit in this document and is not an amount.",
+    "entities": []
+  },
+  {
+    "id": "neg-money-bcrypt-hash",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Store the hash $2a$10$N9qo8uLOickgx2ZMRZoMye in the table.",
+    "entities": []
+  },
+  {
+    "id": "neg-money-code-inside-word",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "The USDA reports 5 cattle sold at the auction this week.",
+    "entities": []
+  },
+  {
+    "id": "neg-money-env-variable",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Set $HOME and $PATH in the shell before running the script.",
+    "entities": []
+  },
+  {
+    "id": "pos-money-usd-symbol",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "The buyer wired $12,500 on Monday morning.",
+    "entities": [
+      {"type": "MONEY", "value": "$12,500"}
+    ]
+  },
+  {
+    "id": "pos-money-sgd-symbol",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Penalty of S$40,000 applies for each day of delay.",
+    "entities": [
+      {"type": "MONEY", "value": "S$40,000"}
+    ]
+  },
+  {
+    "id": "pos-money-rm-prefix",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Fee was RM 900 per month under the lease.",
+    "entities": [
+      {"type": "MONEY", "value": "RM 900"}
+    ]
+  },
+  {
+    "id": "pos-money-eur-code-suffix",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Settlement of 3.5m EUR was agreed in principle.",
+    "entities": [
+      {"type": "MONEY", "value": "3.5m EUR"}
+    ]
+  },
+  {
+    "id": "pos-money-gbp-scale-word",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Damages of £20k were awarded to the claimant.",
+    "entities": [
+      {"type": "MONEY", "value": "£20k"}
+    ]
+  },
+  {
+    "id": "pos-money-yen-symbol",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "The fee was ¥10,000 for the Tokyo hearing.",
+    "entities": [
+      {"type": "MONEY", "value": "¥10,000"}
+    ]
+  },
+  {
+    "id": "pos-money-malay-juta",
+    "note": "Added 2026-11-23 (batch 3b).",
+    "text": "Jumlah RM 2 juta untuk tuntutan itu.",
+    "entities": [
+      {"type": "MONEY", "value": "RM 2 juta"}
+    ]
   }
 ]

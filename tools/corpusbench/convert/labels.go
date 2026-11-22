@@ -52,6 +52,24 @@ var NemotronLabels = map[string]recognizers.EntityType{
 	"county":         recognizers.EntityLocation,
 	"postcode":       recognizers.EntityLocation,
 	"street_address": recognizers.EntityLocation,
+
+	// Finance identifiers, mapped on 2026-11-22. Each is a keyword-gated rule
+	// (see recognizers/finance). The corpora label them with a value that the
+	// keyword names, so the span is the value alone. Only the labels with
+	// unambiguous meaning are mapped: nemotron account_number is the account
+	// number, and cvv is the card security code.
+	"swift_bic":           recognizers.EntitySWIFTBIC,
+	"bank_routing_number": recognizers.EntityUSRouting,
+	"account_number":      recognizers.EntityBankAccount,
+	"cvv":                 recognizers.EntityCardCVV,
+	"pin":                 recognizers.EntityPIN,
+
+	// Identity types, mapped on 2026-11-22 (see recognizers/identity). Nemotron
+	// tax_id is the tax identification number; its date_of_birth is the date
+	// only, which the rule reports under a birth label. Nemotron has no passport
+	// or driver licence label.
+	"tax_id":        recognizers.EntityTaxID,
+	"date_of_birth": recognizers.EntityDateOfBirth,
 }
 
 // GretelLabels is gretel's equivalent map. It carries iban, which nemotron
@@ -80,6 +98,20 @@ var GretelLabels = map[string]recognizers.EntityType{
 	"street_address":     recognizers.EntityLocation,
 	"iban":               recognizers.EntityIBAN,
 	"api_key":            recognizers.EntitySecret,
+
+	// Finance identifiers, mapped on 2026-11-22 (see NemotronLabels). bban is
+	// the basic bank account number, the bank-account form gretel labels.
+	"swift_bic_code":            recognizers.EntitySWIFTBIC,
+	"bank_routing_number":       recognizers.EntityUSRouting,
+	"bban":                      recognizers.EntityBankAccount,
+	"credit_card_security_code": recognizers.EntityCardCVV,
+	"account_pin":               recognizers.EntityPIN,
+
+	// Identity types, mapped on 2026-11-22 (see NemotronLabels). Gretel has no
+	// tax_id label.
+	"passport_number":       recognizers.EntityPassport,
+	"driver_license_number": recognizers.EntityDriverLicense,
+	"date_of_birth":         recognizers.EntityDateOfBirth,
 }
 
 // BuildLabels turns corpus spans into golden labels.

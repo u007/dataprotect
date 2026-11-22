@@ -1,5 +1,12 @@
 # Directory Update Log
 
+## 2026-11-23
+
+* **Update**: piiscrub usage — feature list now covers the 38 entity types (19 finance, identity, national-ID and legal types added 2026-11-22, on by default, opt out with `piiscrub.WithoutEntityTypes`); seed is 655 cases (412 positive, 243 negative, 449 spans), exact and overlap P=1.0000 R=1.0000; coverage table counts labelled spans per type (column kept as Cases for docs_check), and covers the new types; corpus table replaced with the 2026-11-23 exact-span figures (nemotron P=0.8841 R=0.3326, gretel P=0.4397 R=0.1192), the unmeasured overlap row removed; `CUSTOM_TERM` usage via `WithRecognizer` ([concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md))
+* **Creation**: Finance and law redaction types — decision, overlap policy and measured state (2026-11-22) ([decisions/2026-11-22-finance-and-law-redaction.md](/decisions/2026-11-22-finance-and-law-redaction.md))
+* **Update**: piiscrub v1 Spec copy re-synced from SPEC.md with `make docs-sync`; description corrected from a 553-case to a 655-case seed. The synced body still carries SPEC.md's own stale lines (the `50 hand-labelled seed cases` tree listing, the 556-case measured table and the `No Asian ID recognizer is added yet` line), to be fixed in SPEC.md ([decisions/spec-v1.md](/decisions/spec-v1.md))
+* **Update**: piiscrub development conventions copy re-synced from AGENTS.md with `make docs-sync` ([concepts/development-conventions.md](/concepts/development-conventions.md))
+
 ## 2026-11-20
 
 * **Update**: Dedicated redaction — typed numbered redaction markers ([docs/concepts/piiscrub-usage.md](/concepts/piiscrub-usage.md), [docs/decisions/spec-v1.md](/decisions/spec-v1.md)): `Anonymizer.Redact(ctx, text, entities)` and `Scrubber.Redact(ctx, text)` replace every entity with markers such as `[[redactedperson1]]` or `[[redactedsocialnumber2]]`. Numbers count per type from 1 in text order; same type + same canonical value share one marker; `SSN` renders as `socialnumber`, other types lowercase with underscores stripped (`IP_ADDRESS` -> `ipaddress`, `CREDIT_CARD` -> `creditcard`). `Redact` ignores configured operators and redacts every type. `Anonymize`/`Scrubber.Anonymize` now renders `RedactOperator` as a typed marker instead of `[REDACTED]`; `RedactOperator.Replace` alone still returns `[REDACTED]`. Root files: `anonymizer/anonymizer.go`, `piiscrub.go`, plus tests.

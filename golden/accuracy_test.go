@@ -19,7 +19,7 @@ const datasetDir = "../testdata/golden"
 // moves recall by a large fraction — so a shrinking dataset would silently
 // weaken the gate rather than fail it. Ratcheted with each batch: it tracks the
 // current seed count, so any drop below it fails.
-const minCases = 556
+const minCases = 655
 
 // Gate thresholds.
 //
@@ -130,8 +130,45 @@ const minCases = 556
 // with a bad checksum, and a mixed-case bech32 address (BIP-173 forbids mixed
 // case). All stayed clean, so minCases moved from 553 to 556.
 //
-// The measured baseline is exact P=1.0000 R=1.0000 (tp=385 fp=0 fn=0), overlap
-// P=1.0000 R=1.0000 (tp=385 fp=0 fn=0), and 203 of 203 negative cases clean.
+// Batch 25 (2026-11-22) added the finance types (SWIFT_BIC, US_ROUTING,
+// CARD_CVV, BANK_ACCOUNT, PIN) with 22 synthetic cases: two or more positives and
+// negatives per type. Two existing cases gained a label for the new type, because
+// the detector now reports a span they did not name: pos-card-visa-16-dashed-cvv
+// (CVV 123, CARD_CVV) and neg-ssn-account-number (123456789, BANK_ACCOUNT). Both
+// stay what their ids say: the card case still has its card, and the account
+// number case still has no SSN. minCases moved from 556 to 578.
+//
+// Batch 26 (2026-11-22) added the identity types (TAX_ID, PASSPORT,
+// DRIVER_LICENSE, DATE_OF_BIRTH): 16 synthetic cases, two positives and two
+// negatives per type. Four existing cases gained a label for the new type, because
+// the detector reports a span they did not name, and each is listed here with its
+// text. Relabelled, not silently: all four are correct for the new type.
+//   - neg-ssn-passport, "Passport Number: 322996077": a PASSPORT positive. It is
+//     still not an SSN, and its note says so. It moved from negative to positive.
+//   - neg-my-passport-wrong-prefix, "Passport Number: B12345678": a PASSPORT
+//     positive, not a MY_PASSPORT (the B prefix is not AHK). It moved from
+//     negative to positive.
+//   - pos-ssn-table-row, "DOB: 1984-03-02": a DATE_OF_BIRTH label added. The note
+//     said the date was deliberately unlabelled; the detection is a true birth
+//     date under its label, so the label is added and the note updated.
+//   - pos-ssn-with-ein-nearby, "employer EIN 12-3456789": a TAX_ID label added.
+//
+// minCases moved from 578 to 594.
+//
+// Batch 27 (2026-11-23, batch 3a) added seven types, all ON by default: LEI,
+// ISIN, IN_PAN, ETHEREUM, SG_UEN, MY_SSM and MY_TIN. Each has at least two
+// positives and two negatives, 35 cases in all: 18 positives and 17 negatives.
+// The positives are the public page examples named in the recognizers, plus
+// synthetic values whose checksums were computed. Every positive matched exactly
+// and every negative stayed clean. No existing case gained a span of a new type,
+// so no existing case was relabelled. minCases moved from 594 to 629.
+//
+// The measured baseline is exact P=1.0000 R=1.0000 (tp=449 fp=0 fn=0), overlap
+// P=1.0000 R=1.0000 (tp=449 fp=0 fn=0), and 243 of 243 negative cases clean.
+// Batch 3b added 26 cases (CASE_NUMBER, MONEY) and labelled three existing
+// cases MONEY, which turns them from negatives into positives: neg-currency-amount,
+// neg-currency-codes (two amounts) and neg-decimal-comma-price. Their ids are
+// unchanged. 236 negatives before, minus those three, plus ten new ones = 243.
 // pos-phone-trunk-zero, the one earlier miss, is detected now, so the recall
 // bounds moved from 384/385 to 1.0.
 // These numbers describe this hand-labelled seed set, NOT the detector in general —
@@ -158,9 +195,9 @@ const minCases = 556
 // pos-card-then-year now reports "4111 1111 1111 1111 2024" against gold
 // "4111 1111 1111 1111". Overlap recall stays 1.0; exact bounds are re-measured.
 const (
-	minExactPrecision = 1.0 // tp=385 fp=0 -> 385/385 (see note)
-	minExactRecall    = 1.0 // tp=385 fn=0 -> 385/385 (see note)
-	minOverlapRecall  = 1.0 // tp=385 fn=0 -> 385/385 (see note)
+	minExactPrecision = 1.0 // tp=449 fp=0 -> 449/449 (see note)
+	minExactRecall    = 1.0 // tp=449 fn=0 -> 449/449 (see note)
+	minOverlapRecall  = 1.0 // tp=449 fn=0 -> 449/449 (see note)
 )
 
 // TestGoldenDatasetAccuracy scores the real detector against the hand-labelled

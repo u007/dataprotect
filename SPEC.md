@@ -54,7 +54,7 @@ Core interfaces + regex recognizers + checksum recognizers + 4 operators.
   changed on 2026-10-20 and "Corpus measurement" below carries the current ones. What is
   claimed here is the identity of boost-on and boost-off, not the level. Still off by default.
 - **Structured data** — CSV batch processing
-- **Golden dataset** — 556-case hand-labelled seed set for CI, plus an
+- **Golden dataset** — 655-case hand-labelled seed set for CI, plus an
   on-demand corpus measurement over the fetched corpora (`make corpus`)
 
 ### Later (v2+):
@@ -117,7 +117,7 @@ dataprotect/
 │   └── accuracy_test.go     # CI gate over testdata/golden
 ├── testdata/
 │   └── golden/
-│       └── seed.json        # 50 hand-labelled seed cases
+│       └── seed.json        # 655 hand-labelled seed cases
 └── scripts/
     └── benchmark.sh         # scores testdata/golden, prints the report
 ```
@@ -266,7 +266,7 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 
 ## Recognizers (MVP)
 
-| Recognizer | Entity Type | Method | Target | Measured (556-case seed) |
+| Recognizer | Entity Type | Method | Target | Measured (556-case seed; finance rows measured at 578 cases on 2026-11-22) |
 |------------|-------------|--------|--------|--------------------------|
 | Email | `EMAIL` | Regex (RFC 5322 simplified) | >99% P&R | P=1.0000 R=1.0000 |
 | Phone | `PHONE` | Regex (US/international/canonical E.164, plus France, Sweden, Germany and Netherlands national formats) | >98% P, >97% R | P=1.0000 R=1.0000 (re-measured 2026-11-04; `pos-phone-trunk-zero` is now detected. France/Sweden and Germany/Netherlands support added 2026-10-27 — see "Non-English phone formats") |
@@ -282,9 +282,25 @@ caller that wants redact-all for unlisted types passes `WithDefaultOperator`.
 | Malaysia passport | `MY_PASSPORT` | Regex (A/H/K + 8 digits) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Wikipedia and Purview, not PRADO) |
 | Singapore passport | `SG_PASSPORT` | Regex (E or K + 7 digits + letter) next to a passport keyword | >99% P&R | P=1.0000 R=1.0000 (keyword-backed; shape from Purview and the 2006 ICA BioPass description; K prefix and digit count not confirmed by PRADO) |
 | Secret | `SECRET` | Regex (API key, token, password assignment, PEM private key header), and provider token formats with no label (`bareShape`: AWS access key id `AKIA` or `ASIA`, GitHub `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` and `github_pat_`, Slack `xoxb-` and `xoxp-`, Stripe `sk_live_` and `rk_live_`, Google `AIza`, npm `npm_`, SendGrid `SG.`, and a bare JWT). A bare token is reported whole, its body must pass the uniform check, and it is dropped when it overlaps a labelled span. The formats and their sources are in SOURCES.md. A label may be followed by a closing quote (JSON `"api_key": ...`) and by spaces before its separator. The value is kept unless it is uniform: every character the same, or one unit of up to four characters repeated at least twice. There is no character-class rule, so a lower-case passphrase or an all-digit token is reported once its shape's length floor is met. Known tradeoff, accepted because the scrubber prefers over-redaction: a plain word of 8 or more characters after a label, such as `Password: Required`, is reported | >99% P&R | exact P=1.0000 R=1.0000 (tp=34 fp=0 fn=0); overlap P=1.0000 R=1.0000 on 34 positives, 17 negatives clean. The 9 bare-token positives (one per format) and 3 bare-token negatives match exactly. The span covers the value only, with the key name, separator, quotes and `Bearer ` outside it. A JWT or JWE with an `eyJ` header is captured whole at any header length, including a `dir` JWE with an empty second segment. A dotted token is captured to its end at any segment count. A single trailing dotted word is dropped only when whitespace follows it, so `Bearer <value>.Next step` keeps the value, while `token=<value>.abc` at the end of a text or before a quote is captured whole. A password drops one sentence-final `.` that is followed by whitespace or the end of text (`password: Rainbow@2025.` reports `Rainbow@2025`); `!`, `?` and `,` stay in the value. A password also drops one trailing `)`, `]` or `}` that is followed by whitespace, the end of text, or a closing quote when its value holds no matching opener (`(pass=Hunter2xyz)` reports `Hunter2xyz`; `Pa(ss)w0rd1` is kept whole). A short `pass` or `pwd` label needs a non-letter before it, so `bypass=kittenmitten` and `Route compass: northeastregion` are not passwords, while `db_pass=`, `db-pwd=` and `"pass": ` are; `password`, `passwd` and `secret` have no boundary, so `dbpassword=` and `mysecret=` match. Accepted cost: a letter directly before `pass` or `pwd` is no longer matched (`dbpass=x`, `rootpwd=x`) (TODO.md) |
+| SWIFT/BIC | `SWIFT_BIC` | Keyword-gated (SWIFT, BIC, SWIFT/BIC, SWIFT code, BIC code); ISO 9362 shape, 8 or 11 uppercase characters; any two letters as the country code (not IBAN-limited) | >99% P&R | 2026-11-22 seed: P=1.0000 R=1.0000 (2 positive, 2 negative) |
+| US routing | `US_ROUTING` | Keyword-gated (routing number, routing no, routing transit number, ABA, RTN); nine digits, ABA checksum and prefix range | >99% P&R | 2026-11-22 seed: P=1.0000 R=1.0000 (2 positive, 3 negative); corpus values mostly fail the checksum |
+| Card CVV | `CARD_CVV` | Keyword-gated (CVV, CVV2, CVC, CVC2, CID, CSC, CAV, security code, card verification); three or four digits | >99% P&R | 2026-11-22 seed: P=1.0000 R=1.0000 (3 positive including one relabelled case, 2 negative) |
+| Bank account | `BANK_ACCOUNT` | Keyword-gated (account number, account no, acct number, bank account, BBAN); no universal shape, corpus-derived | >99% P&R | 2026-11-22 seed: P=1.0000 R=1.0000 (3 positive including one relabelled case, 2 negative) |
+| PIN | `PIN` | Keyword-gated (PIN); four, six or eight digits, corpus-derived | >99% P&R | 2026-11-22 seed: P=1.0000 R=1.0000 (2 positive, 2 negative) |
+| Tax ID | `TAX_ID` | Keyword-gated (tax id, TIN, ITIN, EIN, employer identification number, taxpayer id); EIN with the IRS prefix list, or NNN-NN-NNNN (ITIN format, range not enforced), or a letter and eight digits | >99% P&R | 2026-11-22 seed: P=1.0000 R=1.0000 (2 positive, 2 negative); corpus recall 0.1935, see batch 2 addendum |
+| Passport | `PASSPORT` | Keyword-gated (passport, passport number, passport no); nine digits or a letter and eight digits; loses to MY_PASSPORT and SG_PASSPORT | >99% P&R | 2026-11-22 seed: P=1.0000 R=1.0000 (2 positive, 2 negative, 2 relabelled negatives) |
+| Driver licence | `DRIVER_LICENSE` | Keyword-gated (driver's license, driving licence, DL number); optional letters, digits and hyphens | >99% P&R | 2026-11-22 seed: P=1.0000 R=1.0000 (2 positive, 2 negative) |
+| Date of birth | `DATE_OF_BIRTH` | Keyword-gated (date of birth, DOB, birth date, born on); ISO, dd/mm/yyyy, Month D YYYY or D Month YYYY; reports the date only | >99% P&R | 2026-11-22 seed: P=1.0000 R=1.0000 (3 positive including two relabelled, 2 negative) |
+| LEI | `LEI` | ISO 17442 shape, MOD-97-10 check (ISO 7064); no keyword | >99% P&R | 2026-11-23 seed: P=1.0000 R=1.0000 (2 positive, 2 negative); unmeasured on corpora (out-of-schema) |
+| ISIN | `ISIN` | Keyword-gated (ISIN); 12 characters, Luhn over the letter-expanded digits | >99% P&R | 2026-11-23 seed: P=1.0000 R=1.0000 (2 positive, 2 negative); unmeasured on corpora |
+| IN PAN | `IN_PAN` | Keyword-gated (PAN, permanent account number); ten-character shape, holder type in position 4 | >99% P&R | 2026-11-23 seed: P=1.0000 R=1.0000 (2 positive, 2 negative); unmeasured on corpora |
+| Ethereum | `ETHEREUM` | `0x` plus 40 hex; EIP-55 checksum for mixed case (Keccak-256) | >99% P&R | 2026-11-23 seed: P=1.0000 R=1.0000 (3 positive, 2 negative); unmeasured on corpora; gretel fires 10 times on lower-case hex (see addendum) |
+| SG UEN | `SG_UEN` | Keyword-gated (UEN, unique entity number, business or company registration no); three shapes, check letter not published | >99% P&R | 2026-11-23 seed: P=1.0000 R=1.0000 (3 positive, 3 negative); unmeasured on corpora |
+| MY SSM | `MY_SSM` | Keyword-gated (registration no, company no, SSM, ROC, no. syarikat); 12 digits or old form | >99% P&R | 2026-11-23 seed: P=1.0000 R=1.0000 (3 positive, 3 negative); unmeasured on corpora |
+| MY TIN | `MY_TIN` | Keyword-gated (TIN, tax identification number, no. cukai); IG or a non-individual code plus 9 to 11 digits | >99% P&R | 2026-11-23 seed: P=1.0000 R=1.0000 (3 positive, 3 negative); unmeasured on corpora |
 
 **"Target" is a goal for a ~500-case dataset; "Measured" is what
-`scripts/benchmark.sh` reports today over the 556-case seed set.** Most measured
+`scripts/benchmark.sh` reports today over the 655-case seed set.** Most measured
 cells are 1.0. The cells below 1.0 are the defects listed in TODO.md. These cells
 are evidence only for this hand-labelled set, not for the detector in general.
 The Luhn and mod-97 validators are wired into the default pipeline.
@@ -667,6 +683,190 @@ out-of-schema instead of inflating false positives.
 
 ---
 
+## Corpus measurement addendum (2026-11-22)
+
+Batch 25 added five keyword-gated finance types (`SWIFT_BIC`, `US_ROUTING`,
+`CARD_CVV`, `BANK_ACCOUNT`, `PIN`), an opt-out switch (`WithoutEntityTypes`), and
+a rule that each finance type beats PHONE on overlap. The corpus labels for these
+types were unmapped before this entry; they are now mapped in
+`tools/corpusbench/convert/labels.go`. The "before" run was `make corpus` on the
+unchanged tree, and the "after" run is `make corpus` after the change, both on
+2026-11-22, with the same corpus revisions as the 2026-10-21 entry (nemotron
+`b70ffaf5ff39e079776134c5bf4381f00a9fd1ed`, gretel `7b844d16738527a04264f50214cb426a4cea0897`).
+
+The two corpora move in two ways, so compare them with care:
+
+- The finance labels are now in scope, so their spans are scored as gold. Before
+  the change they were set aside as unlabelled. Some cases that held only those
+  labels were negatives before and are positives now: nemotron negatives went from
+  71 to 49 and gretel from 280 to 273.
+- The overall overlap and PHONE figures move because a finance match now wins over
+  a PHONE match it overlaps.
+
+Overall, `make corpus` gave:
+
+| Corpus | Run | exact P | exact R | exact F1 | exact tp / fp / fn | overlap P | overlap R | negatives clean | set-aside detections (exact) |
+|---|---|---|---|---|---|---|---|---|---|
+| nemotron-pii | before | 0.8357 | 0.2886 | 0.4290 | 2655 / 522 / 6546 | 0.8455 | 0.2919 | 52 of 71 | 470 |
+| nemotron-pii | after | 0.8763 | 0.3166 | 0.4651 | 3174 / 448 / 6852 | 0.8849 | 0.3197 | 37 of 49 | 379 |
+| gretel-pii-finance | before | 0.3935 | 0.0975 | 0.1563 | 709 / 1093 / 6563 | 0.4112 | 0.1019 | 233 of 280 | 13 |
+| gretel-pii-finance | after | 0.4080 | 0.1068 | 0.1692 | 807 / 1171 / 6752 | 0.4242 | 0.1110 | 226 of 273 | 7 |
+
+The unlabelled-count figures in the schema moved as well: nemotron unmapped labels
+34 to 29, gretel 15 to 10.
+
+The corpus benchmark floors in `golden/benchmark_test.go` were re-based for the
+smaller negative population (71 to 49 for nemotron, 280 to 273 for gretel). Each
+keeps the same dirty-negative tolerance: nemotron 19, gretel 49. The clean floors
+are now 30 of 49 and 224 of 273. The measured dirty counts are 12 (nemotron) and
+47 (gretel, unchanged from before).
+
+Per type, after the change (exact, from `make corpus`). PHONE is the only type
+measured both before and after; its false positives fall on nemotron from 423 to
+347 and on gretel from 660 to 657 (tp unchanged at 556 and 291):
+
+| Corpus | Type | P | R | F1 | tp / fp / fn |
+|---|---|---|---|---|---|
+| nemotron-pii | BANK_ACCOUNT | 0.9927 | 0.8042 | 0.8885 | 271 / 2 / 66 |
+| nemotron-pii | CARD_CVV | 1.0000 | 0.7955 | 0.8861 | 70 / 0 / 18 |
+| nemotron-pii | PIN | 1.0000 | 0.7213 | 0.8381 | 88 / 0 / 34 |
+| nemotron-pii | SWIFT_BIC | 1.0000 | 0.7083 | 0.8293 | 68 / 0 / 28 |
+| nemotron-pii | US_ROUTING | 1.0000 | 0.1209 | 0.2157 | 22 / 0 / 160 |
+| gretel-pii-finance | BANK_ACCOUNT | 0.2143 | 0.3396 | 0.2628 | 18 / 66 / 35 |
+| gretel-pii-finance | CARD_CVV | 0.9048 | 0.3455 | 0.5000 | 19 / 2 / 36 |
+| gretel-pii-finance | PIN | 1.0000 | 0.5957 | 0.7467 | 28 / 0 / 19 |
+| gretel-pii-finance | SWIFT_BIC | 0.7619 | 0.4211 | 0.5424 | 32 / 10 / 44 |
+| gretel-pii-finance | US_ROUTING | 0.2500 | 0.0179 | 0.0333 | 1 / 3 / 55 |
+
+Reading the numbers. US_ROUTING recall is low because the labelled routing
+numbers in both corpora are mostly not valid ABA numbers: 1 of 56 gretel values and
+24 of 182 nemotron values pass the checksum and the prefix rule (measured against
+the converted spans; the rule is not loosened to match them). Gretel recall for
+SWIFT_BIC is limited in part by keyword absence: 36 of 76 gretel values have no
+SWIFT or BIC word in the 30 characters before them (measured). The causes of the
+gretel BANK_ACCOUNT false positives (66) and gretel SWIFT_BIC false positives (10)
+were not analysed in this batch; they are in TODO.md.
+
+### Identity types, batch 2 (2026-11-22)
+
+Four keyword-gated types were added in `recognizers/identity`: `TAX_ID`,
+`PASSPORT`, `DRIVER_LICENSE` and `DATE_OF_BIRTH`. Each scores 0.85, reports the
+value only (the date for `DATE_OF_BIRTH`), and is ON by default. The label gate is
+the shared `internal/keyword` package, which the finance rules also use. On
+overlap, each type beats PHONE and loses to CREDIT_CARD (as the finance types do);
+`TAX_ID` yields to SSN, PH_TIN and IN_GSTIN, and `PASSPORT` yields to MY_PASSPORT
+and SG_PASSPORT, because confidence alone does not keep those (PH_TIN scores 0.80,
+the passports tie at 0.85). Tests: `analyzer/overlap_test.go` and
+`recognizers/identity/identity_test.go`, and `without_entity_types_test.go` for the
+SSN-off case.
+
+Shapes and sources are in SOURCES.md, "Identity identifiers". Two decisions shape
+the measured numbers:
+
+- An `NNN-NN-NNNN` tax id is matched by the SSN rule at 0.99, which wins the
+  overlap, so default output reports it as SSN. TAX_ID reports it only with SSN
+  disabled. The ITIN range is documented but not enforced, because 21 of the 23
+  labelled SSN-format tax ids are outside it.
+- The seed gate stays exact P=1.0 R=1.0 with 219 of 219 negatives clean. Four
+  existing cases were relabelled for the new types (listed in
+  `golden/accuracy_test.go`, batch 26).
+
+Corpus, `make corpus` before and after the identity labels were mapped (exact
+span, in-schema scoring; the nemotron and gretel "before" rows are the batch-1
+state). The unchanged types were compared row by row and did not move.
+
+| Corpus | Run | exact P | exact R | exact F1 | exact tp / fp / fn | overlap P | overlap R | negatives clean | set-aside detections (exact) |
+|---|---|---|---|---|---|---|---|---|---|
+| nemotron-pii | before | 0.8763 | 0.3166 | 0.4651 | 3174 / 448 / 6852 | 0.8849 | 0.3197 | 37 of 49 | 379 |
+| nemotron-pii | after | 0.8841 | 0.3326 | 0.4833 | 3434 / 450 / 6892 | 0.8921 | 0.3356 | 35 of 44 | 358 |
+| gretel-pii-finance | before | 0.4080 | 0.1068 | 0.1692 | 807 / 1171 / 6752 | 0.4242 | 0.1110 | 226 of 273 | 7 |
+| gretel-pii-finance | after | 0.4397 | 0.1192 | 0.1875 | 922 / 1175 / 6815 | 0.4549 | 0.1233 | 225 of 272 | 9 |
+
+Negative populations changed: a case with a newly mapped gold label is a positive
+now (nemotron 49 to 44, gretel 273 to 272). No negative that stayed a negative became
+dirty with a new type (checked by listing every new-type detection on a negative).
+
+Per type, after the change (exact):
+
+| Corpus | Type | P | R | F1 | tp / fp / fn |
+|---|---|---|---|---|---|
+| nemotron-pii | TAX_ID | 1.0000 | 0.1935 | 0.3243 | 6 / 0 / 25 |
+| nemotron-pii | DATE_OF_BIRTH | 0.9922 | 0.9442 | 0.9676 | 254 / 2 / 15 |
+| gretel-pii-finance | PASSPORT | 1.0000 | 0.5333 | 0.6957 | 24 / 0 / 21 |
+| gretel-pii-finance | DRIVER_LICENSE | 1.0000 | 0.4490 | 0.6197 | 22 / 0 / 27 |
+| gretel-pii-finance | DATE_OF_BIRTH | 0.9452 | 0.8214 | 0.8790 | 69 / 4 / 15 |
+
+Reading the numbers. The nemotron TAX_ID misses are 23 SSN-format values (SSN wins
+the overlap) and 2 EIN values with words outside the filler list. TAX_ID also
+produced 12 gretel detections, out of schema because gretel has no tax_id label.
+The gretel DRIVER_LICENSE misses are mostly values with no licence label in the
+window (see TODO.md). Every type with a precision below 0.80 would need its false
+positives classified; none is below 0.94. The 2 nemotron and 4 gretel DATE_OF_BIRTH
+false positives are classified in TODO.md.
+
+The benchmark floors in `golden/benchmark_test.go` were raised to these measured
+ratios (nemotron exact P 3434/(3434+450), R 3434/(3434+6892), overlap R
+3465/(3465+6861); gretel exact P 922/(922+1175), R 922/(922+6815), overlap R
+954/(954+6783)). The negative floors (30 of 44 and 224 of 272) were kept.
+
+### Batch 3a types, seven checksum and keyword-gated identifiers (2026-11-23)
+
+Seven types were added, all ON by default, each reporting its value alone. Sources
+and the quoted shapes are in SOURCES.md, "Batch 3a identifiers (fetched 2026-11-22)".
+
+- **Checksum, no keyword.** `LEI` (ISO 7064 MOD 97-10, 0.90, like IN_GSTIN). The
+  mod-97 step is `checksum.Mod97Valid`, extracted from the IBAN validator so the two
+  share it; the IBAN rearrangement stays in the IBAN code. `ETHEREUM` (EIP-55
+  checksum for mixed case, 0.95, like BITCOIN). Go's `crypto/sha3` exposes SHA-3
+  only, so Keccak-256 is hand-written in `recognizers/checksum/keccak.go`, pinned by
+  the empty-input and "abc" digests.
+- **Checksum plus keyword.** `ISIN` (Luhn over the letter-expanded digits, keyword
+  ISIN, 0.85). The Luhn check passes about one random 12-character token in ten, so
+  the keyword is required.
+- **Keyword only, shape or published-format checks.** `IN_PAN`, `SG_UEN`, `MY_SSM`
+  and `MY_TIN`, all 0.85. Their check formulas are not published (IN_PAN, SG_UEN
+  check letter) or the source states no meaning for the digits (MY_SSM). Each is
+  keyword-gated so a bare run is never reported.
+
+Decisions, each the narrower reading of its source:
+
+- `SG_UEN`: the year is 19xx or 20xx; the check letter is any uppercase letter.
+  Foreign-company and ASGD/ITR forms are out.
+- `MY_SSM`: the digit groups are not validated. The old form (`1312525-A`) is
+  reported only after a label. A labelled 12-digit run is SSM, and a bare one is the
+  MY_IC weak candidate, which yields to MY_SSM on an exact overlap (`yields`).
+- `MY_TIN`: `IG` is the only individual prefix. `SG` and `OG` are not accepted,
+  because the source says they were converted to `IG`.
+- `IN_PAN`: the holder-type set is the source's ten letters, and the GSTIN case is
+  handled by the label and boundary plus an explicit IN_GSTIN yield.
+
+Overlap: the five keyword-gated types join `isKeywordGated`, so each beats PHONE and
+loses to CREDIT_CARD. Three new `yields` rules: TAX_ID yields to MY_TIN, IN_PAN
+yields to IN_GSTIN, and MY_IC yields to MY_SSM. Tests are in
+`analyzer/keyword_types_overlap_test.go` (each pair in both orders) and in
+`new_types_test.go`, which runs the full Scrubber over the contexts the spec named:
+an Ethereum address in four contexts that SECRET does not claim, a labelled 12-digit
+SSM against a bare MyKad run, UEN against NRIC, a GSTIN against a PAN label, and a
+TIN against TAX_ID.
+
+Measured:
+
+- Seed: exact and overlap P=1.0000 R=1.0000 (tp=428 fp=0 fn=0), 236 of 236 negatives
+  clean, `minCases` 594 to 629. The 35 new cases are 18 positives and 17 negatives.
+  No existing case gained a span of a new type, so none was relabelled.
+- Corpus (`make corpus`, before and after): the in-schema rows are identical on both
+  corpora. nemotron-pii: exact P=0.8841 R=0.3326, overlap P=0.8921 R=0.3356. gretel:
+  exact P=0.4397 R=0.1192, overlap P=0.4549 R=0.1233. The only change in the output
+  is one new out-of-schema entry on gretel, `ETHEREUM=10`. nemotron has no new-type
+  detections. The new types have no per-type rows, because the corpora do not label
+  them and the benchmark reports only the out-of-schema counts for them.
+- ETHEREUM fires 10 times on gretel, in 4 of 2000 cases (gretel-pii-finance-000628,
+  000959, 001691 and 001708). Most are all-lowercase `0x` plus 40 hex, which the
+  spec accepts by shape, in CSV and JSON-like text. One is the mixed-case
+  `0x742d35Cc6634C0532925a3b844Bc454e4438f44e`, which passes its checksum. The
+  corpus does not label wallet addresses, so these are out-of-schema, not false
+  positives. The shape-only lower-case rule is the cause and is left as specified.
+
 ## Presidio test cases (2026-10-15)
 
 Presidio (microsoft/presidio, MIT) ships a test suite with per-type PII cases. Its in-scope modules are converted by `scripts/presidio_extract.py` and scored with `make presidio`. Pin: `2523c7b74a469270c5c78bb253f140eafca21e31`. Converted data lives in `testdata/external/presidio/` (gitignored). The CI gate still runs only on `testdata/golden/`. The numbers below are a measurement, not a gate, and no recognizer changed for them.
@@ -718,7 +918,7 @@ Real-text recall did not move: the corpora have no Luhn-valid CREDIT_CARD gold t
 
 **Spaced IBAN followed by uppercase blocks, fixed 2026-10-15.** `GB82 WEST 1234 5698 7654 32 ALL FEES` and `DE89 3704 0044 0532 0130 00 BIC TESTDEFF` now keep the IBAN. `checksum.ibanSpan` tries cuts from the right, not only the last space. Cost, measured: Presidio IBAN exact fp 0 to 3 (P 1.0 to 0.9812, R 0.9937 unchanged). The three are chance mod-97 passes on shorter cuts of negatives (`MC58 A122 2000 0101`, `JO94 CBJO 0010 0000 0000 0131`). Gretel IBAN unchanged (P 0.9556, R 0.9773). A country-length table would remove them (TODO).
 
-**Scope decisions, 2026-10-15 (user).** IPv6 is in scope. `regex.IPRecognizer` reports an IPv6 candidate only when `netip` parses it, so clock times and MAC addresses stay out (commit `06b84dc`). Not in scope, documented: bare domains; national phone formats for Israel, Japan and UK (Presidio uses the `phonenumbers` library, which this dependency-free design does not use); and the Thai extra rule, so Thai stays on mod-11. SSN stays shape-only. Adopting Presidio's never-issued rules needs seed and test changes the user has not approved. Asian IDs: `ph_tin` then `in_gstin`, once their format documents are supplied. No Asian ID recognizer is added yet.
+**Scope decisions, 2026-10-15 (user).** IPv6 is in scope. `regex.IPRecognizer` reports an IPv6 candidate only when `netip` parses it, so clock times and MAC addresses stay out (commit `06b84dc`). Not in scope, documented: bare domains; national phone formats for Israel, Japan and UK (Presidio uses the `phonenumbers` library, which this dependency-free design does not use); and the Thai extra rule, so Thai stays on mod-11. SSN stays shape-only. Adopting Presidio's never-issued rules needs seed and test changes the user has not approved. Asian IDs: `ph_tin` then `in_gstin`, once their format documents are supplied. The national recognizers added since then are SG_NRIC, MY_IC, TH_ID, MY_PASSPORT, SG_PASSPORT, PH_TIN, IN_GSTIN, IN_PAN, SG_UEN, MY_SSM and MY_TIN (see the Recognizers table in README.md).
 
 **IPv6 span conventions and residuals, 2026-10-15.** An address after a label colon is reported (`IP:2001:db8::1`, `id:fe80::1`). Two residuals remain, and both are kept (decided 2026-10-16). First, an address glued to a word that ends in digits (`text2001:db8::1`) is read as label plus address, so the leading group stays visible. The same rule is what fixes `id:fe80::1`, so a fix must keep both. Second, a candidate that is not a valid address but whose suffix is (`2a02:4d60:1031:4c3f::85e1:79f2:9122:5234`, eight groups plus `::`) reports the suffix, so its first group stays visible. The whole-run rule that would fix the first case also swallows the label in `id:fe80::1`, since `netip` parses `d:fe80::1`. Against Presidio's IP cases, the exact-span misses are span conventions, not missed addresses: CIDR suffixes (`/24`) and zone IDs (`%eth0`) are outside our span; the unspecified `::` is not redacted by design; and a URL containing an IPv6 host wins the overlap, so the address is redacted inside the URL span. The IP scan is linear, and so is the card-versus-IBAN containment check (`checksum.inside`, binary search).
 
@@ -967,10 +1167,10 @@ The [capitalone/fpe](https://github.com/capitalone/fpe) library (FF1/FF3 per NIS
 ## Testing Strategy
 
 ### Golden Dataset
-- ~500 hand-labeled samples — **556 exist** in `testdata/golden/seed.json`
-  (353 positive, 200 negative), past the ~500 target
+- ~500 hand-labeled samples — **655 exist** in `testdata/golden/seed.json`
+  (412 positive, 243 negative), past the ~500 target
 - CI regression testing on every commit: `golden/accuracy_test.go` gates on
-  precision/recall thresholds and fails if the dataset drops below 556 cases (ratcheted with each batch)
+  precision/recall thresholds and fails if the dataset drops below 655 cases (ratcheted with each batch)
 - Precision/recall/F1 per entity type, plus aggregate, under two matching
   policies (exact span and byte overlap)
 
@@ -1003,7 +1203,7 @@ proves nothing.
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 556-case seed (past the ~500 target); the corpora are measured on demand instead |
+| **1 (MVP)** | Core interfaces + regex + checksum + 4 operators + context boosting + structured + golden dataset | **SHIPPED**, except: the CI golden set is a 655-case seed (past the ~500 target); the corpora are measured on demand instead |
 | 2 | NLP recognizer (prose) | SHIPPED (sidecar module + opt-in client; Phases A/B/D of the NLP plan) |
 | 3 | Secret recognizers (patterns + entropy) | SHIPPED |
 | 4 | FPE operator | **SHIPPED** (`operators/fpe.go`, commit `15d4db8`) |
@@ -1037,3 +1237,23 @@ proves nothing.
 - [x] Structured data CSV processing working
 - [x] Full test suite passes
 - [x] README with usage examples
+
+## Law-related redaction (2026-11-23, batch 3b)
+
+Four additions, all on the default pipeline except the term recognizer.
+
+- **`CUSTOM_TERM` and `recognizers/terms`.** A caller passes its own terms (client names, party names, matter codes). Matching is case-insensitive, whole-term only (no letter or digit on either side), whitespace-tolerant, and longest-first; offsets are byte offsets; `New` rejects an empty or blank term. Every match scores 1.00 and wins every overlap (`winsOverlap`, first rule). The term recognizer is not in `newScrubber`; a caller adds it with `WithRecognizer`. Redaction shares one marker per canonical value (`canonicalValue` ignores case and whitespace-run length for this type).
+- **`CASE_NUMBER` and `recognizers/legal`.** On by default. Bare shapes at 0.90 (US federal, Singapore Supreme, State Courts and tribunal forms); a label-gated generic form at 0.85 for everything else, including Malaysian judgment forms. Neutral citations are negatives. It joins the keyword-gated group: it beats PHONE and loses to CREDIT_CARD. The sources and their gaps are in SOURCES.md.
+- **`MONEY` and `recognizers/finance`.** On by default. A symbol or ISO code next to an amount, scoring 0.85. It loses every overlap to any other type (`winsOverlap`, second rule). A bare number is never MONEY. The amount reads a dot decimal, a one-or-two-digit decimal comma, thousands commas and a scale word. Byte offsets with multi-byte symbols are checked through `Redact`.
+- **Legal role words.** `internal/context` boosts PERSON and ORGANIZATION next to role words (English and Malay). Boost is opt-in, so default output is unchanged.
+
+**Seed.** 26 cases added (CASE_NUMBER: 9 positive, 5 negative; MONEY: 8 positive, 5 negative, including the neutral-citation negatives and a legal paragraph with a party name, a case number and a settlement amount, with only the detectable spans labelled). Three existing cases now carry MONEY labels: `neg-currency-amount`, `neg-currency-codes` and `neg-decimal-comma-price` (real amounts; the ids are unchanged). Gate: exact P=1.0000 R=1.0000 (tp=449 fp=0 fn=0), 243 of 243 negatives clean, 655 cases (minCases 629 to 655).
+
+**Corpora (`make corpus`, same revisions as the 2026-11-22 entry).** In-schema numbers did not change. Before and after, the in-schema rows read:
+
+- nemotron-pii, exact-span match: P=0.8841 R=0.3326 F1=0.4833 (tp=3434 fp=450 fn=6892); negatives 35 clean of 44.
+- gretel-pii-finance, exact-span match: P=0.4397 R=0.1192 F1=0.1875 (tp=922 fp=1175 fn=6815); negatives 225 clean of 272.
+
+Neither corpus labels these types, so both are out of schema and are not scored. Out-of-schema counts moved from none to CASE_NUMBER=7 and MONEY=813 (nemotron), and MONEY=4218 (gretel). In nemotron, CASE_NUMBER fires on "Case Number: 23-1597", "Case Number: W-2025-004", "Case number 12345" and similar. MONEY fires on "$50.00" in a stock table, "$25,000" in an advertising budget and similar. In gretel, MONEY fires on "$500" in a payment schedule, "$80 million" in a report and "£500.00" in a table, and it also fires on "USD987654321" inside a SWIFT MT799 message, which is an identifier (see TODO.md).
+
+**Not done.** BAR_NUMBER: no labelled example and no format source, so not implemented (TODO.md).

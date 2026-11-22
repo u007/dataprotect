@@ -277,3 +277,75 @@ func TestWindowAroundMultiByte(t *testing.T) {
 		t.Errorf("left context missing multi-byte prefix: %q", got)
 	}
 }
+
+// A disabled type is dropped entirely, and the rest of the output is untouched.
+func TestDisableEntityTypesDropsType(t *testing.T) {
+	a := New()
+	a.DisableEntityTypes(recognizers.EntityPhone)
+	a.AddRecognizer(&stubRecognizer{name: "mix", entities: []recognizers.Entity{
+		{Type: recognizers.EntityPhone, Start: 0, End: 10, Text: "x", Confidence: 0.98},
+		{Type: recognizers.EntitySSN, Start: 20, End: 29, Text: "x", Confidence: 0.95},
+	}})
+	entities, err := a.Analyze(context.Background(), strings.Repeat("x", 40))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 || entities[0].Type != recognizers.EntitySSN {
+		t.Errorf("want SSN alone, got %+v", entities)
+	}
+}
+
+// Dropping a type removes it before overlap resolution, so the span it would
+// have won goes to the next recognizer instead of disappearing.
+func TestDisabledTypeDoesNotWinOverlap(t *testing.T) {
+	entitiesFor := func(disable bool) []recognizers.Entity {
+		a := New()
+		if disable {
+			a.DisableEntityTypes(recognizers.EntityCreditCard)
+		}
+		a.AddRecognizer(&stubRecognizer{name: "card", entities: []recognizers.Entity{
+			{Type: recognizers.EntityCreditCard, Start: 0, End: 16, Text: "x", Confidence: 0.99},
+		}})
+		a.AddRecognizer(&stubRecognizer{name: "phone", entities: []recognizers.Entity{
+			{Type: recognizers.EntityPhone, Start: 0, End: 10, Text: "x", Confidence: 0.98},
+		}})
+		entities, err := a.Analyze(context.Background(), strings.Repeat("x", 16))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		return entities
+	}
+	if got := entitiesFor(false); len(got) != 1 || got[0].Type != recognizers.EntityCreditCard {
+		t.Fatalf("baseline: want CREDIT_CARD alone, got %+v", got)
+	}
+	got := entitiesFor(true)
+	if len(got) != 1 || got[0].Type != recognizers.EntityPhone {
+		t.Errorf("with CREDIT_CARD disabled: want PHONE on the span, got %+v", got)
+	}
+}
+
+// A weak candidate of a disabled type never reaches the judge and is never
+// reported, even if the judge would confirm it.
+type countingJudge struct{ calls int }
+
+func (c *countingJudge) Judge(ctx context.Context, entityType recognizers.EntityType, candidate, window string) (bool, error) {
+	c.calls++
+	return true, nil
+}
+
+func TestDisabledTypeNeverReachesJudge(t *testing.T) {
+	judge := &countingJudge{}
+	a := New()
+	a.DisableEntityTypes(recognizers.EntityMYIC)
+	a.SetLLMJudge(judge)
+	a.AddRecognizer(&stubRecognizer{name: "ic", entities: []recognizers.Entity{
+		{Type: recognizers.EntityMYIC, Start: 0, End: 12, Text: "x", Confidence: 0.50, Weak: true},
+	}})
+	entities, err := a.Analyze(context.Background(), strings.Repeat("x", 12))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if judge.calls != 0 || len(entities) != 0 {
+		t.Errorf("judge calls=%d entities=%+v, want 0 and none", judge.calls, entities)
+	}
+}

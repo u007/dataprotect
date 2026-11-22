@@ -468,3 +468,40 @@ func TestRedactOverlappingEntitiesError(t *testing.T) {
 		t.Fatalf("expected an error for overlapping spans")
 	}
 }
+
+// TestRedactCustomTermSpellingsShareMarker: a caller's term that differs only in
+// case or in the amount of whitespace inside it is one value, so the spellings
+// share one CUSTOM_TERM marker. A different term gets the next number.
+func TestRedactCustomTermSpellingsShareMarker(t *testing.T) {
+	a := New()
+
+	text := "Falcon Deal, falcon  deal, and Tan Ah\nKow vs Tan Ah Kow"
+	entities := []recognizers.Entity{
+		span(text, "Falcon Deal", recognizers.EntityCustomTerm),
+		span(text, "falcon  deal", recognizers.EntityCustomTerm),
+		span(text, "Tan Ah\nKow", recognizers.EntityCustomTerm),
+		span(text, "Tan Ah Kow", recognizers.EntityCustomTerm),
+	}
+
+	got, err := a.Redact(context.Background(), text, entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "[[redactedcustomterm1]], [[redactedcustomterm1]], and [[redactedcustomterm2]] vs [[redactedcustomterm2]]"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// TestCanonicalValueCustomTerm pins the canonical form directly.
+func TestCanonicalValueCustomTerm(t *testing.T) {
+	for in, want := range map[string]string{
+		"Tan Ah Kow":    "tan ah kow",
+		"TAN  AH\tKOW":  "tan ah kow",
+		" Tan Ah\nKow ": "tan ah kow",
+	} {
+		if got := canonicalValue(recognizers.EntityCustomTerm, in); got != want {
+			t.Errorf("canonicalValue(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

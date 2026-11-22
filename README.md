@@ -10,7 +10,7 @@ piiscrub has no language model of its own. Detection is regex and checksum based
 
 As implemented, the scope is:
 
-- It detects the 19 entity types listed under "Entity types" below.
+- It detects the entity types listed under "Entity types" below. `CUSTOM_TERM` is reported only for terms the caller supplies.
 - Malaysia and Singapore passports are matched only next to a passport keyword. Thai passports are not covered.
 - Bare domains such as `microsoft.com` are not detected. Phone numbers in national formats (Israel, Japan, UK) are not matched.
 - It is not a formal privacy tool. It gives no k-anonymity or differential-privacy guarantee, and it handles English text only (SPEC.md, "Non-goals").
@@ -137,7 +137,7 @@ Recognizers are added with `AddRecognizer`. Each one reports entities, and `Anal
 
 ### Entity types
 
-These are the 19 types in `recognizers.AllEntityTypes`. The "Scrubber" column is the operator `NewScrubber` applies by default.
+These are the 38 types in `recognizers.AllEntityTypes`. `CUSTOM_TERM` has no recognizer in the default pipeline; see "Caller-supplied terms" below. The "Scrubber" column is the operator `NewScrubber` applies by default.
 
 | Type | Detected by | Method and limits | Scrubber operator |
 |---|---|---|---|
@@ -160,6 +160,25 @@ These are the 19 types in `recognizers.AllEntityTypes`. The "Scrubber" column is
 | `SG_PASSPORT` | `national.NewSGPassportRecognizer` | E or K, seven digits and a letter, next to a passport keyword | redact |
 | `PH_TIN` | `national.NewPHTINRecognizer` | Philippine TIN, nine digits in three groups with an optional three-digit branch. The NIRC §236 checksum formula is not verified | redact |
 | `IN_GSTIN` | `national.NewINGSTINRecognizer` | Indian GSTIN, 15-character shape with the mod-36 check digit; the primary GSTN document is unconfirmed | redact |
+| `SWIFT_BIC` | `finance.NewSWIFTBICRecognizer` | Keyword-gated (SWIFT, BIC, SWIFT/BIC, SWIFT code, BIC code). ISO 9362 shape, 8 or 11 characters, uppercase. The country code is any two letters, so non-IBAN countries such as US are accepted. Scores 0.85 | redact |
+| `US_ROUTING` | `finance.NewUSRoutingRecognizer` | Keyword-gated (routing number, routing no, routing transit number, ABA, RTN). Nine digits, ABA checksum and an assigned prefix range. Scores 0.85 | redact |
+| `CARD_CVV` | `finance.NewCardCVVRecognizer` | Keyword-gated (CVV, CVV2, CVC, CVC2, CID, CSC, CAV, security code, card verification). Three or four digits with no digit adjacent. Scores 0.85 | redact |
+| `BANK_ACCOUNT` | `finance.NewBankAccountRecognizer` | Keyword-gated (account number, account no, acct number, bank account, BBAN). No universal shape: up to four leading letters, then 8 to 34 characters of digits and hyphens. Scores 0.85 | redact |
+| `PIN` | `finance.NewPINRecognizer` | Keyword-gated (PIN). Four, six or eight digits, the lengths seen in the corpora. Scores 0.85 | redact |
+| `TAX_ID` | `identity.NewTaxIDRecognizer` | Keyword-gated (tax id, TIN, ITIN, EIN, employer identification number, taxpayer id). EIN with an IRS-assigned prefix, or NNN-NN-NNNN, or a letter and eight digits. Scores 0.85; in default output an NNN-NN-NNNN value is reported as SSN | redact |
+| `PASSPORT` | `identity.NewPassportRecognizer` | Keyword-gated (passport, passport number, passport no). Nine digits or a letter and eight digits. Loses to MY_PASSPORT and SG_PASSPORT. Scores 0.85 | redact |
+| `DRIVER_LICENSE` | `identity.NewDriverLicenseRecognizer` | Keyword-gated (driver's license, driving licence, DL number). Optional letters, then digits and hyphens. Scores 0.85 | redact |
+| `DATE_OF_BIRTH` | `identity.NewDateOfBirthRecognizer` | Keyword-gated (date of birth, DOB, birth date, born on). ISO, dd/mm/yyyy, or a month-name date. Reports the date only. Scores 0.85 | redact |
+| `LEI` | `finance.NewLEIRecognizer` | ISO 17442 Legal Entity Identifier: 18 alphanumerics and two digits, MOD-97-10 check. No keyword; scores 0.90 | redact |
+| `ISIN` | `finance.NewISINRecognizer` | Keyword-gated (ISIN). 12 characters, two letters, nine alphanumerics, Luhn check digit. Scores 0.85 | redact |
+| `ETHEREUM` | `finance.NewEthereumRecognizer` | `0x` plus 40 hex characters. A mixed-case address must pass the EIP-55 Keccak-256 checksum; all-lowercase or all-uppercase is accepted by shape. Scores 0.95 | redact |
+| `IN_PAN` | `national.NewINPANRecognizer` | Keyword-gated (PAN, permanent account number). Ten characters with a holder type in the fourth position. No check formula is published. Scores 0.85 | redact |
+| `SG_UEN` | `national.NewSGUENRecognizer` | Keyword-gated (UEN, unique entity number, business or company registration no). Business, local company and Others forms. The check letter is not published, so shape only. Scores 0.85 | redact |
+| `MY_SSM` | `national.NewMYSSMRecognizer` | Keyword-gated (registration no, company no, SSM, no. syarikat, ROC). 12 digits, or the old form of 1 to 7 digits, a hyphen and a letter. Scores 0.85 | redact |
+| `MY_TIN` | `national.NewMYTINRecognizer` | Keyword-gated (TIN, tax identification number, no. cukai). `IG` plus 9 to 11 digits, or a non-individual code (C, D, E, F and others) plus 9 to 11 digits. Scores 0.85 | redact |
+| `CASE_NUMBER` | `legal.NewCaseNumberRecognizer` | US federal shapes (`23-CV-0001-JFH`, `3:00CR0001-01`), Singapore court forms (`CA/CA 1/2021`, `DC / OC 1 / 2022`, `SCT/10001/2022`) at 0.90, and a label-gated generic form (case no, suit no, guaman no, and others) at 0.85. Neutral citations such as `[2021] SGHC 123` are not matched. Reports the number only | redact |
+| `MONEY` | `finance.NewMoneyRecognizer` | A currency symbol or ISO 4217 code next to an amount (`$1,250.00`, `S$40`, `RM 900`, `EUR 3.5m`, `12,000 USD`). A bare number is never MONEY. Scores 0.85 and loses every overlap | redact |
+| `CUSTOM_TERM` | `terms.New` (caller-supplied) | Terms the caller lists (client names, matter codes). Case-insensitive, whole-term, whitespace-tolerant. Scores 1.00 and wins every overlap. Not in the default pipeline | redact |
 
 The shapes for the national IDs and passports come from the sources in [SOURCES.md](SOURCES.md). The Malaysian and Singapore passport shapes are not confirmed by an official specification.
 
@@ -175,6 +194,31 @@ The shapes for the national IDs and passports come from the sources in [SOURCES.
 
 Pseudonymization is not an operator. It is `Anonymizer.Pseudonymize`, or `Scrubber.Pseudonymize` and `Scrubber.PseudonymizeAll`, and it ignores the configured operators. Numbering is local to each call, so a caller that joins separately pseudonymized texts must restore each one before joining. See SPEC.md, "Core Interfaces".
 
+### Caller-supplied terms
+
+`recognizers/terms` reports every occurrence of terms the caller knows, such as client names, party names, matter codes or deal code names. It is not in the default pipeline, because it needs the caller's list. Add it with `WithRecognizer`:
+
+```go
+r, err := terms.New(recognizers.EntityCustomTerm, "Project Falcon", "Tan Ah Kow", "M-2026-0041")
+if err != nil {
+    return err // a blank term is rejected here
+}
+s := piiscrub.NewScrubber(piiscrub.WithRecognizer(r))
+out, _ := s.Redact(ctx, "Project Falcon (matter M-2026-0041) for tan ah\nkow")
+// [[redactedcustomterm1]] (matter [[redactedcustomterm2]]) for [[redactedcustomterm3]]
+```
+
+Matching is case-insensitive, and a run of whitespace in a term matches any run of whitespace in the text. A term must not be glued to a letter or digit, so `Ann` does not match inside `Anna`. Where terms overlap, the longer one wins. `CUSTOM_TERM` matches are numbered per distinct value: `Project Falcon` and `project  falcon` share `[[redactedcustomterm1]]`. Passing `recognizers.EntityPerson` or `recognizers.EntityOrganization` instead reports the terms under that type.
+
+To turn off the default legal and money recognizers, use `WithoutEntityTypes`:
+
+```go
+s := piiscrub.NewScrubber(piiscrub.WithoutEntityTypes(
+    recognizers.EntityMoney,      // keep amounts in the text
+    recognizers.EntityCaseNumber, // keep case numbers in the text
+))
+```
+
 ### Dedicated redaction
 
 `Scrubber.Redact(ctx, text)` and `Anonymizer.Redact(ctx, text, entities)` replace every detected entity with a typed numbered marker such as `[[redactedperson1]]` or `[[redactedsocialnumber2]]`, numbered per type from 1 in the order the entities appear in text. The same type and the same canonical value share one marker, so a repeated value reads as one thing. Every entity type is redacted, even ones with no operator of their own, so nothing is ever left unredacted; on error the result is empty. Unlike `Anonymize`, `Redact` ignores the configured replace/mask/hash operators and always redacts. It is `Anonymizer.Pseudonymize`, or `Scrubber.Pseudonymize` and `Scrubber.PseudonymizeAll`, and it ignores the configured operators. Numbering is local to each call, so a caller that joins separately pseudonymized texts must restore each one before joining. See SPEC.md, "Core Interfaces".
@@ -183,6 +227,7 @@ Pseudonymization is not an operator. It is `Anonymizer.Pseudonymize`, or `Scrubb
 
 - `WithMinConfidence(t)` on a `Scrubber` (or `analyzer.WithMinConfidence(t)` on an `Analyzer`) keeps an entity when its confidence is at least `t`. The threshold is inclusive. `NewScrubber` uses 0.70. Raising it above 0.80 filters out the NLP types, which score 0.80.
 - `analyzer.WithContextBoost()` raises confidence from surrounding words. It is opt-in, because it changes overlap outcomes. It runs before the threshold and before overlap resolution, and it never lifts a span that overlaps a URL which survives the threshold. `Scrubber` does not enable it; build an `Analyzer` yourself to use it. On the two corpora, exact precision and recall were identical with boosting on and off (SPEC.md, "Core Interfaces" and the corpus measurement).
+- `piiscrub.WithoutEntityTypes(types...)` turns entity types off for a `Scrubber`. Their entities are dropped right after the recognizers run, so a disabled type cannot win an overlap and hide another type's span. It is construction-time only; `analyzer.DisableEntityTypes(types...)` is the same switch on an `Analyzer`.
 - `anonymizer.WithDefaultOperator(op)` sets the operator for types with no `SetOperator` entry. Without it, an entity whose type has no operator is an error. It is never returned unredacted.
 
 ### NLP sidecar (person, organisation, location)
@@ -264,7 +309,7 @@ record.
 
 ### What the NLP path adds
 
-The 14 built-in types are pattern and checksum based, so they cannot see a
+The built-in types are pattern and checksum based, so they cannot see a
 person's name or a company in running text. That is what the NLP path is for.
 These are the actual outputs, measured, not illustrations:
 
@@ -447,7 +492,7 @@ Packages: `analyzer/` (engine and overlap resolution), `anonymizer/` (operators 
 
 ## Datasets and measured results
 
-Measured with `make benchmark`, `make corpus` and `make presidio`; every number in this section comes from those runs or is copied from [SPEC.md](SPEC.md) and [SOURCES.md](SOURCES.md). The seed set is 553 cases (353 positive, 200 negative), and the committed gate re-measures at exact and overlap P=1.0000 R=0.9974 with tp=384 fp=0 fn=1 and 200 of 200 negative cases clean.
+Measured with `make benchmark`, `make corpus` and `make presidio`; every number in this section comes from those runs or is copied from [SPEC.md](SPEC.md) and [SOURCES.md](SOURCES.md). The seed set is 655 cases (412 positive, 243 negative), and the committed gate re-measures at exact and overlap P=1.0000 R=1.0000 with tp=449 fp=0 fn=0 and 243 of 243 negative cases clean.
 
 Updated 2026-10-21: the seed set is now 551 cases, because two bare-provider-token cases were added when the glued-prefix and GitHub-body gaps were closed. The committed gate re-measures at exact and overlap P=1.0000 R=0.9974 with tp=383 fp=0 fn=1, and 199 of 199 negative cases clean. The tables below are left as they were measured on 2026-10-19; the corpus rows were re-measured on 2026-10-21 and carry that date.
 
@@ -461,7 +506,7 @@ Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DAT
 
 | Dataset | Source | Pinned revision | Licence | Rows used | Local path | How to fetch |
 |---|---|---|---|---|---|---|
-| Golden seed set | `testdata/golden/seed.json`, authored in this repository from synthetic text | none; the working tree (see above) | none needed, authored here (DATASET_LICENSES.md, "Provenance") | 553 cases: 353 positive, 200 negative | `testdata/golden/` (committed) | nothing to fetch |
+| Golden seed set | `testdata/golden/seed.json`, authored in this repository from synthetic text | none; the working tree (see above) | none needed, authored here (DATASET_LICENSES.md, "Provenance") | 655 cases: 412 positive, 243 negative | `testdata/golden/` (committed) | nothing to fetch |
 | Nemotron-PII | [nvidia/Nemotron-PII](https://huggingface.co/datasets/nvidia/Nemotron-PII) | `b70ffaf5ff39e079776134c5bf4381f00a9fd1ed` | CC-BY-4.0 (attribution) | 2000 of 100000 rows, test split, file order | `testdata/external/nemotron-pii/` | `scripts/fetch-dataset.sh fetch nemotron-pii`, or `make download` |
 | Gretel synthetic PII finance (multilingual) | [gretelai/synthetic_pii_finance_multilingual](https://huggingface.co/datasets/gretelai/synthetic_pii_finance_multilingual) | `7b844d16738527a04264f50214cb426a4cea0897` | Apache-2.0 with NOTICE (attribution) | 2000 of 5596 rows, `combined_test` split only | `testdata/external/gretel-pii-finance/` | `scripts/fetch-dataset.sh fetch gretel-pii-finance`, or `make download` |
 | Microsoft Presidio test cases | [microsoft/presidio](https://github.com/microsoft/presidio) | `2523c7b74a469270c5c78bb253f140eafca21e31` | MIT | 592 cases from 601 rows, ten modules; 9 rows set aside | `testdata/external/presidio/` | `make presidio` (clones at the pin and extracts with `scripts/presidio_extract.py`) |
@@ -472,14 +517,14 @@ Corpora are fetched into `testdata/external/` (gitignored). Set `DATAPROTECT_DAT
 
 | Dataset | Cases | Match | Precision | Recall | F1 | tp / fp / fn |
 |---|---|---|---|---|---|---|
-| Golden seed | 556 | exact span | 1.0000 | 1.0000 | 1.0000 | 385 / 0 / 0 |
-| Golden seed | 556 | byte overlap | 1.0000 | 1.0000 | 1.0000 | 385 / 0 / 0 |
-| Nemotron-PII | 2000 | exact span | 0.8357 | 0.2886 | 0.4290 | 2655 / 522 / 6546 |
-| Nemotron-PII | 2000 | byte overlap | 0.8455 | 0.2919 | 0.4340 | 2686 / 491 / 6515 |
-| Gretel PII finance | 2000 | exact span | 0.3816 | 0.0957 | 0.1530 | 696 / 1128 / 6576 |
-| Gretel PII finance | 2000 | byte overlap | 0.3986 | 0.1000 | 0.1599 | 727 / 1097 / 6545 |
+| Golden seed | 655 | exact span | 1.0000 | 1.0000 | 1.0000 | 449 / 0 / 0 |
+| Golden seed | 655 | byte overlap | 1.0000 | 1.0000 | 1.0000 | 449 / 0 / 0 |
+| Nemotron-PII | 2000 | exact span | 0.8841 | 0.3326 | 0.4833 | 3434 / 450 / 6892 |
+| Nemotron-PII | 2000 | byte overlap | 0.8921 | 0.3356 | 0.4877 | 3465 / 419 / 6861 |
+| Gretel PII finance | 2000 | exact span | 0.4397 | 0.1192 | 0.1875 | 922 / 1175 / 6815 |
+| Gretel PII finance | 2000 | byte overlap | 0.4549 | 0.1233 | 0.1940 | 954 / 1143 / 6783 |
 
-Negative cases with no detection: seed 200 of 200; Nemotron-PII 52 of 71; gretel 231 of 280.
+Negative cases with no detection: seed 243 of 243; Nemotron-PII 35 of 44; gretel 225 of 272. The corpus rows are measured with the finance and identity labels mapped (SPEC.md, the 2026-11-22 addenda). The table is the regex-only pipeline; the corpus numbers before the finance and identity labels were mapped are in SPEC.md.
 
 The corpus recall fell from the 0.8916 / 0.8201 published before 2026-10-20 because PERSON, ORGANIZATION and LOCATION became in-scope gold on that date (they are detectable only through the NLP sidecar), and this table is the regex-only pipeline, which detects none of them: nemotron carries 3275 PERSON, 1988 LOCATION and 1018 ORGANIZATION false negatives. Scored with the sidecar, the same samples give exact P=0.4376 R=0.4135 — see SPEC.md, "NLP Sidecar".
 
@@ -492,14 +537,14 @@ Exact span, per type. A dash means the corpus schema does not label that type. D
 | Type | Seed cases (gold spans) | Seed P / R (tp / fp / fn) | Nemotron-PII P / R | Gretel P / R |
 |---|---|---|---|---|
 | `EMAIL` | 51 (57) | 1.0000 / 1.0000 (57 / 0 / 0) | 0.9975 / 0.9975 | 0.3281 / 0.8060 |
-| `PHONE` | 54 (58) | 1.0000 / 0.9828 (57 / 0 / 1) | 0.5679 / 0.9982 | 0.2857 / 0.8580 |
-| `CREDIT_CARD` | 49 (56) | 1.0000 / 1.0000 (56 / 0 / 0) | 0.9405 / 0.9331 | 0.6875 / 0.7719 |
+| `PHONE` | 54 (58) | 1.0000 / 1.0000 (58 / 0 / 0) | 0.5679 / 0.9982 | 0.2857 / 0.8580 |
+| `CREDIT_CARD` | 50 (57) | 1.0000 / 1.0000 (57 / 0 / 0) | 0.9405 / 0.9331 | 0.6875 / 0.7719 |
 | `SSN` | 32 (36) | 1.0000 / 1.0000 (36 / 0 / 0) | 0.8780 / 1.0000 | 0.9787 / 0.8846 |
 | `IP_ADDRESS` | 44 (46) | 1.0000 / 1.0000 (46 / 0 / 0) | 0.9828 / 0.9771 | 0.8400 / 0.9767 |
 | `URL` | 30 (30) | 1.0000 / 1.0000 (30 / 0 / 0) | 0.9900 / 0.9229 | - |
 | `IBAN` | 35 (35) | 1.0000 / 1.0000 (35 / 0 / 0) | - | 0.9556 / 0.9773 |
 | `BITCOIN` | 13 (13) | 1.0000 / 1.0000 (13 / 0 / 0) | - | - |
-| `SECRET` | 34 (34) | 1.0000 / 1.0000 (34 / 0 / 0) | 0.2540 / 0.0804 | 0.5600 / 0.3784 |
+| `SECRET` | 37 (37) | 1.0000 / 1.0000 (37 / 0 / 0) | 0.2540 / 0.0804 | 0.5600 / 0.3784 |
 | `PERSON` | - | - | 0.0000 / 0.0000 | 0.0000 / 0.0000 |
 | `ORGANIZATION` | - | - | 0.0000 / 0.0000 | 0.0000 / 0.0000 |
 | `LOCATION` | - | - | 0.0000 / 0.0000 | 0.0000 / 0.0000 |
@@ -553,7 +598,7 @@ Copied from [SOURCES.md](SOURCES.md) and [DATASET_LICENSES.md](DATASET_LICENSES.
 | secrets-patterns-db | no URL recorded (SPEC.md names GitHub) | No licence recorded | Not located. Not fetched |
 | CoNLL 2025 NER | no URL recorded (SPEC.md names Hugging Face) | Open question; the registry pins `conll2003` instead | Undecided |
 
-The secret recognizer has no external corpus. Its only scored data is the 34 SECRET cases in the seed set. The corpora annotate some secrets under labels outside the type map (gretel `api_key`; nemotron `api_key` and `http_cookie`). Those spans are unlabelled, not scored, so their SECRET detections are out of schema and not scored. Nothing from the Kaggle competition is used yet.
+The secret recognizer has no external corpus. Its only scored data is the 37 SECRET cases in the seed set. The corpora annotate some secrets under labels outside the type map (gretel `api_key`; nemotron `api_key` and `http_cookie`). Those spans are unlabelled, not scored, so their SECRET detections are out of schema and not scored. Nothing from the Kaggle competition is used yet.
 
 ## Known limits
 

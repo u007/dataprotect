@@ -591,34 +591,33 @@ func (v *IBANValidator) Validate(iban string) bool {
 		return false
 	}
 
-	// Move first 4 chars to end
-	rearranged := iban[4:] + iban[:4]
+	// Move first 4 chars to end, then run the ISO 7064 MOD 97-10 check.
+	return Mod97Valid(iban[4:] + iban[:4])
+}
 
-	// Convert letters to numbers (A=10, B=11, ..., Z=35)
-	var numeric strings.Builder
-	for _, c := range rearranged {
-		if c >= 'A' && c <= 'Z' {
-			numeric.WriteString(strconv.Itoa(int(c-'A') + 10))
-		} else if c >= '0' && c <= '9' {
-			numeric.WriteRune(c)
-		} else {
+// Mod97Valid reports whether s passes the ISO/IEC 7064 MOD 97-10 check: each
+// uppercase letter is read as two digits (A=10 ... Z=35), digits as themselves,
+// and the whole number must leave remainder 1 when divided by 97. s is taken
+// as written, with no rearrangement, so the caller moves any check characters
+// first if its format requires that (IBAN does; LEI does not). Any character
+// other than A-Z or 0-9 fails, and so does an empty string.
+func Mod97Valid(s string) bool {
+	if s == "" {
+		return false
+	}
+	remainder := 0
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c >= '0' && c <= '9':
+			remainder = (remainder*10 + int(c-'0')) % 97
+		case c >= 'A' && c <= 'Z':
+			// Two digits per letter, so the running value is shifted by two places.
+			remainder = (remainder*100 + int(c-'A') + 10) % 97
+		default:
 			return false
 		}
 	}
-
-	// Mod-97 check
-	numStr := numeric.String()
-	if len(numStr) < 2 {
-		return false
-	}
-
-	// Process in chunks to avoid overflow
-	remainder := 0
-	for i := 0; i < len(numStr); i++ {
-		digit, _ := strconv.Atoi(string(numStr[i]))
-		remainder = (remainder*10 + digit) % 97
-	}
-
 	return remainder == 1
 }
 

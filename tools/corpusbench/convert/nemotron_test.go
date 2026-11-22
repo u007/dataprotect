@@ -41,6 +41,13 @@ func TestNemotronMapsEachLabelToItsType(t *testing.T) {
 		{"county", recognizers.EntityLocation},
 		{"postcode", recognizers.EntityLocation},
 		{"street_address", recognizers.EntityLocation},
+		{"swift_bic", recognizers.EntitySWIFTBIC},
+		{"bank_routing_number", recognizers.EntityUSRouting},
+		{"account_number", recognizers.EntityBankAccount},
+		{"cvv", recognizers.EntityCardCVV},
+		{"pin", recognizers.EntityPIN},
+		{"tax_id", recognizers.EntityTaxID},
+		{"date_of_birth", recognizers.EntityDateOfBirth},
 	}
 
 	const prefix = "contact "

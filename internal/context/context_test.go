@@ -172,3 +172,40 @@ func TestContainsWord(t *testing.T) {
 		})
 	}
 }
+
+// TestLegalRoleWordsBoostPartyNames checks that a PERSON or ORGANIZATION next to
+// a legal role word is boosted, in English and Malay, and that the words do not
+// boost other types.
+func TestLegalRoleWordsBoostPartyNames(t *testing.T) {
+	for _, tc := range []struct {
+		text string
+		typ  recognizers.EntityType
+		span string
+	}{
+		{"The plaintiff Tan Ah Kow sued.", recognizers.EntityPerson, "Tan Ah Kow"},
+		{"Lessee Acme Pte Ltd agreed.", recognizers.EntityOrganization, "Acme Pte Ltd"},
+		{"Perayu Ali bin Abu filed.", recognizers.EntityPerson, "Ali bin Abu"},
+		{"Pemohon Siti binti Omar ialah", recognizers.EntityPerson, "Siti binti Omar"},
+	} {
+		start := strings.Index(tc.text, tc.span)
+		end := start + len(tc.span)
+		if got := BoostConfidence(tc.text, tc.typ, start, end); got != 0.1 {
+			t.Errorf("%q: boost %v, want 0.1", tc.text, got)
+		}
+	}
+	text := "Plaintiff reached john@example.com today."
+	start := strings.Index(text, "john@example.com")
+	if got := BoostConfidence(text, recognizers.EntityEmail, start, start+len("john@example.com")); got != 0 {
+		t.Errorf("legal word boosted EMAIL by %v", got)
+	}
+}
+
+// TestLegalRoleWordsNeedWordBoundary: a role word inside a longer word does not
+// boost a neighbouring name.
+func TestLegalRoleWordsNeedWordBoundary(t *testing.T) {
+	text := "Counselling Tan Ah Kow today."
+	start := strings.Index(text, "Tan Ah Kow")
+	if got := BoostConfidence(text, recognizers.EntityPerson, start, start+len("Tan Ah Kow")); got != 0 {
+		t.Errorf("boost %v from \"counselling\", want 0", got)
+	}
+}

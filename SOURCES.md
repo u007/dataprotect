@@ -176,6 +176,85 @@ Each rule's source is listed with what it supports and what it does not.
 | Regula (blog, template database) | None used | Public pages give no format. The reference database is subscription-only. |
 | HTR NControl / htrcli | Reading PRADO pages (extension and managed Chrome) | Tool, not a source. |
 
+## Finance identifiers (cited 2026-11-22)
+
+The three provider pages below were fetched on 2026-11-22 by the orchestrating
+session. The facts recorded in the code comments are the quoted page text.
+
+| Format | Source | Used for |
+|---|---|---|
+| ISO 9362 (BIC) | https://en.wikipedia.org/wiki/ISO_9362 | `SWIFT_BIC` shape: 8 or 11 characters; 4-letter institution, 2-letter country, 2-character location, optional 3-character branch ("XXX" primary) |
+| ABA routing transit number | https://en.wikipedia.org/wiki/ABA_routing_transit_number | `US_ROUTING`: nine digits, checksum 3(d1+d4+d7)+7(d2+d5+d8)+(d3+d6+d9) mod 10 = 0, prefix 00-12, 21-32, 61-72 or 80 |
+| Card security code | https://en.wikipedia.org/wiki/Card_security_code | `CARD_CVV`: three digits (Visa, Mastercard, Discover, JCB, Diners), four digits (American Express) |
+
+`BANK_ACCOUNT` and `PIN` have no provider source. Their shapes come only from the
+labelled corpus values below, as the project rule requires. The keyword lists come
+from the words that precede those values.
+
+**Country codes for SWIFT_BIC.** The IBAN country table in
+`recognizers/checksum/iban_length.go` lists IBAN countries only. It has no US, SG
+or MY, and the corpora label BICs in US (84 nemotron, 29 gretel), so the table is
+not used. Any two uppercase letters are accepted as the country code.
+
+**Corpus-derived shapes (testdata/external, unlabelled spans, read 2026-11-22).**
+These counts describe the spans as the converter recorded them before the labels
+were mapped. Counts are from the converted `cases-*.json` files.
+
+| Type | Corpus label | Values | Observed shape | Match to the rule |
+|---|---|---|---|---|
+| SWIFT_BIC | gretel `swift_bic_code` | 76 | all 11 characters, 4 letters + 2 letters + 2 alnum + 3 alnum; countries US 29, DE 25, GB 22 | 76 of 76 |
+| SWIFT_BIC | nemotron `swift_bic` | 96 | 8 to 12 characters (8: 8, 9: 7, 10: 7, 11: 66, 12: 8); countries US 84 | 74 of 96 |
+| US_ROUTING | gretel `bank_routing_number` | 56 | all 9 digits; 6 pass the checksum, 1 passes checksum and prefix | 1 of 56 |
+| US_ROUTING | nemotron `bank_routing_number` | 182 | all 9 digits; 24 pass the checksum, 24 pass checksum and prefix | 24 of 182 |
+| CARD_CVV | gretel `credit_card_security_code` | 55 | all 3 digits | 55 of 55 (no 4-digit value in corpus) |
+| CARD_CVV | nemotron `cvv` | 88 | all 3 digits | 88 of 88 (no 4-digit value in corpus) |
+| BANK_ACCOUNT | gretel `bban` | 53 | 48 values of 18 characters (4 letters then 14 digits), 3 of 20 digits, 1 of 14, 1 of 23 | 53 of 53 with `[A-Z]{0,4}\d[A-Z\d-]{6,28}\d` |
+| BANK_ACCOUNT | nemotron `account_number` | 337 | lengths 8 to 32; 237 digits with optional hyphens; the rest have one or two leading letters | 329 of 337 with the same shape |
+| PIN | gretel `account_pin` | 47 | 4 digits (27), 6 digits (20) | 47 of 47 with 4, 6 or 8 digits |
+| PIN | nemotron `pin` | 122 | 4 digits (40), 6 digits (80), 8 digits (2) | 122 of 122 |
+
+**Keyword evidence.** Counts are the nearest keyword in the 30 characters before
+each value, from the same converted spans.
+
+| Type | Keyword words found before the value |
+|---|---|
+| SWIFT_BIC | gretel: "swift bic code" 26, "swift" 7, "swift/bic code" 4, "swift code" 2, "bic" 1; nemotron: "swift bic" 84, "swift bic code" 4, "bic code" 1, "bic" 1. 36 gretel values had none. |
+| US_ROUTING | gretel: "routing number" 26, "routing" 1; nemotron: "routing number" 164. 29 gretel and 18 nemotron values had none. |
+| CARD_CVV | gretel: "security code" 24; nemotron: "cvv" 81. 31 gretel and 7 nemotron values had none. |
+| BANK_ACCOUNT | gretel: "bban" 14, "bank account" 5, "account number" 5; nemotron: "account number" 294, "account" 10, "bank account" 2. 29 gretel and 31 nemotron values had none. |
+| PIN | gretel: "pin" 31; nemotron: "pin" 103. 16 gretel and 19 nemotron values had none. |
+
+The keyword lists in the code are the labels above plus their common spellings
+(`CVV2`, `CVC`, `CVC2`, `CID`, `CSC`, `CAV`, `card verification`, `routing no`,
+`routing transit number`, `RTN`, `ABA`, `acct number`, `SWIFT/BIC`). The spellings
+with no corpus evidence are a 2026-11-22 decision, not corpus evidence.
+
+## Identity identifiers (2026-11-22)
+
+Four keyword-gated types in `recognizers/identity`: `TAX_ID`, `PASSPORT`,
+`DRIVER_LICENSE` and `DATE_OF_BIRTH`. Each scores 0.85 and reports the value (for
+`DATE_OF_BIRTH`, the date) only. Counts below are from the converted corpora
+(`make corpus-convert` output, before the identity labels were mapped, read from
+the `unlabelled` arrays); the shapes are the ones the labelled values show.
+
+| Type | Source | Used for |
+|---|---|---|
+| `TAX_ID`, EIN | https://www.irs.gov/businesses/small-businesses-self-employed/how-eins-are-assigned-and-valid-ein-prefixes (fetched 2026-11-22) | Two-digit prefix limited to 01-06, 10-16, 20-27, 30-48, 50-68, 71-77, 80-88, 90-95, 98, 99. The page gives no dash layout; `NN-NNNNNNN` is from the corpus. |
+| `TAX_ID`, ITIN | https://en.wikipedia.org/wiki/Individual_Taxpayer_Identification_Number (fetched 2026-11-22, citing IRS Publication 1915) | Format 9XX-XX-XXXX. The fourth and fifth digit ranges (50-65, 70-88, 90-92, 94-99) are documented here but not enforced; see below. |
+
+Corpus evidence, one line per type:
+
+- **TAX_ID, nemotron `tax_id` (31 values).** Shapes: `NNN-NN-NNNN` 23, `NN-NNNNNNN` 5 (prefixes 43, 32, 47, 48, 45, all valid), `A99999999` 3 (P78359164, P12345678, P18376549). Labels before the value: "tax id" (most), "Tax ID", "tax identification number", "TIN", "employer tax id", "Taxpayer's Tax ID". The gate (label, then at most three closed-list filler words, then the value) reaches 28 of 31. The three misses are "tax identification number for this account is" and "The tax ID number provided is" (`account` and `provided` are not in the closed filler list), and one value under "Parcel Identification Number", which is not a tax label. Only 2 of the 23 `NNN-NN-NNNN` values fall in the ITIN fourth-and-fifth-digit ranges (963-81-7895, 963-72-3812); 21 do not. The rule therefore accepts any `NNN-NN-NNNN` under the keyword rather than enforcing the ITIN range, which would drop 21 labelled values. Gretel has no `tax_id` label. The `NNN-NN-NNNN` shape is matched by the SSN rule at 0.99, and SSN wins the overlap, so default output reports it as `SSN`; `TAX_ID` is reported for those spans only when SSN is disabled (`WithoutEntityTypes(SSN)`, tested in `without_entity_types_test.go`).
+- **PASSPORT, gretel `passport_number` (45 values).** Shapes: nine digits 23, one letter and eight digits 21, and one label glued to digits (not matched). A window survey finds the word `passport` within 45 characters before 30 of 45 values; the rule reports 24 of 45 (the rest need a gate-reachable label). Labels without the word include "access code", "passcode" and "policy number".
+- **DRIVER_LICENSE, gretel `driver_license_number` (49 values).** Shapes: `99-999999-99` 12, `A99999999` 11, `A999-9999-999-9` 10, `AA99999999` 8, `A99-9999-999-99` 8, and every value fits `[A-Z]{0,2}\d[\d-]{6,18}\d`. A window survey finds a licence label ("driver's license", "driving licence", "DL number") within 45 characters before 24 of 49 values; the rule reports 22 of 49. The corpus also labels licence values under "policy number" (4 values) and one under "license plate number"; neither is a licence keyword and neither is listed.
+- **DATE_OF_BIRTH, nemotron `date_of_birth` (269 values).** All 269 are ISO `YYYY-MM-DD`; a window survey finds a birth label before 262 of them, and the rule reports 254.
+- **DATE_OF_BIRTH, gretel `date_of_birth` (84 values).** `dd/mm/yyyy` or `mm/dd/yyyy` 40, ISO 19 (including two single-digit-day forms such as `1980-02-2`), `Month D, YYYY` 10, `D Month YY(YY)` 3. Not dates and not matched: `MM/DD/YYYY` placeholders 7, `Date of Birth` as a value 2, `[Insert DOB]` 1, `_01/01/1990_` 1 (the underscore fails the end boundary), `October 15, 5.1960` 1. The corpus also labels some dates as the generic `date` type, which is not mapped, so those detections are set aside.
+
+The keyword lists are the labels above plus their spellings. The filler list in
+`internal/keyword` is shared by all keyword-gated rules, so a label followed by a
+word outside the list (for example "is provided") is missed; those misses are
+counted above rather than fixed by widening the list.
+
 ## Blocked sources
 
 | Source | Problem | Route to unblock |
@@ -227,3 +306,71 @@ These supersede the "Not located" rows for SecretBench and secrets-patterns-db i
 **Google auth keys (`AQ.`): found 2026-10-21, added 2026-10-22.** The gap was found by the provider-page check on 2026-10-21: Google AI Studio stopped issuing `AIza` keys, so a key created since 2026-05-28 is an "auth key" and an `AIza`-only shape matches none of them. It was left open for a day because no length was available, and inventing one is not accepted here. The length arrived from a merged public scanner rule. gitleaks and TruffleHog were searched first and have nothing: gitleaks master contains no `AQ.` alternative (its only `AQ` hit is the unrelated Yandex `AQVN` key at line 3195 of its config), and TruffleHog's `googlegemini` detector is still `AIzaSy[A-Za-z0-9_-]{33}`. ai-guardian (Red Hat Product Security) merged `google-gemini-auth-key` as `\b(AQ\.[A-Za-z0-9\-_]{35,})` in v1.15.0 (issue #1617, PR #1637, in the CHANGELOG's "30 new secret detection patterns" for Google Gemini API). Its floor of 35 is adopted as written, charset included, so the citation is exact rather than approximate. One measured key corroborates the order of magnitude: `AQ.Ab8…` at 53 characters, 50 of body, reported twice in NousResearch/hermes-agent issue #115356 by someone using it successfully against `generativelanguage.googleapis.com`. Because the body is a floor and the run is consumed greedily, a longer key is still reported whole.
 
 **Licence of gitleaks:** MIT, checked 2026-10-19 from its raw LICENSE file.
+
+
+## Batch 3a identifiers (fetched 2026-11-22)
+
+The seven types below were fetched on 2026-11-22. The quoted page text is what
+the recognizers implement; anything the page does not state is not added (the
+project rule), and each narrowing is named in the recognizer's comment.
+
+| Type | Source | Used for |
+|---|---|---|
+| `LEI` | https://en.wikipedia.org/wiki/Legal_Entity_Identifier | ISO 17442: 20 alphanumerics; characters 1-4 are the issuing LOU, 5-18 the entity string, 19-20 MOD-97-10 check digits (ISO/IEC 7064). Example 54930084UKLVMY22DS16. Shape: 18 of `[A-Z0-9]` then two digits. |
+| `ISIN` | https://en.wikipedia.org/wiki/International_Securities_Identification_Number | Always 12 characters: two letters (ISO 3166-1 alpha-2), nine alphanumerics, one numeric check digit. Letters become two digits by ASCII code minus 55, then Luhn over the digit string. Examples US0378331005, AU0000XVGZA3, GB0002634946. |
+| `IN_PAN` | https://en.wikipedia.org/wiki/Permanent_account_number | Ten characters: letters 1-5, numerals 6-9, letter 10. The 4th character is the holder type, one of A B C F G H L J P T. No check formula is published. Example AAAPZ1234C. |
+| `ETHEREUM` | https://eips.ethereum.org/EIPS/eip-55 (EIP-55, Mixed-case checksum address encoding) | `0x` plus 40 hex characters. Mixed case must match the checksum: Keccak-256 of the lowercase hex string, a letter is uppercase when its hash nibble is 8 or more. All-lowercase and all-uppercase addresses carry no checksum. Keccak-256 is the original Keccak (padding 0x01), not FIPS 202 SHA3-256; `crypto/sha3` exposes only the SHA-3 functions, so the permutation is implemented in `recognizers/checksum/keccak.go`. |
+| `SG_UEN` | OECD, "Singapore - Information on Tax Identification Numbers", Section II, https://www.oecd.org/tax/automatic-exchange/crs-implementation-and-assistance/tax-identification-numbers/Singapore-TIN.pdf | UEN Business `NNNNNNNNC` (9 characters); UEN Local Company `YYYYNNNNNC` (10); UEN Others `SYYPQNNNNC` or `TYYPQNNNNC` (10). C is a check alphabet, the check algorithm is not published. Narrowings: the year is 19xx or 20xx, C is any uppercase letter. Foreign-company (F000, FDDD) and ASGD/ITR forms are not covered. |
+| `MY_SSM` | https://www.ssm.com.my/Lists/Announcement/AnnouncementDetails.aspx?ID=134 | Registration number of 12 digit characters for companies, businesses and LLPs from 11 October 2019; example "Registration No: 201901000005 (1312525-A)". The old form is 1 to 7 digits, a hyphen and one uppercase letter. Digit groups are not validated; the announcement does not state their meaning. |
+| `MY_TIN` | IRBM / OECD, "Malaysia - Information on Tax Identification Numbers", updated March 2023, https://www.hasil.gov.my/wp-content/uploads/malaysia-tin.pdf, Section II | Individual `IG` plus 9 to 11 digits (examples IG115002000, IG4040080091, IG56003500070). Non-individual codes C, CS, D, E, F, FA, PT, TA, TC, TN, TR, TP, J, LE plus digits (examples C20880050010, D4800990020, E91005500060, F10234567090). Earlier prefixes SG and OG were "converted to IG" and are not accepted. A 0 was appended to earlier numbers from 2 January 2023. |
+
+**Narrower readings, chosen where a source is ambiguous.** `SG_UEN` takes the
+year as 19xx or 20xx. `MY_TIN` accepts only `IG` for individuals, not `SG` or
+`OG`. `MY_SSM` reports the old form only after a label, because the announcement
+gives it in parentheses, not as a labelled number. `LEI` and `ETHEREUM` use the
+shape plus the stated check; `ISIN` uses the Luhn check and a keyword, since the
+check passes about one candidate in ten.
+
+
+## Batch 3b law-related redaction (CASE_NUMBER, MONEY, CUSTOM_TERM)
+
+**Provenance.** The pages below were fetched on 2026-11-22 and the quotes are
+the fetched page text. The unverified items are named in the table notes.
+
+### CASE_NUMBER (`recognizers/legal`)
+
+| Court or form | Source | Used for |
+|---|---|---|
+| US federal district courts | https://www.oknd.uscourts.gov/case_assignment_and_numbering ; https://www.oked.uscourts.gov/node/214 | Two-digit year, type "CV (Civil), CR (Criminal), or MC (Miscellaneous)", sequence "four digit (civil), or three digit (criminal and miscellaneous)", optional judge and magistrate initials. Examples 23-CV-0001, 23-CV-0001-JFH, 23-CV-0001-JFH-JFJ, 99-CV-0001-RAW-KEW. |
+| US District of South Carolina | https://www.scd.uscourts.gov/Filing/casenum.asp | One-digit division, colon, two-digit year, type, four-digit sequence, then hyphen and defendant number or judge initials. Examples 3:00CV0001-JFA-PJG, 3:00CR0001-01, 3:00CV0001. |
+| US District of Florida, Middle | https://www.flmd.uscourts.gov/understanding-case-designation | Case types cv, cr, mc, md, mj. |
+| US District of Oregon | https://www.ord.uscourts.gov/index.php/filing-and-forms/cm-ecf/user-manual/187-section-5-electronic-filing-protocols/2082-the-court-s-case-numbering-system | Division code before a colon, year, hyphen, two-letter type, sequence starting at 1, judge initials appended. |
+| Singapore Supreme Court | Supreme Court Practice Directions 2021, para 95, https://epd2021-supremecourt.judiciary.gov.sg/part-11-conduct-of-court-proceedings | "Description of Court/ Type of Application [Case number]/ Year filed". Prefixes CA/CA, AD/CA, CA/OA, AD/OA, HC/OA, HC/OC, CA/SUM, AD/SUM, HC/SUM. |
+| Singapore State Courts | State Courts Practice Directions 2021, para 26, https://epd2021-statecourts.judiciary.gov.sg/part-iii-originating-processes-and-documents | Courts DC, MC, PHC; types OC, OA, SUM, EOA, EO. Examples "DC / OC 1 / 2022", "MC / SUM 1 / 2022". Tribunal forms SCT/10001/2022, ECT/10001/2022, CDT/101/2022, PHC/10001/2022. |
+| Singapore Supreme Court, pre-2022 | Supreme Court PD (Amendment No. 3 of 2020) | **Not verified.** A web search summary (2026-11-22) lists "CA/CA, AD/CA, HC/OS, and SIC/S" as examples. The page text was not checked. HC/OS and SIC/S are accepted only behind a label; HC/S is not accepted. |
+| Malaysia | **No official format page found.** Shape taken from case numbers printed in published judgments: "WA-22NCC-591-11 OF 2022", "WA-22NCC-459-09 OF 2020", "WA-24NCC-131-03/2018", "WA-25-560-12 OF 2019". | Matched only behind a label (the generic keyword form). This is a judgment-print shape, not a specification. |
+| Neutral citations | Not a source of shapes. "[2021] SGHC 123", "[2021] SGCA 5", "[2020] 1 MLJ 123" are public citations of judgments and are negative test cases. | Never matched. |
+
+The label list (case no, suit no, civil action no, docket no, matter no,
+originating summons no, guaman no, guaman sivil no, saman pemula no, rayuan sivil
+no, civil appeal no, criminal appeal no) is a project choice. No source was cited
+for the list itself.
+
+### MONEY (`recognizers/finance`)
+
+| Item | Source | Status |
+|---|---|---|
+| ISO 4217 alpha codes | https://en.wikipedia.org/wiki/ISO_4217 (fetched 2026-11-22) | Quote: "the first two letters of the alpha code are the two letters of the ISO 3166-1 alpha-2 country code". Codes used: USD, EUR, GBP, JPY, CNY, SGD, MYR, INR, THB, PHP, IDR, AUD, CAD, CHF, HKD, SEK. **Only AUD was confirmed against the verbatim table text.** The others come from an extracted summary of the same page. |
+| Ringgit | https://en.wikipedia.org/wiki/Malaysian_ringgit (fetched 2026-11-22) | "symbol: RM; currency code: MYR". |
+| Singapore dollar | https://en.wikipedia.org/wiki/Singapore_dollar (fetched 2026-11-22) | "normally abbreviated with the dollar sign $, or S$". |
+| `€`, `£`, `¥`, `US$` | **Not fetched from any page.** Common symbols, included without a source. | Unfetched. |
+
+### Caller-supplied terms and role words
+
+`CUSTOM_TERM` and `terms.New` have no external source; the behaviour is the
+package's own specification (see `recognizers/terms/terms.go`). The legal role
+words added to `internal/context` are a project list (plaintiff, defendant,
+claimant, respondent, appellant, applicant, petitioner, borrower, lender,
+guarantor, lessor, lessee, licensor, licensee, vendor, purchaser, trustee,
+beneficiary, testator, executor, counsel, solicitor, and the Malay plaintif,
+defendan, perayu, responden, pemohon). No external source was cited for the list.

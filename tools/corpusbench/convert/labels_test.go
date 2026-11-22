@@ -261,8 +261,8 @@ func TestCountOverlappingPairsRejectsMissingOffsets(t *testing.T) {
 func TestBuildUnlabelledKeepsOnlyUnmappedSpansInBytes(t *testing.T) {
 	const text = "Zoë paid 555-867-5309 via account 12345"
 	spans := []Span{
-		{Start: 9, End: 21, Label: "phone_number"},    // mapped: not unlabelled
-		{Start: 34, End: 39, Label: "account_number"}, // unmapped: kept
+		{Start: 9, End: 21, Label: "phone_number"},       // mapped: not unlabelled
+		{Start: 34, End: 39, Label: "device_identifier"}, // unmapped: kept
 	}
 	got, err := BuildUnlabelled(text, spans, NemotronLabels)
 	if err != nil {
@@ -272,8 +272,8 @@ func TestBuildUnlabelledKeepsOnlyUnmappedSpansInBytes(t *testing.T) {
 		t.Fatalf("got %d unlabelled spans, want 1: %+v", len(got), got)
 	}
 	u := got[0]
-	if u.Label != "account_number" || u.Value != "12345" {
-		t.Errorf("span = %q %q, want account_number 12345", u.Label, u.Value)
+	if u.Label != "device_identifier" || u.Value != "12345" {
+		t.Errorf("span = %q %q, want device_identifier 12345", u.Label, u.Value)
 	}
 	if *u.Start != 35 || *u.End != 40 {
 		t.Errorf("byte offsets = %d..%d, want 35..40", *u.Start, *u.End)
@@ -285,8 +285,43 @@ func TestBuildUnlabelledKeepsOnlyUnmappedSpansInBytes(t *testing.T) {
 
 // An unlabelled span with a bad offset is an error, not a silent drop.
 func TestBuildUnlabelledFailsFastOnBadOffset(t *testing.T) {
-	spans := []Span{{Start: 0, End: 500, Label: "account_number"}}
+	spans := []Span{{Start: 0, End: 500, Label: "device_identifier"}}
 	if _, err := BuildUnlabelled("short", spans, NemotronLabels); err == nil {
 		t.Fatal("BuildUnlabelled with out-of-range span: want error, got nil")
+	}
+}
+
+// The finance labels added on 2026-11-22 map to the finance types in both
+// corpora. Gretel's bban is the basic bank account number, so it is a bank
+// account; nemotron's account_number is the same type.
+func TestFinanceLabelsMapToFinanceTypes(t *testing.T) {
+	nemo := map[string]recognizers.EntityType{
+		"swift_bic":           recognizers.EntitySWIFTBIC,
+		"bank_routing_number": recognizers.EntityUSRouting,
+		"account_number":      recognizers.EntityBankAccount,
+		"cvv":                 recognizers.EntityCardCVV,
+		"pin":                 recognizers.EntityPIN,
+		"tax_id":              recognizers.EntityTaxID,
+		"date_of_birth":       recognizers.EntityDateOfBirth,
+	}
+	gretel := map[string]recognizers.EntityType{
+		"swift_bic_code":            recognizers.EntitySWIFTBIC,
+		"bank_routing_number":       recognizers.EntityUSRouting,
+		"bban":                      recognizers.EntityBankAccount,
+		"credit_card_security_code": recognizers.EntityCardCVV,
+		"account_pin":               recognizers.EntityPIN,
+		"passport_number":           recognizers.EntityPassport,
+		"driver_license_number":     recognizers.EntityDriverLicense,
+		"date_of_birth":             recognizers.EntityDateOfBirth,
+	}
+	for label, want := range nemo {
+		if got := NemotronLabels[label]; got != want {
+			t.Errorf("nemotron %q -> %q, want %q", label, got, want)
+		}
+	}
+	for label, want := range gretel {
+		if got := GretelLabels[label]; got != want {
+			t.Errorf("gretel %q -> %q, want %q", label, got, want)
+		}
 	}
 }

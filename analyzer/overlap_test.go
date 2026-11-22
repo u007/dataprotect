@@ -232,3 +232,214 @@ func TestDefaultAnalyzerCardNotStolenByPhone(t *testing.T) {
 		t.Errorf("phone stole the card's digits: %v (%+v)", got, entities)
 	}
 }
+
+// Each keyword-gated finance type names its value, so it beats PHONE (0.98)
+// even though it scores lower. The phone span here is a sub-run of the value,
+// so a phone winning would leave the label's value partly visible.
+func TestFinanceTypesBeatPhoneOnOverlap(t *testing.T) {
+	financeTypes := []recognizers.EntityType{
+		recognizers.EntitySWIFTBIC,
+		recognizers.EntityUSRouting,
+		recognizers.EntityCardCVV,
+		recognizers.EntityBankAccount,
+		recognizers.EntityPIN,
+	}
+	for _, ft := range financeTypes {
+		// Finance span earlier than the phone, then later: the winner must not
+		// depend on which span comes first.
+		for _, order := range []struct {
+			name             string
+			finStart, finEnd int
+			phStart, phEnd   int
+		}{
+			{"finance first", 0, 9, 4, 14},
+			{"phone first", 4, 14, 0, 9},
+		} {
+			a := New()
+			a.AddRecognizer(&stubRecognizer{name: "fin", entities: []recognizers.Entity{
+				{Type: ft, Start: order.finStart, End: order.finEnd, Text: "x", Confidence: 0.85},
+			}})
+			a.AddRecognizer(&stubRecognizer{name: "phone", entities: []recognizers.Entity{
+				{Type: recognizers.EntityPhone, Start: order.phStart, End: order.phEnd, Text: "x", Confidence: 0.98},
+			}})
+			entities, err := a.Analyze(context.Background(), "0123456789012345")
+			if err != nil {
+				t.Fatalf("%s/%s: unexpected error: %v", ft, order.name, err)
+			}
+			if len(entities) != 1 || entities[0].Type != ft {
+				t.Errorf("%s/%s: want the finance type alone, got %+v", ft, order.name, entities)
+			}
+		}
+	}
+}
+
+// The finance rule is narrow: it is the PHONE pair only. A finance value that
+// overlaps a higher-confidence non-phone entity still loses on confidence.
+func TestFinanceTypeLosesToHigherConfidenceNonPhone(t *testing.T) {
+	a := New()
+	a.AddRecognizer(&stubRecognizer{name: "fin", entities: []recognizers.Entity{
+		{Type: recognizers.EntityPIN, Start: 0, End: 6, Text: "482913", Confidence: 0.85},
+	}})
+	a.AddRecognizer(&stubRecognizer{name: "ssn", entities: []recognizers.Entity{
+		{Type: recognizers.EntitySSN, Start: 2, End: 9, Text: "x", Confidence: 0.99},
+	}})
+	entities, err := a.Analyze(context.Background(), "482913 ....")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entities) != 1 || entities[0].Type != recognizers.EntitySSN {
+		t.Errorf("want SSN to win on confidence, got %+v", entities)
+	}
+}
+
+// A CREDIT_CARD beats a finance type on overlap at every score, so a CVV or PIN
+// keyword cannot take digits that belong to a card. The CVV here scores higher
+// than the card and still loses.
+func TestCreditCardBeatsFinanceTypesOnOverlap(t *testing.T) {
+	for _, ft := range []recognizers.EntityType{recognizers.EntityCardCVV, recognizers.EntityPIN, recognizers.EntityBankAccount} {
+		for _, order := range []struct {
+			name               string
+			cardStart, cardEnd int
+			finStart, finEnd   int
+		}{
+			{"card first", 0, 16, 12, 16},
+			{"finance first", 12, 16, 0, 16},
+		} {
+			a := New()
+			a.AddRecognizer(&stubRecognizer{name: "card", entities: []recognizers.Entity{
+				{Type: recognizers.EntityCreditCard, Start: order.cardStart, End: order.cardEnd, Text: "x", Confidence: 0.85},
+			}})
+			a.AddRecognizer(&stubRecognizer{name: "fin", entities: []recognizers.Entity{
+				{Type: ft, Start: order.finStart, End: order.finEnd, Text: "x", Confidence: 0.90},
+			}})
+			entities, err := a.Analyze(context.Background(), "4111111111111111")
+			if err != nil {
+				t.Fatalf("%s/%s: unexpected error: %v", ft, order.name, err)
+			}
+			if len(entities) != 1 || entities[0].Type != recognizers.EntityCreditCard {
+				t.Errorf("%s/%s: want CREDIT_CARD alone, got %+v", ft, order.name, entities)
+			}
+		}
+	}
+}
+
+// The identity types (TAX_ID, PASSPORT, DRIVER_LICENSE, DATE_OF_BIRTH) are
+// keyword-gated like the finance types, so each beats PHONE at 0.98 on either
+// side of the overlap, and loses to a CREDIT_CARD at any score.
+func TestIdentityTypesBeatPhoneAndLoseToCardOnOverlap(t *testing.T) {
+	identityTypes := []recognizers.EntityType{
+		recognizers.EntityTaxID,
+		recognizers.EntityPassport,
+		recognizers.EntityDriverLicense,
+		recognizers.EntityDateOfBirth,
+	}
+	for _, it := range identityTypes {
+		for _, order := range []struct {
+			name           string
+			idStart, idEnd int
+			phStart, phEnd int
+		}{
+			{"identity first", 0, 9, 4, 14},
+			{"phone first", 4, 14, 0, 9},
+		} {
+			a := New()
+			a.AddRecognizer(&stubRecognizer{name: "id", entities: []recognizers.Entity{
+				{Type: it, Start: order.idStart, End: order.idEnd, Text: "x", Confidence: 0.85},
+			}})
+			a.AddRecognizer(&stubRecognizer{name: "phone", entities: []recognizers.Entity{
+				{Type: recognizers.EntityPhone, Start: order.phStart, End: order.phEnd, Text: "x", Confidence: 0.98},
+			}})
+			entities, err := a.Analyze(context.Background(), "0123456789012345")
+			if err != nil {
+				t.Fatalf("%s/%s: unexpected error: %v", it, order.name, err)
+			}
+			if len(entities) != 1 || entities[0].Type != it {
+				t.Errorf("%s/%s: want the identity type alone, got %+v", it, order.name, entities)
+			}
+		}
+		for _, order := range []struct {
+			name               string
+			cardStart, cardEnd int
+			idStart, idEnd     int
+		}{
+			{"card first", 0, 16, 12, 16},
+			{"identity first", 12, 16, 0, 16},
+		} {
+			a := New()
+			a.AddRecognizer(&stubRecognizer{name: "card", entities: []recognizers.Entity{
+				{Type: recognizers.EntityCreditCard, Start: order.cardStart, End: order.cardEnd, Text: "x", Confidence: 0.85},
+			}})
+			a.AddRecognizer(&stubRecognizer{name: "id", entities: []recognizers.Entity{
+				{Type: it, Start: order.idStart, End: order.idEnd, Text: "x", Confidence: 0.90},
+			}})
+			entities, err := a.Analyze(context.Background(), "4111111111111111")
+			if err != nil {
+				t.Fatalf("%s/%s: unexpected error: %v", it, order.name, err)
+			}
+			if len(entities) != 1 || entities[0].Type != recognizers.EntityCreditCard {
+				t.Errorf("%s/%s: want CREDIT_CARD alone, got %+v", it, order.name, entities)
+			}
+		}
+	}
+}
+
+// A TAX_ID yields to SSN, PH_TIN and IN_GSTIN on the same span at every score.
+// PH_TIN scores 0.80, below the TAX_ID's 0.85, so confidence alone would hand
+// the span to TAX_ID; the explicit rule keeps PH_TIN. SSN (0.99) and IN_GSTIN
+// (0.90) win on confidence too, and the test pins all three.
+func TestTaxIDYieldsToSpecificTypesOnSameSpan(t *testing.T) {
+	for _, specific := range []struct {
+		typ   recognizers.EntityType
+		score float64
+	}{
+		{recognizers.EntitySSN, 0.99},
+		{recognizers.EntityPHTIN, 0.80},
+		{recognizers.EntityINGSTIN, 0.90},
+	} {
+		for _, order := range []string{"tax id first", "specific first"} {
+			taxID := recognizers.Entity{Type: recognizers.EntityTaxID, Start: 0, End: 11, Text: "x", Confidence: 0.85}
+			other := recognizers.Entity{Type: specific.typ, Start: 0, End: 11, Text: "x", Confidence: specific.score}
+			a := New()
+			if order == "tax id first" {
+				a.AddRecognizer(&stubRecognizer{name: "tax", entities: []recognizers.Entity{taxID}})
+				a.AddRecognizer(&stubRecognizer{name: "spec", entities: []recognizers.Entity{other}})
+			} else {
+				a.AddRecognizer(&stubRecognizer{name: "spec", entities: []recognizers.Entity{other}})
+				a.AddRecognizer(&stubRecognizer{name: "tax", entities: []recognizers.Entity{taxID}})
+			}
+			entities, err := a.Analyze(context.Background(), "12-3456789")
+			if err != nil {
+				t.Fatalf("%s/%s: unexpected error: %v", specific.typ, order, err)
+			}
+			if len(entities) != 1 || entities[0].Type != specific.typ {
+				t.Errorf("%s/%s: want %s alone, got %+v", specific.typ, order, specific.typ, entities)
+			}
+		}
+	}
+}
+
+// A generic PASSPORT yields to MY_PASSPORT and SG_PASSPORT on the same span.
+// All three score 0.85, so the tie would otherwise go to the earlier span.
+func TestGenericPassportYieldsToCountryPassportsOnSameSpan(t *testing.T) {
+	for _, country := range []recognizers.EntityType{recognizers.EntityMYPassport, recognizers.EntitySGPassport} {
+		for _, order := range []string{"generic first", "country first"} {
+			generic := recognizers.Entity{Type: recognizers.EntityPassport, Start: 0, End: 9, Text: "x", Confidence: 0.85}
+			specific := recognizers.Entity{Type: country, Start: 0, End: 9, Text: "x", Confidence: 0.85}
+			a := New()
+			if order == "generic first" {
+				a.AddRecognizer(&stubRecognizer{name: "generic", entities: []recognizers.Entity{generic}})
+				a.AddRecognizer(&stubRecognizer{name: "country", entities: []recognizers.Entity{specific}})
+			} else {
+				a.AddRecognizer(&stubRecognizer{name: "country", entities: []recognizers.Entity{specific}})
+				a.AddRecognizer(&stubRecognizer{name: "generic", entities: []recognizers.Entity{generic}})
+			}
+			entities, err := a.Analyze(context.Background(), "E1234567A")
+			if err != nil {
+				t.Fatalf("%s/%s: unexpected error: %v", country, order, err)
+			}
+			if len(entities) != 1 || entities[0].Type != country {
+				t.Errorf("%s/%s: want %s alone, got %+v", country, order, country, entities)
+			}
+		}
+	}
+}

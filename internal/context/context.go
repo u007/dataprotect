@@ -33,6 +33,22 @@ var BoostContext = map[recognizers.EntityType][]string{
 	recognizers.EntityBitcoin: {
 		"bitcoin", "btc", "wallet", "address",
 	},
+	// Legal role words. A party name next to one of these is a party to a
+	// proceeding or a contract. They are boost words only and never report a span.
+	recognizers.EntityPerson:       legalRoleWords,
+	recognizers.EntityOrganization: legalRoleWords,
+}
+
+// legalRoleWords are the English and Malay role words that mark a PERSON or
+// ORGANIZATION as a party: litigants, contracting parties and fiduciaries. The
+// Malay forms are the court-form spellings (plaintif, defendan, perayu,
+// responden, pemohon).
+var legalRoleWords = []string{
+	"plaintiff", "defendant", "claimant", "respondent", "appellant", "applicant",
+	"petitioner", "borrower", "lender", "guarantor", "lessor", "lessee",
+	"licensor", "licensee", "vendor", "purchaser", "trustee", "beneficiary",
+	"testator", "executor", "counsel", "solicitor",
+	"plaintif", "defendan", "perayu", "responden", "pemohon",
 }
 
 // BoostContextByLanguage holds the non-English keyword sets. A language that

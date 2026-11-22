@@ -20,6 +20,7 @@ type Analyzer struct {
 	contextBoost     bool
 	contextBoostLang string
 	llmJudge         Judge
+	disabled         map[recognizers.EntityType]bool
 }
 
 // Option configures an Analyzer.
@@ -125,6 +126,23 @@ func New(opts ...Option) *Analyzer {
 	return a
 }
 
+// DisableEntityTypes drops every entity of the given types, so they are never
+// reported. It is construction-time only, like SetMinConfidence: calling it
+// concurrently with Analyze is a data race.
+//
+// The filter runs immediately after the recognizers, before context boosting,
+// the judge, the confidence filter and overlap resolution. A disabled type
+// therefore cannot suppress another type's span on overlap: the span it would
+// have won is left to the next-best recognizer.
+func (a *Analyzer) DisableEntityTypes(types ...recognizers.EntityType) {
+	if a.disabled == nil {
+		a.disabled = make(map[recognizers.EntityType]bool, len(types))
+	}
+	for _, t := range types {
+		a.disabled[t] = true
+	}
+}
+
 // AddRecognizer adds a recognizer to the analyzer.
 func (a *Analyzer) AddRecognizer(r recognizers.Recognizer) {
 	a.recognizers = append(a.recognizers, r)
@@ -166,6 +184,18 @@ func (a *Analyzer) Analyze(ctx context.Context, text string) ([]recognizers.Enti
 			return nil, err
 		}
 		allEntities = append(allEntities, entities...)
+	}
+
+	// Drop disabled types before anything else sees them, so they cannot
+	// boost, be judged, pass the threshold or win an overlap.
+	if len(a.disabled) > 0 {
+		kept := allEntities[:0]
+		for _, e := range allEntities {
+			if !a.disabled[e.Type] {
+				kept = append(kept, e)
+			}
+		}
+		allEntities = kept
 	}
 
 	// Quantise every score on the way in, whatever recognizer produced it. The
@@ -418,8 +448,10 @@ func removeOverlapping(entities []recognizers.Entity) []recognizers.Entity {
 // winsOverlap reports whether candidate should survive a direct overlap against
 // current.
 //
-// Confidence decides every pair except CREDIT_CARD against PHONE, where the
-// card always wins. A card window needs 13 or more digits behind a valid
+// Two rules come before the others and hold at every score: a CUSTOM_TERM span
+// wins every overlap (the caller asserted it at 1.00), and a MONEY span loses
+// every overlap (it is the least specific type). Confidence decides the remaining
+// pairs, except CREDIT_CARD against PHONE, where the card always wins. A card window needs 13 or more digits behind a valid
 // network prefix, so when the two collide the phone match is a sub-run of
 // digits the card has already claimed, and the card is the more specific
 // reading of them. Letting confidence decide leaks: a label-gated card scores
@@ -433,6 +465,16 @@ func removeOverlapping(entities []recognizers.Entity) []recognizers.Entity {
 // the card span that replaces it. The phone winning is what loses digits,
 // because the card's leading group begins before the phone match does.
 func winsOverlap(candidate, current recognizers.Entity) bool {
+	// A caller-supplied CUSTOM_TERM is asserted at 1.00 and wins every overlap,
+	// including a CREDIT_CARD or a keyword-gated span that the rules below would
+	// otherwise let beat it. MONEY is the least specific type, so it loses every
+	// overlap to anything else. Both rules come before the pair rules.
+	if candidate.Type == recognizers.EntityCustomTerm || current.Type == recognizers.EntityCustomTerm {
+		return candidate.Type == recognizers.EntityCustomTerm && current.Type != recognizers.EntityCustomTerm
+	}
+	if candidate.Type == recognizers.EntityMoney || current.Type == recognizers.EntityMoney {
+		return current.Type == recognizers.EntityMoney && candidate.Type != recognizers.EntityMoney
+	}
 	cardVsPhone := candidate.Type == recognizers.EntityCreditCard &&
 		current.Type == recognizers.EntityPhone
 	phoneVsCard := candidate.Type == recognizers.EntityPhone &&
@@ -440,5 +482,73 @@ func winsOverlap(candidate, current recognizers.Entity) bool {
 	if cardVsPhone || phoneVsCard {
 		return cardVsPhone
 	}
+	// The keyword-gated types name their value, as the card keyword does, so
+	// each beats PHONE at every score: a phone match over a labelled routing
+	// number, account number, PIN, CVV, tax id, passport number, driver licence
+	// number or date of birth is a sub-run of the value. A CREDIT_CARD also
+	// beats each of them, so a keyword cannot take digits that belong to a card.
+	candKeyword := isKeywordGated(candidate.Type)
+	curKeyword := isKeywordGated(current.Type)
+	if candKeyword && current.Type == recognizers.EntityPhone {
+		return true
+	}
+	if candidate.Type == recognizers.EntityPhone && curKeyword {
+		return false
+	}
+	if candidate.Type == recognizers.EntityCreditCard && curKeyword {
+		return true
+	}
+	if candKeyword && current.Type == recognizers.EntityCreditCard {
+		return false
+	}
+	// A keyword-gated tax id or passport yields to the more specific rule that
+	// claims the same span: SSN, PH_TIN, IN_GSTIN and MY_TIN for a tax id (SSN
+	// scores 0.99 and IN_GSTIN 0.90, but PH_TIN scores 0.80, below 0.85, so
+	// confidence alone would not keep it), and MY_PASSPORT and SG_PASSPORT for a
+	// passport. IN_PAN yields to IN_GSTIN, and MY_IC to MY_SSM, for the same
+	// reason: the specific rule must win whatever the scores.
+	if yields(candidate.Type, current.Type) {
+		return false
+	}
+	if yields(current.Type, candidate.Type) {
+		return true
+	}
 	return candidate.Confidence > current.Confidence
+}
+
+// yields reports whether a keyword-gated type t is outranked by the specific
+// type over on an overlap, whatever the confidence.
+func yields(t, over recognizers.EntityType) bool {
+	switch t {
+	case recognizers.EntityTaxID:
+		return over == recognizers.EntitySSN || over == recognizers.EntityPHTIN ||
+			over == recognizers.EntityINGSTIN || over == recognizers.EntityMYTIN
+	case recognizers.EntityPassport:
+		return over == recognizers.EntityMYPassport || over == recognizers.EntitySGPassport
+	case recognizers.EntityINPAN:
+		return over == recognizers.EntityINGSTIN
+	case recognizers.EntityMYIC:
+		// A 12-digit run is both a MyKad and an SSM number. A labelled SSM number
+		// is MY_SSM, so MY_IC gives way even if the judge promotes its weak
+		// bare-digit candidate to the same score.
+		return over == recognizers.EntityMYSSM
+	}
+	return false
+}
+
+// isKeywordGated reports whether t is one of the keyword-gated types that win
+// an overlap against PHONE and lose one to CREDIT_CARD (see winsOverlap). The
+// banking and identity rules and the national tax and registration rules
+// (ISIN, IN_PAN, SG_UEN, MY_SSM, MY_TIN) all name their value this way.
+func isKeywordGated(t recognizers.EntityType) bool {
+	switch t {
+	case recognizers.EntitySWIFTBIC, recognizers.EntityUSRouting,
+		recognizers.EntityCardCVV, recognizers.EntityBankAccount, recognizers.EntityPIN,
+		recognizers.EntityTaxID, recognizers.EntityPassport,
+		recognizers.EntityDriverLicense, recognizers.EntityDateOfBirth,
+		recognizers.EntityISIN, recognizers.EntityINPAN, recognizers.EntitySGUEN,
+		recognizers.EntityMYSSM, recognizers.EntityMYTIN, recognizers.EntityCaseNumber:
+		return true
+	}
+	return false
 }
